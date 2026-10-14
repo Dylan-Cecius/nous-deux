@@ -1,6 +1,6 @@
 # Préparation de la revue TestFlight — Nous Deux
 
-État du 14 octobre 2026. La build 1.0.0 (6) est en attente de Beta App Review. Les changements de cette branche ne remplacent pas cette build. Aucun retrait, nouvel envoi ni changement de groupe n’a été effectué pendant cet audit.
+État du 14 octobre 2026. Le dernier statut Apple confirmé pour la build 1.0.0 (6) est l’attente de Beta App Review ; les dernières tentatives de lecture ont échoué avec une erreur 401. Les changements de cette branche ne remplacent pas cette build. Aucun retrait, nouvel envoi ni changement de groupe n’a été effectué pendant cet audit.
 
 ## Risques concrets et état
 
@@ -8,13 +8,13 @@
 | --- | --- |
 | Contact inaccessible dans l’app tant que le site est en brouillon | Corrigé dans le code : adresse et ouverture de la messagerie depuis Aide, accessible sans compte. Nécessite une nouvelle build. |
 | Micro et reconnaissance vocale déclarés alors que l’assistant est désactivé | Corrigé par configuration native conditionnelle et exclusion du module vocal de l’autolinking. La dictée exige une réintégration explicite du module et une nouvelle build pour être réactivée. |
-| Conservation indéfinie des anciennes traces techniques | Fonction `cleanupTechnicalData` préparée et testée ; déploiement et exécution réelle non confirmés. |
+| Conservation indéfinie des anciennes traces techniques | Fonction `cleanupTechnicalData` déployée et active ; job quotidien activé, exécution réelle et nettoyage de traces fictives vérifiés. Voir `FIREBASE-RETENTION.md`. |
 | Politique de confidentialité publique | Encore bloquant : aperçu privé, conservation des sauvegardes et assistance à finaliser, identité légale et mentions applicables à compléter. Ne pas mettre l’URL privée dans App Store Connect. |
 | Accès du reviewer aux fonctions à deux | Parcours ci-dessous préparé. Il faut vérifier les informations effectivement présentes dans App Store Connect et fournir deux comptes de démonstration dédiés si Apple exige une connexion préparée. Ne jamais utiliser les comptes réels du propriétaire et de son partenaire. |
 | Suppression de compte | Parcours intégré ; réauthentification des comptes e-mail, suppression des données et reprise automatique couvertes par les tests serveur. Essai natif à confirmer. |
 | Démarrage, photos, notifications sur iPhone | Bundle iOS compilé ; ceci ne prouve pas le fonctionnement sur un appareil physique. Essai TestFlight indispensable. |
 
-L’accès aux métadonnées de revue via l’authentification gérée EAS a renvoyé une erreur Apple 401 à deux reprises. Aucune clé ni permission du compte Apple n’a été modifiée. Le statut de la build a été confirmé séparément avec `eas submit:status`.
+L’accès aux métadonnées de revue via l’authentification gérée EAS a renvoyé une erreur Apple 401 à plusieurs reprises, puis la dernière lecture de statut a également échoué. Aucune clé ni permission du compte Apple n’a été modifiée. Le dernier statut confirmé séparément avec `eas submit:status` était `WAITING_FOR_BETA_REVIEW` ; ce n’est pas une lecture actuelle.
 
 ## Texte de revue prêt à adapter dans App Store Connect
 
@@ -58,10 +58,10 @@ Support: xiitechstudio@gmail.com (XII Tech Studio).
 
 Les documents sont relus en transaction avant suppression. Les comptes, contenus, photos et tâches en attente ne sont pas parcourus par cette fonction. Les délais sont des seuils de nettoyage, auxquels s’ajoutent la cadence, une éventuelle panne ou un arriéré : ne pas les présenter comme une échéance d’effacement garantie avant validation de l’exploitation.
 
-Le poste Hydan n’est pas authentifié dans Firebase (`projects:list` demande `firebase login`) et le poste MSI est hors ligne. Après authentification Firebase sur le poste de déploiement et vérification du projet :
+La connexion Firebase sur Hydan a été rétablie et le projet vérifié. Le déploiement ciblé suivant a réussi ; le poste MSI reste hors ligne :
 
 ```sh
 firebase deploy --config firebase.security.json --project nous-deux-80525 --only functions:cleanupTechnicalData
 ```
 
-La configuration prépare l’entrée `core.js`, sans activer les services IA. Vérifier ensuite le job planifié, une exécution sur des traces synthétiques et les journaux agrégés. Inventorier séparément les sauvegardes Firestore, Storage, les journaux Google Cloud et les copies de maintenance du poste MSI. Ne pas modifier `retentionVerified` avant ces vérifications.
+La configuration prépare l’entrée `core.js`, sans activer les services IA. La fonction active, le job quotidien et une exécution sur six traces fictives ont été vérifiés ; toutes les traces de test ont été retirées. Les paramètres Firestore, Storage et Cloud Logging observés sont consignés dans `FIREBASE-RETENTION.md`. Les copies de maintenance du poste MSI et la conservation de l’assistance restent à finaliser. `retentionVerified` reste donc à `false`.

@@ -24,11 +24,11 @@ L’adresse fournie est intégrée à l’aperçu privé. Selon le SPF Économie
 
 ## Conservation : travail technique avant publication
 
-Les invitations expirent fonctionnellement après 24 heures. Leur expiration ne démontre pas leur effacement physique. Une purge quotidienne de ces traces est désormais implémentée dans `functions/src/retention.ts` et couverte par les tests émulateurs. Son déploiement Firebase et son fonctionnement réel ne sont pas encore confirmés ; aucune durée n’est présentée comme garantie dans la politique publique.
+Les invitations expirent fonctionnellement après 24 heures. Leur expiration ne démontre pas leur effacement physique. Une purge quotidienne de ces traces est implémentée dans `functions/src/retention.ts`, couverte par les tests émulateurs et désormais déployée dans Firebase. Le job activé et une exécution réelle sur des traces fictives ont été vérifiés le 14 octobre 2026 à 21:54 UTC. Les preuves et les paramètres de sauvegarde et de journalisation lus dans le cloud figurent dans `FIREBASE-RETENTION.md`.
 
-- Seuils techniques préparés : invitation arrivée à expiration, compteurs 7 jours après la fin de leur fenêtre, journaux 30 jours après suppression achevée. Confirmer leur déploiement et documenter la cadence et les éventuels arriérés selon `TESTFLIGHT-REVIEW.md`.
-- Implémenter et déployer leur purge ou une politique TTL effective, puis vérifier le résultat avec des données de test. Ne jamais supprimer une tâche de suppression encore en attente.
-- Inventorier les sauvegardes Firebase, journaux de plateforme et copies de maintenance, y compris celles du poste MSI. Confirmer les dates d’expiration et limiter les accès. Ne pas supprimer les sauvegardes ou comptes réels dans le cadre de cette préparation.
+- Seuils déployés : invitation arrivée à expiration, compteurs 7 jours après la fin de leur fenêtre, journaux 30 jours après suppression achevée. Un passage quotidien traite au plus 500 documents par collection ; une panne ou un arriéré peut allonger le délai. Les tâches en attente sont exclues.
+- Paramètres cloud vérifiés : aucune sauvegarde Firestore planifiée ou existante retournée, historique de versions de 1 heure, photos supprimées récupérables pendant 7 jours, journaux Cloud Logging courants pendant 30 jours et journaux d’audit obligatoires pendant 400 jours. Ces durées ne sont pas celles de la purge applicative et ne décrivent pas toutes les copies chez les prestataires.
+- Terminer l’inventaire des copies de maintenance, notamment sur MSI hors ligne, et des éventuels exports. Confirmer les dates d’expiration et limiter les accès. Ne pas supprimer les sauvegardes ou comptes réels dans le cadre de cette préparation.
 - Fixer une procédure de nettoyage des demandes d’assistance, puis renseigner `securityRetention`, `supportRetention` et `backupRetention` avec des descriptions conformes aux réglages déployés.
 - Passer `retentionVerified` à `true` seulement après ces vérifications. Ne pas annoncer « suppression sous 30 jours » sans mécanisme réel correspondant.
 
