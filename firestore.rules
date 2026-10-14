@@ -1,0 +1,53 @@
+rules_version = '2';
+
+// Règles de sécurité Firestore : chaque couple ne voit que ses propres données.
+// À coller dans Console Firebase > Firestore Database > Règles, puis « Publier ».
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isMember(coupleId) {
+      return signedIn() &&
+        request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.members;
+    }
+
+    // Index « quel espace pour ce compte ? », pour se reconnecter sur un autre téléphone.
+    match /users/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
+    match /couples/{coupleId} {
+      // Lecture : membres du couple, ou quelqu'un qui vérifie un code (couple pas encore complet / code libre).
+      allow get: if signedIn() &&
+        (resource == null || request.auth.uid in resource.data.members || resource.data.members.size() < 2);
+
+      // Création : uniquement soi-même comme premier membre.
+      allow create: if signedIn() && request.resource.data.members == [request.auth.uid];
+
+      // Mise à jour : par un membre (sans toucher aux membres, ou pour se retirer soi-même),
+      // ou pour rejoindre un couple qui n'a qu'une personne.
+      allow update: if signedIn() && (
+        (request.auth.uid in resource.data.members &&
+          (request.resource.data.members == resource.data.members ||
+           request.resource.data.members == resource.data.members.removeAll([request.auth.uid]))) ||
+        (resource.data.members.size() == 1 &&
+          request.resource.data.members == resource.data.members.concat([request.auth.uid]))
+      );
+
+      // Suppression de l'espace : uniquement par le dernier membre restant.
+      allow delete: if signedIn() && resource.data.members == [request.auth.uid];
+
+      // Idées cadeaux : chaque membre ne lit et n'écrit que les siennes.
+      match /private/{memberId}/{collection}/{docId} {
+        allow read, write: if isMember(coupleId) && request.auth.uid == memberId;
+      }
+
+      match /{collection}/{docId} {
+        allow read, write: if collection != 'private' && isMember(coupleId);
+      }
+    }
+  }
+}
