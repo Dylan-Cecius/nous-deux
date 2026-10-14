@@ -63,6 +63,7 @@ export function T({
   style,
   children,
   numberOfLines,
+  selectable,
 }: {
   variant?: Variant;
   muted?: boolean;
@@ -70,11 +71,13 @@ export function T({
   style?: StyleProp<TextStyle>;
   children: ReactNode;
   numberOfLines?: number;
+  selectable?: boolean;
 }) {
   const t = useTheme();
   return (
     <Text
       numberOfLines={numberOfLines}
+      selectable={selectable}
       style={[variants[variant], { color: color ?? (muted ? t.textSecondary : t.text) }, style]}>
       {children}
     </Text>

@@ -9,7 +9,7 @@
 - `npm run website:preview` génère un aperçu explicitement marqué comme brouillon, avec `noindex`.
 - `npm run website:build` refuse de produire une version publique tant que les informations requises manquent. Le garde-fou vérifie leur présence, pas leur exactitude juridique.
 - Les polices et le logo sont copiés depuis les dépendances et les ressources existantes ; leurs licences accompagnent la sortie. Exécuter `npm ci` avant une génération sur un nouveau poste.
-- Les liens de l’écran Aide restent masqués lorsque le statut est `draft`. L’accès public effectif doit être vérifié avant de définir `publicationStatus` à `published` et de reconstruire l’app.
+- Les liens Web de l’écran Aide restent masqués lorsque le statut est `draft`. Le contact e-mail confirmé reste accessible indépendamment de ce statut. L’accès public effectif doit être vérifié avant de définir `publicationStatus` à `published` et de reconstruire l’app.
 
 ## Informations à confirmer avec l’éditeur
 
@@ -24,9 +24,9 @@ L’adresse fournie est intégrée à l’aperçu privé. Selon le SPF Économie
 
 ## Conservation : travail technique avant publication
 
-Les invitations expirent fonctionnellement après 24 heures. Leur expiration ne démontre pas leur effacement physique. Les documents de quotas `rateLimits` et les tâches `accountDeletions` terminées ne disposent pas actuellement d’une purge automatique vérifiée.
+Les invitations expirent fonctionnellement après 24 heures. Leur expiration ne démontre pas leur effacement physique. Une purge quotidienne de ces traces est désormais implémentée dans `functions/src/retention.ts` et couverte par les tests émulateurs. Son déploiement Firebase et son fonctionnement réel ne sont pas encore confirmés ; aucune durée n’est présentée comme garantie dans la politique publique.
 
-- Choisir des durées minimales justifiées pour les invitations expirées, compteurs anti-abus et journaux de suppression terminée.
+- Seuils techniques préparés : invitation arrivée à expiration, compteurs 7 jours après la fin de leur fenêtre, journaux 30 jours après suppression achevée. Confirmer leur déploiement et documenter la cadence et les éventuels arriérés selon `TESTFLIGHT-REVIEW.md`.
 - Implémenter et déployer leur purge ou une politique TTL effective, puis vérifier le résultat avec des données de test. Ne jamais supprimer une tâche de suppression encore en attente.
 - Inventorier les sauvegardes Firebase, journaux de plateforme et copies de maintenance, y compris celles du poste MSI. Confirmer les dates d’expiration et limiter les accès. Ne pas supprimer les sauvegardes ou comptes réels dans le cadre de cette préparation.
 - Fixer une procédure de nettoyage des demandes d’assistance, puis renseigner `securityRetention`, `supportRetention` et `backupRetention` avec des descriptions conformes aux réglages déployés.

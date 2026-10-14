@@ -1,11 +1,12 @@
 import type { ExpoSpeechRecognitionModule as Module } from 'expo-speech-recognition';
+import { features } from './features';
 
 // La reconnaissance vocale est un module natif : il n'existe pas dans Expo Go.
 // On le charge prudemment pour que l'app continue de fonctionner sans (saisie au clavier).
 let speech: typeof Module | null = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  speech = require('expo-speech-recognition').ExpoSpeechRecognitionModule;
+  if (features.assistant) speech = require('expo-speech-recognition').ExpoSpeechRecognitionModule;
 } catch {
   speech = null;
 }

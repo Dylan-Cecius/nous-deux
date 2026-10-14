@@ -3,7 +3,8 @@ import { Linking } from 'react-native';
 
 import { showDialog } from '@/components/dialog';
 import { Button, Card, Screen, T } from '@/components/ui';
-import { getPublicSupportLinks } from '@/lib/public-info';
+import { getPublicSupportLinks, getSupportContact } from '@/lib/public-info';
+import { features } from '@/lib/features';
 
 async function openHelp(url: string) {
   try {
@@ -15,8 +16,23 @@ async function openHelp(url: string) {
 
 export default function Aide() {
   const publicLinks = getPublicSupportLinks();
+  const contact = getSupportContact();
+  const emailSupport = async () => {
+    if (!contact) return;
+    try { await Linking.openURL(contact.mailto); }
+    catch { showDialog('Contacter l’assistance', `Écris à ${contact.email} depuis ta messagerie. Aucun message n’a été envoyé par l’app.`); }
+  };
   return (
     <Screen overline="Nous Deux" title="Aide et confidentialité" onBack={() => router.canGoBack() ? router.back() : router.replace('/')}>
+      {contact && (
+        <Card>
+          <T variant="h2">Besoin d’aide ?</T>
+          <T>{contact.operator}</T>
+          <T selectable>{contact.email}</T>
+          <Button label="Écrire à l’assistance" variant="soft" onPress={emailSupport} />
+          <T muted>Tu peux signaler un problème ou demander l’accès, la rectification ou la suppression de tes données. N’envoie ni mot de passe, ni code d’invitation, ni contenu intime.</T>
+        </Card>
+      )}
       {publicLinks && (
         <Card>
           <T variant="h2">Assistance et données personnelles</T>
@@ -39,13 +55,16 @@ export default function Aide() {
         <T variant="h2">Ce qui est partagé</T>
         <T>Vos profils, mots doux, photos, agenda, listes, restos et dépenses sont partagés dans votre espace. Les idées cadeaux restent privées. Les réponses du jour ne sont révélées qu’après vos deux réponses.</T>
         <T>En mode synchronisé, ces données sont hébergées par Google Firebase. Le service contrôle les accès ; il ne s’agit pas d’un chiffrement de bout en bout. Ne diffuse pas les liens de tes photos.</T>
-        <T muted>En mode sans compte, les données restent sur ce téléphone et ne sont pas synchronisées avec celui de ta moitié.</T>
+        <T muted>En mode sans compte, les données restent sur ce téléphone et ne sont pas synchronisées avec celui de ta moitié. Les deux profils utilisent le même appareil : les cadeaux et les réponses n’y sont pas protégés l’un de l’autre.</T>
       </Card>
       <Card>
         <T variant="h2">Permissions et services facultatifs</T>
         <T>Tu choisis les photos à ajouter. Les notifications s’activent dans Nous → Notifications. Leur contenu reste générique pour les messages du partenaire.</T>
         <T muted>Les rappels locaux peuvent afficher le titre d’une date importante sur l’écran verrouillé. Tu peux masquer les aperçus dans les réglages du téléphone.</T>
-        <T>Lorsqu’il est disponible, l’assistant demande ton accord avant d’envoyer ta demande ou ta photo de planning à Anthropic. Ton accord peut être retiré dans l’assistant. La recherche d’adresses envoie les termes saisis à Google Places lorsqu’elle est activée.</T>
+        {features.assistant
+          ? <T>L’assistant demande ton accord avant d’envoyer ta demande ou ta photo de planning à Anthropic. Ton accord peut être retiré dans l’assistant.</T>
+          : <T>L’assistant IA et la dictée vocale sont désactivés dans cette version. Aucun de tes contenus n’est envoyé à Anthropic.</T>}
+        {features.places && <T>La recherche d’adresses envoie les termes saisis à Google Places.</T>}
       </Card>
       <Card>
         <T variant="h2">Supprimer ton compte</T>
@@ -55,7 +74,7 @@ export default function Aide() {
       </Card>
       <Card tone="soft">
         <T variant="h3">Pendant la bêta</T>
-        <T>Pour signaler un problème, note l’écran, ce que tu voulais faire et le message affiché. Envoie une capture sans informations personnelles à la personne qui t’a invité à tester.</T>
+        <T>Pour signaler un problème, note l’écran, ce que tu voulais faire, le modèle du téléphone et le message affiché. Utilise le retour TestFlight ou contacte l’assistance ci-dessus avec une capture sans informations personnelles.</T>
       </Card>
     </Screen>
   );

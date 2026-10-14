@@ -63,6 +63,11 @@
     "test:security": "npm --prefix functions run build && functions/node_modules/.bin/firebase emulators:exec --project demo-nous-deux-security --only auth,firestore,storage \"npm --prefix functions test\""
   },
   "private": true,
+  "expo": {
+    "autolinking": {
+      "exclude": ["expo-speech-recognition"]
+    }
+  },
   "jest": {
     "preset": "jest-expo",
     "modulePathIgnorePatterns": ["<rootDir>/functions/"]

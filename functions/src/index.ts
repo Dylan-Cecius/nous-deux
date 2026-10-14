@@ -6,6 +6,7 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { z } from 'zod';
 import { activeUid, consumeQuota, memberCouple, requireAiConsent } from './security';
 export { createCouple, createInvitation, joinCouple, submitDailyAnswer, setAiConsent, registerPushToken, notifyPartner, deleteAccount, retryAccountDeletions } from './security';
+export { cleanupTechnicalData } from './retention';
 
 initializeApp();
 

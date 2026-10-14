@@ -18,6 +18,7 @@ const app = initializeApp({ projectId, storageBucket: `${projectId}.appspot.com`
 const db = getFirestore();
 const security = require('../lib/security');
 const { migrateSecurity } = require('../lib/migration');
+const { purgeTechnicalData, RETENTION } = require('../lib/retention');
 const { createSpace, issueInvitation, acceptInvitation, submitAnswer, consumeQuota, queueDeletion, completeDeletion, requireAiConsent, AI_CONSENT_VERSION } = security;
 const profile = { name: 'Test', color: '#abcdef' };
 const cid = 'test-couple';
@@ -166,6 +167,42 @@ test('le quota atomique résiste aux appels simultanés et se réinitialise', as
   assert.equal(results.filter(r => r.status === 'fulfilled').length, 3);
   await assert.rejects(consumeQuota(limits, 1500), { code: 'resource-exhausted' });
   await consumeQuota(limits, 2001);
+});
+
+test('la purge retire les traces expirées, conserve les comptes et ne supprime jamais une tâche en attente', async () => {
+  await seed();
+  const now = Date.now();
+  const docs = {
+    'rateLimits/old': { count: 4, resetAt: now - RETENTION.expiredQuotaMs - 1 },
+    'rateLimits/recent': { count: 4, resetAt: now - 1000 },
+    'rateLimits/active': { count: 1, resetAt: now + 100000 },
+    'accountDeletions/finished': { status: 'complete', completedAt: now - RETENTION.completedDeletionMs - 1, leaseUntil: 0 },
+    'accountDeletions/recent': { status: 'complete', completedAt: now - 1000, leaseUntil: 0 },
+    'accountDeletions/pending': { status: 'pending', completedAt: now - RETENTION.completedDeletionMs - 1, leaseUntil: 0 },
+    'accountDeletions/leased': { status: 'complete', completedAt: now - RETENTION.completedDeletionMs - 1, leaseUntil: now + 10000 },
+    'invitations/old': { coupleId: cid, expiresAt: now - 1 },
+    'invitations/new': { coupleId: cid, expiresAt: now + 100000 },
+    [`coupleInvitations/${cid}`]: { digest: 'new' },
+  };
+  await Promise.all(Object.entries(docs).map(([path, data]) => db.doc(path).set(data)));
+  assert.deepEqual(await purgeTechnicalData(now, 1), { invitations: 1, rateLimits: 1, completedDeletions: 1 });
+  for (const path of ['rateLimits/old', 'accountDeletions/finished', 'invitations/old']) assert.equal((await db.doc(path).get()).exists, false);
+  for (const path of ['rateLimits/recent', 'rateLimits/active', 'accountDeletions/pending', 'accountDeletions/leased', 'accountDeletions/recent', 'invitations/new', `coupleInvitations/${cid}`, `couples/${cid}`, 'users/alice', 'users/bob']) {
+    assert.equal((await db.doc(path).get()).exists, true, path);
+  }
+  assert.equal((await db.doc(`coupleInvitations/${cid}`).get()).data().digest, 'new');
+  assert.deepEqual(await purgeTechnicalData(now), { invitations: 0, rateLimits: 0, completedDeletions: 0 });
+});
+
+test('la purge retire le pointeur d’une invitation expirée sans toucher à l’espace', async () => {
+  await seed(['alice']);
+  const invitation = await issueInvitation('alice', cid);
+  const now = invitation.expiresAt + 1;
+  await purgeTechnicalData(now);
+  assert.equal((await db.doc(`coupleInvitations/${cid}`).get()).exists, false);
+  assert.equal((await db.doc(`invitations/${hash(invitation.code)}`).get()).exists, false);
+  assert.equal((await db.doc(`couples/${cid}`).get()).exists, true);
+  await issueInvitation('alice', cid);
 });
 
 test('une réponse reste secrète côté serveur jusqu’à la seconde réponse', async () => {
