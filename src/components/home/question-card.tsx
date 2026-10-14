@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 
+import { showDialog } from '@/components/dialog';
 import { Card, Dot, Field, IconButton, Ionicons, Row, T } from '@/components/ui';
 import { useTheme } from '@/constants/theme';
 import { notifyPartner } from '@/lib/assistant';
@@ -46,7 +47,7 @@ export function QuestionCard() {
                 {m.name}
               </T>
             </Row>
-            {answer && (iAnswered || backend.mode === 'local') ? (
+            {answer?.text && (iAnswered || backend.mode === 'local') ? (
               <T>{answer.text}</T>
             ) : answer ? (
               <Row style={{ gap: 6 }}>
@@ -69,16 +70,21 @@ export function QuestionCard() {
 
 function AnswerField({ member, isMe, date }: { member: Member; isMe: boolean; date: string }) {
   const session = useSession();
-  const { backend, me } = session;
+  const { backend } = session;
   const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
   const submit = async () => {
-    if (!text.trim()) return;
-    success();
-    await backend.add('answers', { date, from: member.id, text: text.trim(), createdAt: Date.now() });
-    if (backend.mode === 'cloud') {
-      await notifyPartner(session, 'Question du jour', `${me?.name ?? 'Ta moitié'} a répondu. À toi !`);
-    }
+    if (!text.trim() || busy) return;
+    setBusy(true);
+    try {
+      await backend.add('answers', { date, from: member.id, text: text.trim(), createdAt: Date.now() });
+      success();
+      if (backend.mode === 'cloud') await notifyPartner(session, 'Question du jour');
+    } catch (error) {
+      showDialog('Réponse non enregistrée', error instanceof Error ? error.message : String(error));
+    } finally { setBusy(false); }
   };
+
   return (
     <View style={{ gap: 6 }}>
       <Row style={{ gap: 6 }}>
@@ -88,7 +94,7 @@ function AnswerField({ member, isMe, date }: { member: Member; isMe: boolean; da
         </T>
       </Row>
       <Row>
-        <Field value={text} onChangeText={setText} placeholder="Écris ta réponse…" grow onSubmitEditing={submit} />
+        <Field value={text} onChangeText={setText} placeholder="Écris ta réponse…" grow maxLength={4000} editable={!busy} onSubmitEditing={submit} />
         <IconButton icon="checkmark" label="Valider la réponse" variant="primary" onPress={submit} size={50} />
       </Row>
     </View>

@@ -123,7 +123,7 @@ export default function Onboarding() {
             <T variant="h2" color={CREAM}>
               Faisons connaissance
             </T>
-            <Field dark label="Ton prénom" value={name} onChangeText={setName} placeholder="Ex. Dylan" autoFocus />
+            <Field dark label="Ton prénom" value={name} maxLength={60} onChangeText={setName} placeholder="Ex. Dylan" autoFocus />
             <View style={{ gap: 8 }}>
               <T variant="caption" color={MUTED}>
                 Ta couleur dans l’agenda
@@ -161,7 +161,7 @@ export default function Onboarding() {
               <T variant="h2" color={CREAM}>
                 Créer notre espace
               </T>
-              <T color={MUTED}>Tu obtiendras un code à envoyer à ta moitié.</T>
+              <T color={MUTED}>Tu pourras créer une invitation privée et temporaire pour ta moitié.</T>
               <Button
                 label="Créer"
                 variant="sunset"
@@ -190,19 +190,19 @@ export default function Onboarding() {
             </T>
             <Field
               dark
-              label="Code du couple"
+              label="Code d’invitation"
               value={code}
               onChangeText={(v) => setCode(v.toUpperCase())}
-              placeholder="ABC123"
+              placeholder="ABCD234567"
               autoCapitalize="characters"
               autoCorrect={false}
-              maxLength={6}
-              style={{ fontSize: 26, letterSpacing: 8, textAlign: 'center', fontFamily: Fonts.bodyBold, minHeight: 60 }}
+              maxLength={12}
+              style={{ fontSize: 26, letterSpacing: 3, textAlign: 'center', fontFamily: Fonts.bodyBold, minHeight: 60 }}
             />
             <Button
               label="Rejoindre"
               variant="sunset"
-              disabled={busy || code.trim().length !== 6}
+              disabled={busy || code.replace(/\s|-/g, '').length !== 10}
               onPress={() => run(() => joinCloudCouple(code, me))}
             />
             <Button label="Retour" variant="glass" onPress={() => setStep('choice')} />

@@ -47,3 +47,8 @@ example
 
 # configuration locale (clés Firebase)
 .env
+
+# Firebase build and emulator output
+functions/lib/
+*-debug.log*
+.firebase/

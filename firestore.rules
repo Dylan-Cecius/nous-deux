@@ -1,53 +1,144 @@
 rules_version = '2';
-
-// Règles de sécurité Firestore : chaque couple ne voit que ses propres données.
-// À coller dans Console Firebase > Firestore Database > Règles, puis « Publier ».
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function signedIn() {
-      return request.auth != null;
+    function active() {
+      return request.auth != null && !exists(/databases/$(database)/documents/accountDeletions/$(request.auth.uid));
     }
-
-    function isMember(coupleId) {
-      return signedIn() &&
-        request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.members;
+    function couple(id) { return get(/databases/$(database)/documents/couples/$(id)).data; }
+    function member(id) {
+      return active() && request.auth.uid in couple(id).members;
     }
-
-    // Index « quel espace pour ce compte ? », pour se reconnecter sur un autre téléphone.
-    match /users/{userId} {
-      allow read, write: if signedIn() && request.auth.uid == userId;
+    function writable(id) { return member(id) && !('deletionLock' in couple(id)); }
+    function text(value, maximum) { return value is string && value.size() <= maximum; }
+    function title(value) { return text(value, 200) && value.size() > 0; }
+    function optionalText(data, key, maximum) { return !(key in data) || text(data[key], maximum); }
+    function date(value) { return value is string && value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+    function time(value) { return value is string && value.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$'); }
+    function timestamp(value) { return value is number && value >= 0 && value <= request.time.toMillis() + 300000; }
+    function ownAuthor(data) { return data.createdBy == request.auth.uid; }
+    function sameAuthor() { return request.resource.data.createdBy == resource.data.createdBy; }
+    function profileValid(p) {
+      return p.keys().hasOnly(['name', 'color']) && text(p.name, 60) && p.name.size() > 0 && p.color.matches('^#[0-9a-fA-F]{6}$');
     }
-
+    function frameValid(f) {
+      return f is map && f.keys().hasOnly(['x','y','zoom']) && f.x is number && f.y is number && f.zoom is number &&
+        f.x >= 0 && f.x <= 1 && f.y >= 0 && f.y <= 1 && f.zoom >= 1 && f.zoom <= 10;
+    }
+    match /users/{uid} {
+      allow get: if active() && request.auth.uid == uid;
+      allow list, write: if false;
+      match /settings/{setting} { allow get: if active() && request.auth.uid == uid; }
+    }
     match /couples/{coupleId} {
-      // Lecture : membres du couple, ou quelqu'un qui vérifie un code (couple pas encore complet / code libre).
-      allow get: if signedIn() &&
-        (resource == null || request.auth.uid in resource.data.members || resource.data.members.size() < 2);
-
-      // Création : uniquement soi-même comme premier membre.
-      allow create: if signedIn() && request.resource.data.members == [request.auth.uid];
-
-      // Mise à jour : par un membre (sans toucher aux membres, ou pour se retirer soi-même),
-      // ou pour rejoindre un couple qui n'a qu'une personne.
-      allow update: if signedIn() && (
-        (request.auth.uid in resource.data.members &&
-          (request.resource.data.members == resource.data.members ||
-           request.resource.data.members == resource.data.members.removeAll([request.auth.uid]))) ||
-        (resource.data.members.size() == 1 &&
-          request.resource.data.members == resource.data.members.concat([request.auth.uid]))
-      );
-
-      // Suppression de l'espace : uniquement par le dernier membre restant.
-      allow delete: if signedIn() && resource.data.members == [request.auth.uid];
-
-      // Idées cadeaux : chaque membre ne lit et n'écrit que les siennes.
-      match /private/{memberId}/{collection}/{docId} {
-        allow read, write: if isMember(coupleId) && request.auth.uid == memberId;
+      allow get: if member(coupleId);
+      allow list, create, delete: if false;
+      allow update: if writable(coupleId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['since','photoUrl','photoFrame','profiles']) &&
+        (!('since' in request.resource.data) || date(request.resource.data.since)) &&
+        optionalText(request.resource.data, 'photoUrl', 1000000) &&
+        (!('photoFrame' in request.resource.data) || frameValid(request.resource.data.photoFrame)) &&
+        request.resource.data.profiles.keys().hasOnly(resource.data.members) &&
+        request.resource.data.profiles.diff(resource.data.profiles).affectedKeys().hasOnly([request.auth.uid]) &&
+        profileValid(request.resource.data.profiles[request.auth.uid]);
+      match /private/{uid}/gifts/{id} {
+        function valid(d) {
+          return d.keys().hasAll(['title','done','createdBy','createdAt']) &&
+            d.keys().hasOnly(['title','detail','done','createdBy','createdAt']) &&
+            title(d.title) && optionalText(d,'detail',2000) && d.done is bool && ownAuthor(d) && timestamp(d.createdAt);
+        }
+        allow read: if member(coupleId) && request.auth.uid == uid;
+        allow create: if writable(coupleId) && request.auth.uid == uid && valid(request.resource.data);
+        allow update: if writable(coupleId) && request.auth.uid == uid && valid(request.resource.data) && sameAuthor() && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if writable(coupleId) && request.auth.uid == uid;
       }
-
-      match /{collection}/{docId} {
-        allow read, write: if collection != 'private' && isMember(coupleId);
+      match /private/{uid}/answers/{dateId} {
+        allow read: if member(coupleId) && request.auth.uid == uid;
+        allow write: if false;
+      }
+      match /answerStatus/{dateId} { allow read: if member(coupleId); }
+      match /revealedAnswers/{id} { allow read: if member(coupleId); }
+      match /answers/{id} { allow read, write: if false; }
+      match /notes/{id} {
+        function valid(d) {
+          return d.keys().hasAll(['text','from','createdAt']) && d.keys().hasOnly(['text','from','createdAt','kind']) &&
+            text(d.text,4000) && d.text.size() > 0 && d.from == request.auth.uid && timestamp(d.createdAt) &&
+            (!('kind' in d) || d.kind in ['note','ping']);
+        }
+        allow read: if member(coupleId);
+        allow create: if writable(coupleId) && valid(request.resource.data);
+        allow update: if writable(coupleId) && resource.data.from == request.auth.uid && valid(request.resource.data) && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if writable(coupleId) && resource.data.from == request.auth.uid;
+      }
+      match /events/{id} {
+        function valid(d) {
+          return d.keys().hasAll(['title','date','start','end','who','kind','createdBy']) &&
+            d.keys().hasOnly(['title','date','start','end','who','kind','seriesId','createdBy']) &&
+            title(d.title) && date(d.date) && time(d.start) && time(d.end) && d.start < d.end &&
+            (d.who in couple(coupleId).members || d.who == 'both') && d.kind in ['travail','perso','ensemble'] && optionalText(d,'seriesId',100);
+        }
+        allow read: if member(coupleId);
+        allow delete: if writable(coupleId);
+        allow create: if writable(coupleId) && valid(request.resource.data) && ownAuthor(request.resource.data);
+        allow update: if writable(coupleId) && valid(request.resource.data) && sameAuthor();
+      }
+      match /restaurants/{id} {
+        function valid(d) {
+          return d.keys().hasAll(['name','status','createdBy','createdAt']) &&
+            d.keys().hasOnly(['name','cuisine','place','status','rating','note','address','photoUrl','mapsUrl','createdBy','createdAt']) &&
+            title(d.name) && d.status in ['envie','favori','teste'] && timestamp(d.createdAt) &&
+            (!('rating' in d) || (d.rating is number && d.rating >= 0 && d.rating <= 5)) &&
+            optionalText(d,'cuisine',200) && optionalText(d,'place',500) && optionalText(d,'note',4000) &&
+            optionalText(d,'address',1000) && optionalText(d,'photoUrl',4000) && optionalText(d,'mapsUrl',2000);
+        }
+        allow read: if member(coupleId);
+        allow delete: if writable(coupleId);
+        allow create: if writable(coupleId) && valid(request.resource.data) && ownAuthor(request.resource.data);
+        allow update: if writable(coupleId) && valid(request.resource.data) && sameAuthor() && request.resource.data.createdAt == resource.data.createdAt;
+      }
+      match /items/{id} {
+        function valid(d) {
+          return d.keys().hasAll(['list','title','done','createdBy','createdAt']) &&
+            d.keys().hasOnly(['list','title','detail','media','done','createdBy','createdAt']) &&
+            d.list in ['bucket','films','shopping'] && title(d.title) && d.done is bool && timestamp(d.createdAt) &&
+            optionalText(d,'detail',2000) && (!('media' in d) || d.media in ['film','serie']);
+        }
+        allow read: if member(coupleId);
+        allow delete: if writable(coupleId);
+        allow create: if writable(coupleId) && valid(request.resource.data) && ownAuthor(request.resource.data);
+        allow update: if writable(coupleId) && valid(request.resource.data) && sameAuthor() && request.resource.data.createdAt == resource.data.createdAt;
+      }
+      match /dates/{id} {
+        function valid(d) {
+          return d.keys().hasAll(['title','emoji','date','yearly']) && d.keys().hasOnly(['title','emoji','date','yearly']) &&
+            title(d.title) && text(d.emoji,30) && date(d.date) && d.yearly is bool;
+        }
+        allow read: if member(coupleId);
+        allow delete: if writable(coupleId);
+        allow create, update: if writable(coupleId) && valid(request.resource.data);
+      }
+      match /memories/{id} {
+        function valid(d) {
+          return d.keys().hasAll(['photoUrl','date','createdBy','createdAt']) &&
+            d.keys().hasOnly(['photoUrl','caption','date','createdBy','createdAt']) &&
+            text(d.photoUrl,1000000) && optionalText(d,'caption',4000) && date(d.date) && timestamp(d.createdAt);
+        }
+        allow read: if member(coupleId);
+        allow create: if writable(coupleId) && valid(request.resource.data) && ownAuthor(request.resource.data);
+        allow update: if writable(coupleId) && valid(request.resource.data) && sameAuthor() && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if writable(coupleId);
+      }
+      match /expenses/{id} {
+        function valid(d) {
+          return d.keys().hasAll(['title','amount','paidBy','createdAt']) && d.keys().hasOnly(['title','amount','paidBy','kind','createdAt']) &&
+            title(d.title) && d.amount is number && d.amount > 0 && d.amount <= 100000 &&
+            (d.paidBy in couple(coupleId).members || (resource != null && d.paidBy == resource.data.paidBy)) &&
+            timestamp(d.createdAt) && (!('kind' in d) || d.kind in ['expense','settle']);
+        }
+        allow read: if member(coupleId);
+        allow delete: if writable(coupleId);
+        allow create, update: if writable(coupleId) && valid(request.resource.data);
       }
     }
+    match /{document=**} { allow read, write: if false; }
   }
 }

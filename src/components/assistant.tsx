@@ -7,6 +7,7 @@ import { Button, Card, Field, Ionicons, Row, Sheet, T, type IconName } from './u
 import { Fonts, useTheme } from '@/constants/theme';
 import { actionIcon, applyAction, askAssistant, type AssistantAction, type AssistantInput } from '@/lib/assistant';
 import { useSession } from '@/lib/couple-context';
+import { hasAiConsent } from '@/lib/backend';
 import { bump, success } from '@/lib/haptics';
 import { pickPhoto } from '@/lib/photos';
 import { listen, voiceSupported } from '@/lib/voice';
@@ -95,10 +96,27 @@ function AssistantSheet({ mode, onClose }: { mode: Mode; onClose: () => void }) 
   const [actions, setActions] = useState<(AssistantAction & { selected: boolean })[]>([]);
   const stopRef = useRef<() => void>(() => {});
   const cloud = backend.mode === 'cloud';
+  const [consent, setConsent] = useState<boolean | null>(cloud ? null : false);
+  useEffect(() => {
+    if (!cloud) return;
+    let active = true;
+    hasAiConsent(backend).then((accepted) => { if (active) setConsent(accepted); })
+      .catch(() => { if (active) setConsent(false); });
+    return () => { active = false; };
+  }, [backend, cloud]);
+  const changeConsent = async (accepted: boolean) => {
+    setLoading(true);
+    setError(null);
+    try { await backend.call('setAiConsent', { accepted }); setConsent(accepted); }
+    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setLoading(false); }
+  };
+
 
   useEffect(() => () => stopRef.current(), []);
 
   const submit = async (input: AssistantInput) => {
+    if (!consent || loading) return;
     setLoading(true);
     setError(null);
     setReply(null);
@@ -166,9 +184,19 @@ function AssistantSheet({ mode, onClose }: { mode: Mode; onClose: () => void }) 
             </T>
           </Row>
           <T>
-            L’assistant utilise l’IA Claude via vos Cloud Functions Firebase. Configurez Firebase puis la clé Claude
-            (voir le README) pour l’utiliser.
+            L’assistant est disponible dans un espace synchronisé.
           </T>
+        </Card>
+      ) : consent === null ? (
+        <ActivityIndicator color={t.primary} />
+      ) : !consent ? (
+        <Card>
+          <T variant="h3">Avant d’utiliser l’assistant</T>
+          <T>Ta demande écrite ou dictée, ou la photo de planning que tu choisis, sera envoyée à Anthropic (Claude) pour proposer des actions.</T>
+          <T>Les autres contenus de votre espace ne sont pas envoyés automatiquement. Évite d’inclure les informations personnelles d’autres personnes dans une photo.</T>
+          <T muted>L’assistant est facultatif. Tu peux continuer à utiliser l’app sans lui et retirer ton accord à tout moment dans cet écran.</T>
+          <Button label="J’autorise l’envoi à Anthropic" disabled={loading} onPress={() => changeConsent(true)} />
+          <Button label="Pas maintenant" variant="ghost" disabled={loading} onPress={onClose} />
         </Card>
       ) : actions.length > 0 ? (
         <>
@@ -285,6 +313,7 @@ function AssistantSheet({ mode, onClose }: { mode: Mode; onClose: () => void }) 
         </>
       )}
 
+      {cloud && consent && <Button label="Retirer mon accord pour l’IA" variant="ghost" small disabled={loading || listening} onPress={() => changeConsent(false)} />}
       {loading && (
         <Row style={{ justifyContent: 'center', gap: 10 }}>
           <ActivityIndicator color={t.primary} />

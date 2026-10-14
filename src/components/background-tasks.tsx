@@ -12,15 +12,14 @@ export function BackgroundTasks() {
   const dates = useCollection('dates');
   const notes = useCollection('notes');
   const myId = me?.id;
-  const myToken = me?.pushToken;
 
   // Jeton push : seulement en mode cloud (en local, personne d'autre ne peut nous écrire).
   useEffect(() => {
     if (backend.mode !== 'cloud' || !myId) return;
-    getPushToken().then((token) => {
-      if (token && token !== myToken) backend.updateMember(myId, { pushToken: token });
-    });
-  }, [backend, myId, myToken]);
+    getPushToken().then(async (token) => {
+      if (token) await backend.call('registerPushToken', { token });
+    }).catch(() => { /* Nouvelle tentative à la prochaine ouverture. */ });
+  }, [backend, myId]);
 
   // Rappels « J-1 » et « Jour J » pour les comptes à rebours.
   useEffect(() => {

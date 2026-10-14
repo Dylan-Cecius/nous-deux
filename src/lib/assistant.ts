@@ -1,6 +1,5 @@
 import type { Backend } from './backend';
 import { addDays } from './dates';
-import { sendPush } from './notifications';
 import { BOTH, type Member } from './types';
 
 /** Une action proposée par l'assistant IA (même forme que dans functions/src/index.ts). */
@@ -34,15 +33,17 @@ export function askAssistant(backend: Backend, input: AssistantInput) {
 type Ctx = { backend: Backend; me?: Member; partner?: Member };
 
 /** Prévient ta moitié par une notification push (si son téléphone est enregistré). */
-export function notifyPartner({ partner }: Ctx, title: string, body: string) {
-  return sendPush([partner?.pushToken], title, body);
+export async function notifyPartner({ backend }: Ctx, title: string, _body?: string) {
+  if (backend.mode !== 'cloud') return;
+  const kind = title === 'Agenda' ? 'event' : title === 'Question du jour' ? 'answer' : title === 'ping' ? 'ping' : 'note';
+  // Le serveur vérifie le destinataire et n'envoie aucun contenu intime dans la notification.
+  try { await backend.call('notifyPartner', { kind }); }
+  catch { /* L'enregistrement reste réussi même si la notification ne part pas. */ }
 }
 
 export async function sendLoveNote(ctx: Ctx, text: string, kind: 'note' | 'ping' = 'note') {
   await ctx.backend.add('notes', { text, from: ctx.backend.userId, kind, createdAt: Date.now() });
-  const name = ctx.me?.name ?? 'Ta moitié';
-  if (kind === 'ping') await notifyPartner(ctx, `${name} pense à toi 💗`, 'Un petit cœur rien que pour toi.');
-  else await notifyPartner(ctx, `💌 Mot doux de ${name}`, text);
+  await notifyPartner(ctx, kind);
 }
 
 const ICONS: Record<AssistantAction['type'], string> = {
@@ -79,7 +80,7 @@ export async function applyAction(ctx: Ctx, a: AssistantAction) {
       });
     case 'event': {
       if (!a.date || !a.start || !a.end) return;
-      const weeks = Math.max(1, a.repeatWeeks ?? 1);
+      const weeks = Math.min(52, Math.max(1, Math.floor(a.repeatWeeks ?? 1)));
       const seriesId = weeks > 1 ? `${Date.now()}` : undefined;
       for (let i = 0; i < weeks; i++) {
         await backend.add('events', {

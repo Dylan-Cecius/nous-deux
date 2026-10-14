@@ -282,7 +282,7 @@ function EventSheet({
 
   const save = async () => {
     if (!valid) return;
-    const data = { title: title.trim(), who, kind, date, start, end, createdBy: backend.userId };
+    const data = { title: title.trim(), who, kind, date, start, end, createdBy: event?.createdBy ?? backend.userId };
     if (event) {
       await backend.update('events', event.id, data);
     } else {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Animated, Easing, Pressable, View } from 'react-native';
 
 import { celebrate } from '@/components/celebrate';
+import { showDialog } from '@/components/dialog';
 import { Card, confirmDelete, Dot, Field, IconButton, Ionicons, Row, T } from '@/components/ui';
 import { cardShadow, Fonts, useTheme } from '@/constants/theme';
 import { sendLoveNote } from '@/lib/assistant';
@@ -86,6 +87,7 @@ export function NoteCard() {
   const { backend, partner, nameOf, colorOf } = session;
   const notes = useCollection('notes');
   const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
   const written = notes.filter((n) => n.kind !== 'ping').sort((a, b) => b.createdAt - a.createdAt);
@@ -93,11 +95,16 @@ export function NoteCard() {
 
   const send = async () => {
     const text = note.trim();
-    if (!text) return;
-    setNote('');
-    bump();
-    celebrate('hearts');
-    await sendLoveNote(session, text);
+    if (!text || busy) return;
+    setBusy(true);
+    try {
+      await sendLoveNote(session, text);
+      setNote('');
+      bump();
+      celebrate('hearts');
+    } catch {
+      showDialog('Mot doux non envoyé', 'Ton texte est conservé. Vérifie ta connexion et réessaie.');
+    } finally { setBusy(false); }
   };
 
   return (
@@ -116,6 +123,8 @@ export function NoteCard() {
       <Row>
         <Field
           value={note}
+          maxLength={4000}
+          editable={!busy}
           onChangeText={setNote}
           placeholder={partner ? `Un petit mot pour ${partner.name}…` : 'Un petit mot…'}
           grow
@@ -134,7 +143,7 @@ export function NoteCard() {
       )}
       {showAll &&
         written.map((n) => (
-          <Pressable key={n.id} onLongPress={() => confirmDelete(n.text, () => backend.remove('notes', n.id))}>
+          <Pressable key={n.id} onLongPress={backend.mode === 'local' || n.from === backend.userId ? () => confirmDelete(n.text, () => backend.remove('notes', n.id)) : undefined}>
             <Row style={{ alignItems: 'flex-start', gap: 10 }}>
               <View style={{ marginTop: 7 }}>
                 <Dot color={colorOf(n.from)} />

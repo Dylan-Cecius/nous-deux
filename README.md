@@ -10,7 +10,7 @@ Application mobile pour les couples (Android + iOS), faite avec Expo / React Nat
 | **Agenda** | Une colonne par personne, horaires répétés chaque semaine, créneaux **libres tous les deux**, **import du planning en photo** (IA) |
 | **Restos** | À tester / Favoris / Testés, note en cœurs, **recherche Google avec photo et adresse**, tirage au sort « On mange où ? » |
 | **Listes** | Rêves (bucket list, confettis quand on coche), Films & séries (tirage au sort), **Courses** partagées, **Cadeaux secrets** (invisibles pour l'autre) |
-| **Nous** | Profils et couleurs, **Souvenirs** (album), **Dépenses communes** (qui doit combien), notifications, **thème de couleur**, code du couple |
+| **Nous** | Profils et couleurs, **Souvenirs** (album), **Dépenses communes** (qui doit combien), notifications, **thème de couleur**, invitations temporaires |
 
 Sur chaque écran, le bouton **micro** ouvre l'**assistant** : « Ajoute Chez Mario dans nos favoris », « Je bosse jeudi de 9h à 17h », « Ajoute du lait aux courses »… Il propose les actions, tu valides.
 
@@ -40,21 +40,23 @@ Sans configuration Firebase, l'app fonctionne en **mode local** (les données re
 
 ## Activer la synchro entre vos deux téléphones (Firebase)
 
+Pour un projet existant, suivre d’abord [la procédure de migration de sécurité](SECURITY-DEPLOYMENT.md). Les fonctions serveur de sécurité sont désormais nécessaires à la création et à la jonction d’un espace ; elles demandent un projet Firebase permettant le déploiement de Cloud Functions.
+
 1. Va sur <https://console.firebase.google.com>, crée un projet (Google Analytics pas nécessaire).
 2. **Authentication** > Commencer > onglet *Sign-in method* > active **Anonyme**.
 3. **Firestore Database** > Créer une base de données (région `eur3` par ex.) en mode production.
 4. Onglet **Règles** de Firestore : colle le contenu de [`firestore.rules`](firestore.rules) puis *Publier*.
 5. Paramètres du projet (⚙️) > *Vos applications* > ajoute une app **Web** (`</>`), copie la config.
 6. Copie `.env.example` en `.env` et remplis les valeurs.
-7. Relance `npx.cmd expo start`. À l'ouverture, l'un crée l'espace et envoie le code, l'autre le rejoint.
+7. Déploie les fonctions et les règles selon [la procédure de sécurité](SECURITY-DEPLOYMENT.md), puis relance `npx.cmd expo start`. L’un crée l’espace et génère une invitation valable 24 heures ; l’autre la saisit pour le rejoindre.
 
 ## Activer les photos, l'assistant IA et la recherche de restos
 
-Ces trois fonctions demandent le forfait **Blaze** de Firebase (paiement à l'usage, avec un quota gratuit largement suffisant pour un couple). Mets une alerte de budget dans Google Cloud pour être tranquille.
+Le déploiement des Cloud Functions et l’utilisation de Storage nécessitent le forfait **Blaze** de Firebase, avec facturation à l’usage. Configurer les alertes de budget et surveiller les dépenses ; une alerte n’est pas un plafond de facturation.
 
 1. Console Firebase > passe au forfait **Blaze**.
 2. **Storage** > Commencer, puis onglet **Règles** : colle [`storage.rules`](storage.rules).
-3. Clé **Claude** (assistant, import de planning) : crée-la sur <https://console.anthropic.com> > *API Keys*. Chaque demande coûte environ 1 à 2 centimes (modèle Claude Opus 5.5).
+3. Clé **Claude** (assistant, import de planning) : crée-la sur <https://console.anthropic.com> > *API Keys*. Le coût dépend du modèle, du texte et des images traités. Les appels sont limités côté serveur et exigent le consentement de la personne dans l’app.
 4. Clé **Google Places** (recherche de restos) : <https://console.cloud.google.com> > *API et services* > active **Places API (New)** > *Identifiants* > crée une clé et restreins-la à Places API.
 5. Installe l'outil Firebase et déploie les Cloud Functions (dossier [`functions/`](functions/src/index.ts)) :
    ```bash
@@ -136,7 +138,7 @@ Tout se fait dans le cloud avec **EAS** : pas besoin de Mac pour iOS.
 
 - À l'inscription, chaque téléphone reçoit un compte **anonyme** (aucun mot de passe).
 - Onglet **Nous > Ton compte > Sécuriser mon compte** : ajoute un e-mail et un mot de passe au même compte. Sur un nouveau téléphone, **« J'ai déjà un compte »** sur l'écran de bienvenue permet de retrouver son espace (avec « mot de passe oublié »).
-- **Supprimer mon compte** efface le profil et les idées cadeaux ; si l'autre membre est parti, tout l'espace est effacé.
+- **Supprimer mon compte** efface côté serveur le profil, les réponses, mots doux, cadeaux et photos de la personne ainsi que son compte Auth. Les éléments partagés conservés sont détachés de son identifiant ; si elle est seule, tout l’espace est effacé. Le nettoyage reprend automatiquement après une panne.
 - À activer dans Firebase : Authentication > Méthode de connexion > **Anonyme** et **Adresse e-mail/Mot de passe** (déjà fait sur nous-deux-80525).
 
 ## Développement
@@ -145,7 +147,8 @@ Tout se fait dans le cloud avec **EAS** : pas besoin de Mac pour iOS.
 npx.cmd expo start    # serveur de dev
 npx.cmd tsc --noEmit  # vérification TypeScript
 npx.cmd expo lint     # lint
-npm.cmd test          # tests automatiques (dates, créneaux libres, dépenses)
+npm.cmd test          # tests app (dont session et déconnexion)
+npm.cmd run test:security # règles et fonctions, sur émulateurs Firebase uniquement
 ```
 
 Structure : écrans dans `src/app/`, composants dans `src/components/`, données et calculs dans `src/lib/` (`backend.ts` = Firebase ou local, tests dans `src/lib/__tests__/`).
