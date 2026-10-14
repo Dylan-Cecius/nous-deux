@@ -1,10 +1,30 @@
 import { router } from 'expo-router';
+import { Linking } from 'react-native';
 
-import { Card, Screen, T } from '@/components/ui';
+import { showDialog } from '@/components/dialog';
+import { Button, Card, Screen, T } from '@/components/ui';
+import { getPublicSupportLinks } from '@/lib/public-info';
+
+async function openHelp(url: string) {
+  try {
+    await Linking.openURL(url);
+  } catch {
+    showDialog('Lien indisponible', `Tu peux ouvrir cette adresse dans ton navigateur : ${url}`);
+  }
+}
 
 export default function Aide() {
+  const publicLinks = getPublicSupportLinks();
   return (
     <Screen overline="Nous Deux" title="Aide et confidentialité" onBack={() => router.canGoBack() ? router.back() : router.replace('/')}>
+      {publicLinks && (
+        <Card>
+          <T variant="h2">Assistance et données personnelles</T>
+          <Button label="Contacter l’assistance" variant="soft" onPress={() => openHelp(publicLinks.support)} />
+          <Button label="Lire la politique de confidentialité" variant="outline" onPress={() => openHelp(publicLinks.privacy)} />
+          <Button label="Demander la suppression depuis le Web" variant="ghost" onPress={() => openHelp(publicLinks.deletion)} />
+        </Card>
+      )}
       <Card>
         <T variant="h2">Retrouver votre espace</T>
         <T>Dans Nous → Ton compte, ajoute un e-mail et un mot de passe. Tu pourras ensuite choisir « J’ai déjà un compte » sur un autre téléphone.</T>
@@ -24,11 +44,13 @@ export default function Aide() {
       <Card>
         <T variant="h2">Permissions et services facultatifs</T>
         <T>Tu choisis les photos à ajouter. Les notifications s’activent dans Nous → Notifications. Leur contenu reste générique pour les messages du partenaire.</T>
+        <T muted>Les rappels locaux peuvent afficher le titre d’une date importante sur l’écran verrouillé. Tu peux masquer les aperçus dans les réglages du téléphone.</T>
         <T>Lorsqu’il est disponible, l’assistant demande ton accord avant d’envoyer ta demande ou ta photo de planning à Anthropic. Ton accord peut être retiré dans l’assistant. La recherche d’adresses envoie les termes saisis à Google Places lorsqu’elle est activée.</T>
       </Card>
       <Card>
         <T variant="h2">Supprimer ton compte</T>
         <T>Ouvre Nous → Ton compte → Supprimer mon compte. Ton profil, tes réponses, tes mots doux, tes idées cadeaux et tes photos sont supprimés. Les autres éléments partagés restent pour ta moitié ; le dernier départ supprime tout l’espace.</T>
+        <T muted>Sur les éléments communs conservés, l’auteur est remplacé par « ancien membre ». Le texte peut encore contenir ton nom : il n’est pas automatiquement anonymisé.</T>
         <T>Si le nettoyage est interrompu, il reprend automatiquement. Il ne peut pas effacer une copie déjà téléchargée sur un autre appareil.</T>
       </Card>
       <Card tone="soft">

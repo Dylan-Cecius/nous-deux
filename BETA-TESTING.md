@@ -3,7 +3,7 @@
 ## Distribution
 
 - **Android** : le build 1.0.0 (3) est terminé. La page Expo affiche **Succeeded** et propose l’APK de distribution interne : [installation Android](https://expo.dev/accounts/dylancecius/projects/nous-deux/builds/bcecf4ec-ebe0-42cc-b1af-34b17be18449). Ouvrir ce lien sur le téléphone Android et télécharger l’APK. Cette version est autonome : le PC et Expo Go ne sont pas nécessaires. Le téléchargement vers l’environnement de contrôle n’a pas abouti ; l’intégrité du fichier et son fonctionnement une fois installé restent à vérifier sur un appareil.
-- **iPhone** : le profil `beta` est prêt pour TestFlight, mais les certificats Apple ne sont pas configurés. Le build non interactif a été arrêté avant l’envoi. Il faut terminer la connexion Apple Developer et la signature avec `npx eas-cli@latest build --platform ios --profile beta`, puis soumettre le build avec `npx eas-cli@latest submit --platform ios --profile beta`.
+- **iPhone** : la signature Apple est configurée. Le [build iOS 1.0.0 (6)](https://expo.dev/accounts/dylancecius/projects/nous-deux/builds/cae1ceb6-139b-4ab9-8dc3-b67b48186d50) est lancé dans le cloud ; statut EAS `IN_PROGRESS` vérifié le 14 octobre vers 22 h 42 (Bruxelles), sans erreur signalée. Sa réussite et sa soumission à TestFlight restent à vérifier.
 - Aucun envoi aux stores, aucune invitation de testeur et aucune publication publique n’ont été effectués.
 
 Les six variables Firebase sont présentes dans l’environnement EAS `preview`. Le hook `eas-build-post-install` bloque un build si elles manquent. La clé de signature Android est gérée par EAS. La configuration de production et les identifiants de soumission aux stores restent à terminer.
@@ -49,7 +49,7 @@ Les deux comptes synthétiques du dernier test cloud ont été supprimés. Les r
 
 - Valider l’APK et la version iOS sur de vrais téléphones, notamment le démarrage, le clavier, les photos, les permissions et les notifications.
 - Configurer la signature Apple et les comptes de distribution, puis les accès des testeurs.
-- Publier une politique de confidentialité avec l’identité et le contact de l’exploitant, ainsi qu’un parcours web de demande de suppression. La page d’aide intégrée ne remplace pas ces informations.
+- Finaliser puis publier les pages préparées dans `website/` : confidentialité, assistance et demande de suppression. L’aperçu est privé et les liens dans l’app restent masqués en mode brouillon. L’identité, le contact et la conservation doivent être finalisés selon `PRIVACY-RELEASE.md` ; la page d’aide intégrée ne remplace pas ces informations.
 - Compléter les déclarations de données des stores, les captures et les informations d’assistance.
 - Vérifier les alertes de budget, la surveillance des erreurs et la configuration App Check avant d’élargir le public.
 - Si l’IA ou Places doivent être ouverts : configurer les clés exclusivement côté serveur, déployer et tester les services, puis activer les indicateurs et reconstruire l’app.
