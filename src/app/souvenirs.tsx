@@ -61,7 +61,7 @@ function MemorySheet({ memory, onClose }: { memory: Memory; onClose: () => void 
   return (
     <Sheet visible title="Souvenir" onClose={onClose}>
       <Image source={{ uri: memory.photoUrl }} style={{ width: '100%', aspectRatio: 1, borderRadius: 20 }} contentFit="cover" />
-      <Field label="Légende" value={caption} onChangeText={setCaption} placeholder="Notre premier week-end à la mer" />
+      <Field label="Légende" value={caption} maxLength={4000} onChangeText={setCaption} placeholder="Notre premier week-end à la mer" />
       <DateField label="Date" value={date} onChange={setDate} maximumDate={new Date()} />
       <Button
         label="Enregistrer"

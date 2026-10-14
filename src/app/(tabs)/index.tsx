@@ -111,7 +111,7 @@ function DateSheet({
 }: {
   visible: boolean;
   onClose: () => void;
-  onSave: (d: { title: string; emoji: string; date: string; yearly: boolean }) => void;
+  onSave: (d: { title: string; emoji: string; date: string; yearly: boolean }) => Promise<void>;
 }) {
   const t = useTheme();
   const [title, setTitle] = useState('');
@@ -120,7 +120,7 @@ function DateSheet({
 
   return (
     <Sheet visible={visible} title="Nouvelle date" onClose={onClose}>
-      <Field label="Quoi ?" value={title} onChangeText={setTitle} placeholder="Nos vacances en Italie" />
+      <Field label="Quoi ?" value={title} maxLength={200} onChangeText={setTitle} placeholder="Nos vacances en Italie" />
       <DateField label="Date" value={date} onChange={setDate} />
       <Row style={{ justifyContent: 'space-between' }}>
         <View style={{ flex: 1 }}>
@@ -134,8 +134,8 @@ function DateSheet({
       <Button
         label="Ajouter"
         disabled={!title.trim()}
-        onPress={() => {
-          onSave({ title: title.trim(), emoji: '', date, yearly });
+        onPress={async () => {
+          await onSave({ title: title.trim(), emoji: '', date, yearly });
           setTitle('');
           setDate(todayKey());
           setYearly(false);

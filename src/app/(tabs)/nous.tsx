@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 
 import { InvitationCard } from '@/components/invitation-card';
 import { currentAccount } from '@/lib/backend';
@@ -11,15 +11,19 @@ import { showDialog } from '@/components/dialog';
 import { AccentThemes, cardShadow, MemberColors, usePrefs, useTheme, type AccentId } from '@/constants/theme';
 import { useCollection, useSession } from '@/lib/couple-context';
 import { tap } from '@/lib/haptics';
-import { ensurePermission } from '@/lib/notifications';
+import { ensurePermission, getPushToken, pushSupported, scheduleCountdownReminders } from '@/lib/notifications';
+import { useAsyncAction } from '@/lib/use-async-action';
 import type { Member } from '@/lib/types';
 
 function LinkRow({ icon, title, detail, onPress, first }: { icon: IconName; title: string; detail: string; onPress: () => void; first?: boolean }) {
   const t = useTheme();
+  const { run, pending } = useAsyncAction(onPress);
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={onPress}
+      onPress={run}
+      disabled={pending}
+      accessibilityState={{ busy: pending, disabled: pending }}
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
@@ -94,6 +98,7 @@ export default function Nous() {
   const { backend, members, signOut } = useSession();
   const memories = useCollection('memories');
   const expenses = useCollection('expenses');
+  const dates = useCollection('dates');
   const canEdit = (m: Member) => backend.mode === 'local' || m.id === backend.userId;
 
   const leave = () => {
@@ -138,15 +143,37 @@ export default function Nous() {
           title="Notifications"
           detail="Mots doux, rappels J-1, nouveaux horaires"
           onPress={async () => {
+            if (Platform.OS === 'web') {
+              showDialog('Notifications sur téléphone', 'Les rappels et les notifications se règlent dans l’application installée sur ton téléphone.');
+              return;
+            }
             const granted = await ensurePermission();
+            let pushRegistered = false;
+            if (granted) {
+              await scheduleCountdownReminders(dates);
+              if (backend.mode === 'cloud') {
+                const token = await getPushToken();
+                if (token) {
+                  await backend.call('registerPushToken', { token });
+                  pushRegistered = true;
+                }
+              }
+            }
             showDialog(
-              granted ? 'Notifications activées' : 'Notifications désactivées',
+              granted ? 'Rappels activés' : 'Notifications désactivées',
               granted
-                ? 'Tu recevras les rappels de dates et, en mode synchronisé, les messages de ta moitié.'
+                ? pushRegistered
+                  ? 'Tes rappels de dates et les notifications de ta moitié sont activés.'
+                  : backend.mode === 'local'
+                    ? 'Tes rappels de dates sont activés sur ce téléphone.'
+                    : !pushSupported
+                      ? 'Tes rappels de dates sont activés. Les messages de ta moitié nécessitent la version installée de Nous Deux, hors Expo Go.'
+                      : 'Tes rappels de dates sont activés. Les messages de ta moitié n’ont pas pu être activés : réessaie dans un instant.'
                 : 'Active-les dans les réglages du téléphone pour recevoir rappels et mots doux.',
             );
           }}
         />
+        <LinkRow icon="help-circle-outline" title="Aide et confidentialité" detail="Votre espace, vos données et vos comptes" onPress={() => router.push('/aide')} />
       </View>
 
       <AccountCard />

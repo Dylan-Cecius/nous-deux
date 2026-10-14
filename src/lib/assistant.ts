@@ -79,21 +79,20 @@ export async function applyAction(ctx: Ctx, a: AssistantAction) {
         note: '',
       });
     case 'event': {
-      if (!a.date || !a.start || !a.end) return;
+      const { date, start, end } = a;
+      if (!date || !start || !end) return;
       const weeks = Math.min(52, Math.max(1, Math.floor(a.repeatWeeks ?? 1)));
       const seriesId = weeks > 1 ? `${Date.now()}` : undefined;
-      for (let i = 0; i < weeks; i++) {
-        await backend.add('events', {
+      await backend.addEvents(Array.from({ length: weeks }, (_, i) => ({
           title: a.title,
-          date: addDays(a.date, i * 7),
-          start: a.start,
-          end: a.end,
+          date: addDays(date, i * 7),
+          start,
+          end,
           who: memberId(a.who),
           kind: a.who === 'both' ? 'ensemble' : 'travail',
           seriesId,
           createdBy: backend.userId,
-        });
-      }
+        })));
       return notifyPartner(ctx, 'Agenda', `${ctx.me?.name ?? 'Ta moitié'} a ajouté « ${a.title} ».`);
     }
     case 'date':

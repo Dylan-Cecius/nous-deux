@@ -39,8 +39,8 @@ export function CounterSheet({ onClose }: { onClose: () => void }) {
         <PhotoFrameEditor uri={couple.photoUrl} frame={frame} onChange={setFrame} />
         <Button
           label="Enregistrer le cadrage"
-          onPress={() => {
-            backend.updateCouple({ photoFrame: frame });
+          onPress={async () => {
+            await backend.updateCouple({ photoFrame: frame });
             setFraming(false);
           }}
         />
@@ -54,8 +54,8 @@ export function CounterSheet({ onClose }: { onClose: () => void }) {
       <Button
         label="Enregistrer la date"
         disabled={value > todayKey()}
-        onPress={() => {
-          backend.updateCouple({ since: value });
+        onPress={async () => {
+          await backend.updateCouple({ since: value });
           onClose();
         }}
       />

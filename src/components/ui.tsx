@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { ComponentProps, ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
+  ActivityIndicator,
   Modal,
   Platform,
   Pressable,
@@ -22,15 +23,20 @@ import { useAssistant } from './assistant-context';
 import { showDialog } from './dialog';
 import { cardShadow, Fonts, Radius, Spacing, useTheme } from '@/constants/theme';
 import { tap } from '@/lib/haptics';
+import { useAsyncAction } from '@/lib/use-async-action';
+import { userError } from '@/lib/errors';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 export { Ionicons };
 
 /** Demande confirmation avant une suppression. */
-export function confirmDelete(what: string, onConfirm: () => void) {
+export function confirmDelete(what: string, onConfirm: () => unknown) {
   showDialog('Supprimer ?', `« ${what} » sera supprimé pour vous deux.`, [
     { text: 'Annuler', style: 'cancel' },
-    { text: 'Supprimer', style: 'destructive', onPress: onConfirm },
+    { text: 'Supprimer', style: 'destructive', onPress: async () => {
+      try { await onConfirm(); }
+      catch (error) { showDialog('Suppression impossible', userError(error)); }
+    } },
   ]);
 }
 
@@ -262,6 +268,8 @@ export function Button({
   style?: StyleProp<ViewStyle>;
 }) {
   const t = useTheme();
+  const { run, pending } = useAsyncAction(onPress);
+  const unavailable = disabled || pending;
   const bg = {
     primary: t.primary,
     soft: t.primarySoft,
@@ -283,12 +291,13 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
-      disabled={disabled}
-      onPress={onPress}
+      accessibilityState={{ disabled: !!unavailable, busy: pending }}
+      disabled={unavailable}
+      onPress={run}
       style={({ pressed }) => [
         styles.button,
         small && styles.buttonSmall,
-        { backgroundColor: bg, opacity: disabled ? 0.45 : pressed ? 0.8 : 1 },
+        { backgroundColor: bg, opacity: unavailable ? 0.6 : pressed ? 0.8 : 1 },
         variant === 'outline' && { borderWidth: 1, borderColor: t.border },
         variant === 'glass' && { borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
         variant === 'sunset' && { overflow: 'hidden' },
@@ -302,8 +311,8 @@ export function Button({
           style={StyleSheet.absoluteFill}
         />
       )}
-      {icon ? <Ionicons name={icon} size={small ? 16 : 19} color={fg} /> : null}
-      <Text style={{ color: fg, fontFamily: Fonts.bodyBold, fontSize: small ? 14 : 16 }}>{label}</Text>
+      {pending ? <ActivityIndicator size="small" color={fg} /> : icon ? <Ionicons name={icon} size={small ? 16 : 19} color={fg} /> : null}
+      <Text style={{ color: fg, fontFamily: Fonts.bodyBold, fontSize: small ? 14 : 16, flexShrink: 1, textAlign: 'center', paddingVertical: 6 }}>{label}</Text>
     </Pressable>
   );
 }
@@ -322,13 +331,16 @@ export function IconButton({
   size?: number;
 }) {
   const t = useTheme();
+  const { run, pending } = useAsyncAction(onPress);
   const bg = { outline: t.card, primary: t.primary, accent: t.featureAccent }[variant];
   const fg = { outline: t.primary, primary: t.onPrimary, accent: t.feature }[variant];
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      onPress={onPress}
+      disabled={pending}
+      accessibilityState={{ disabled: pending, busy: pending }}
+      onPress={run}
       hitSlop={6}
       style={({ pressed }) => [
         {
@@ -342,7 +354,7 @@ export function IconButton({
         },
         variant === 'outline' && { borderWidth: 1, borderColor: t.border },
       ]}>
-      <Ionicons name={icon} size={size * 0.45} color={fg} />
+      {pending ? <ActivityIndicator size="small" color={fg} /> : <Ionicons name={icon} size={size * 0.45} color={fg} />}
     </Pressable>
   );
 }
@@ -359,13 +371,14 @@ export function Field({
     ? { bg: 'rgba(0,0,0,0.28)', fg: '#FBF6F1', border: 'rgba(255,255,255,0.16)', placeholder: 'rgba(251,246,241,0.45)', label: 'rgba(251,246,241,0.7)' }
     : { bg: t.card, fg: t.text, border: t.border, placeholder: t.textSecondary, label: t.textSecondary };
   return (
-    <View style={[{ gap: 6 }, grow && { flex: 1 }]}>
+    <View style={[{ gap: 6, minWidth: 0 }, grow && { flex: 1 }]}>
       {label ? (
         <T variant="caption" color={colors.label}>
           {label}
         </T>
       ) : null}
       <TextInput
+        accessibilityLabel={label}
         placeholderTextColor={colors.placeholder}
         {...props}
         style={[
@@ -438,6 +451,8 @@ export function Chips<V extends string>({
           return (
             <Pressable
               key={o.value}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active }}
               onPress={() => {
                 tap();
                 onChange(o.value);
@@ -469,14 +484,17 @@ export function ColorPicker({
   ringColor?: string;
 }) {
   const t = useTheme();
+  const { run, pending } = useAsyncAction(onChange);
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
       {colors.map((c) => (
         <Pressable
           key={c}
+          accessibilityRole="radio"
           accessibilityLabel={`Couleur ${c}`}
           accessibilityState={{ selected: value === c }}
-          onPress={() => onChange(c)}
+          disabled={pending}
+          onPress={() => run(c)}
           style={{
             width: 40,
             height: 40,
@@ -499,11 +517,14 @@ export function ColorPicker({
 export function Fab({ onPress, label = 'Ajouter' }: { onPress: () => void; label?: string }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const { run, pending } = useAsyncAction(onPress);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      onPress={onPress}
+      disabled={pending}
+      accessibilityState={{ disabled: pending, busy: pending }}
+      onPress={run}
       style={({ pressed }) => [
         styles.fab,
         {
@@ -513,7 +534,7 @@ export function Fab({ onPress, label = 'Ajouter' }: { onPress: () => void; label
           transform: [{ scale: pressed ? 0.94 : 1 }],
         },
       ]}>
-      <Ionicons name="add" size={30} color="#fff" />
+      {pending ? <ActivityIndicator color="#fff" /> : <Ionicons name="add" size={30} color="#fff" />}
     </Pressable>
   );
 }

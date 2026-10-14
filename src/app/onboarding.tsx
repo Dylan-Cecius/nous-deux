@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { router } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, ColorPicker, Field, T } from '@/components/ui';
@@ -101,7 +102,7 @@ export default function Onboarding() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       {/* Même ambiance que l'écran de lancement : fond prune, cœur lumineux, nom de l'app. */}
       <StatusBar style="light" />
       <LinearGradient colors={['#4A2238', '#2A1420', '#1A0B14']} locations={[0, 0.55, 1]} style={StyleSheet.absoluteFill} />
@@ -123,7 +124,7 @@ export default function Onboarding() {
             <T variant="h2" color={CREAM}>
               Faisons connaissance
             </T>
-            <Field dark label="Ton prénom" value={name} maxLength={60} onChangeText={setName} placeholder="Ex. Dylan" autoFocus />
+            <Field dark label="Ton prénom" value={name} maxLength={60} onChangeText={setName} placeholder="Ex. Camille" autoComplete="given-name" />
             <View style={{ gap: 8 }}>
               <T variant="caption" color={MUTED}>
                 Ta couleur dans l’agenda
@@ -175,9 +176,9 @@ export default function Onboarding() {
                 J’ai reçu un code
               </T>
               <T color={MUTED}>Ta moitié a déjà créé votre espace ? Entre son code.</T>
-              <Button label="Rejoindre" variant="glass" onPress={() => setStep('join')} />
+              <Button label="Rejoindre" variant="glass" disabled={busy} onPress={() => setStep('join')} />
             </GlassCard>
-            <Pressable accessibilityRole="button" onPress={() => setStep('local')} style={{ alignSelf: 'center', padding: 12 }}>
+            <Pressable accessibilityRole="button" disabled={busy} onPress={() => setStep('local')} style={{ alignSelf: 'center', padding: 12 }}>
               <T style={{ color: MUTED, fontFamily: Fonts.bodyBold }}>Essayer sans compte (sur ce téléphone)</T>
             </Pressable>
           </View>
@@ -205,7 +206,7 @@ export default function Onboarding() {
               disabled={busy || code.replace(/\s|-/g, '').length !== 10}
               onPress={() => run(() => joinCloudCouple(code, me))}
             />
-            <Button label="Retour" variant="glass" onPress={() => setStep('choice')} />
+            <Button label="Retour" variant="glass" disabled={busy} onPress={() => setStep('choice')} />
           </GlassCard>
         )}
 
@@ -219,7 +220,7 @@ export default function Onboarding() {
                 ? 'Les données resteront sur ce téléphone, sans synchronisation.'
                 : 'La synchronisation entre vos deux téléphones n’est pas encore activée : pour l’instant, tout reste sur ce téléphone.'}
             </T>
-            <Field dark label="Son prénom" value={partnerName} onChangeText={setPartnerName} placeholder="Ex. Camille" />
+            <Field dark label="Son prénom" value={partnerName} maxLength={60} onChangeText={setPartnerName} placeholder="Ex. Alex" />
             <Button
               label="C’est parti"
               variant="sunset"
@@ -238,7 +239,10 @@ export default function Onboarding() {
         )}
 
         {busy && <ActivityIndicator color={PINK} />}
+        <Pressable accessibilityRole="button" onPress={() => router.push('/aide')} style={{ alignSelf: 'center', padding: 12 }}>
+          <T variant="small" color={MUTED}>Aide et confidentialité</T>
+        </Pressable>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
