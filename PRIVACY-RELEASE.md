@@ -1,6 +1,6 @@
 # Pages de confidentialité, d’assistance et de suppression
 
-État au 14 octobre 2026 : aperçu privé préparé, informations d’éditeur et politique de conservation à finaliser. Ce document ne constitue pas une validation juridique ni une autorisation de publication publique.
+État au 14 octobre 2026 : aperçu privé préparé. Coordonnées confirmées par l’éditeur : **XII Tech Studio**, **Rue de Jace 189, 4101 Jemeppe-sur-Meuse, Belgique**, **xiitechstudio@gmail.com**. La politique de conservation et les autres mentions légales applicables restent à finaliser. Ce document ne constitue pas une validation juridique ni une autorisation de publication publique.
 
 ## Source et génération
 
@@ -13,12 +13,14 @@
 
 ## Informations à confirmer avec l’éditeur
 
-1. Identité légale de l’exploitant et adresse professionnelle à rendre publiques.
-2. Adresse d’assistance dédiée, consultée régulièrement et autorisée à recevoir les demandes relatives aux données.
+1. Nom commercial et adresse professionnelle confirmés ci-dessus. Vérifier la dénomination légale correspondante et compléter le numéro BCE et les autres mentions applicables avant publication.
+2. Le contact d’assistance confirmé est `xiitechstudio@gmail.com`. Organiser sa consultation régulière et le traitement des demandes relatives aux données.
 3. Durée de conservation des demandes d’assistance et organisation de leur effacement.
 4. Périmètre réel des prestataires, garanties de transfert applicables et bases juridiques ; vérifier notamment le traitement des contenus intimes librement saisis et les règles d’accès liées à l’âge avant une diffusion publique.
 
-Aucune adresse d’une autre activité de l’éditeur ne doit être réutilisée sans confirmation. Aucun formulaire ne transmet de demande à ce stade.
+Aucune autre adresse ne doit être réutilisée sans confirmation. Le formulaire prépare un message vers le contact confirmé ; son envoi reste à la charge de l’utilisateur dans sa messagerie. Aucun message de test n’a été envoyé par l’agent.
+
+L’adresse fournie est intégrée à l’aperçu privé. Selon le SPF Économie, un site d’entreprise belge doit afficher l’adresse de son établissement : https://economie.fgov.be/fr/themes/line/commerce-electronique/vente-par-internet/site-dentreprise-et-comptes. Compléter également les informations légales applicables, dont le numéro BCE et les moyens de contact. Pour une distribution professionnelle sur l’App Store dans l’UE, Apple publie les coordonnées du professionnel ; un compte individuel peut utiliser une adresse ou une boîte postale justifiée pour cette exigence Apple. Cela ne dispense pas des obligations belges d’adresse d’établissement : https://developer.apple.com/help/app-store-connect/manage-compliance-information/manage-european-union-digital-services-act-trader-requirements.
 
 ## Conservation : travail technique avant publication
 
