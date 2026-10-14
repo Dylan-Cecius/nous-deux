@@ -2,7 +2,7 @@
 
 ## Distribution
 
-- **Android** : le profil EAS `preview` produit un APK autonome, sans Expo Go ni serveur de développement. Build 1.0.0 (3) lancé : [suivi et installation](https://expo.dev/accounts/dylancecius/projects/nous-deux/builds/bcecf4ec-ebe0-42cc-b1af-34b17be18449). Au moment de la préparation, il est en file d’attente ; attendre le statut Finished et l’artefact APK avant de le proposer à des testeurs. Expo signale un incident affectant les builds.
+- **Android** : le build 1.0.0 (3) est terminé. La page Expo affiche **Succeeded** et propose l’APK de distribution interne : [installation Android](https://expo.dev/accounts/dylancecius/projects/nous-deux/builds/bcecf4ec-ebe0-42cc-b1af-34b17be18449). Ouvrir ce lien sur le téléphone Android et télécharger l’APK. Cette version est autonome : le PC et Expo Go ne sont pas nécessaires. Le téléchargement vers l’environnement de contrôle n’a pas abouti ; l’intégrité du fichier et son fonctionnement une fois installé restent à vérifier sur un appareil.
 - **iPhone** : le profil `beta` est prêt pour TestFlight, mais les certificats Apple ne sont pas configurés. Le build non interactif a été arrêté avant l’envoi. Il faut terminer la connexion Apple Developer et la signature avec `npx eas-cli@latest build --platform ios --profile beta`, puis soumettre le build avec `npx eas-cli@latest submit --platform ios --profile beta`.
 - Aucun envoi aux stores, aucune invitation de testeur et aucune publication publique n’ont été effectués.
 
@@ -29,13 +29,14 @@ Les six variables Firebase sont présentes dans l’environnement EAS `preview`.
 | Parcours web en affichage mobile | 15 contrôles réussis ; largeurs 320, 390 et 430 px, thème sombre, formulaires, rechargement, aucune erreur JavaScript non interceptée |
 | Deux sessions distinctes sur Firebase réel | 8 contrôles réussis : invitation, message synchronisé, réponses privées puis révélées, série d’horaires, compte e-mail, reconnexion, suppression de chacun des deux comptes |
 | Bundles JavaScript Android et iOS | Compilation réussie |
+| Build natif Android 1.0.0 (3) | Statut Expo Succeeded et lien APK disponibles, confirmés sur la page du build le 14 octobre 2026 ; essai sur téléphone restant |
 | Garde de configuration du build | Configuration absente et indicateur invalide refusés ; configuration complète acceptée |
 
 Les deux comptes synthétiques du dernier test cloud ont été supprimés. Les règles Firestore prenant en charge l’heure serveur ont été déployées. Les vérifications dans le navigateur ne remplacent pas les essais d’une application installée sur un téléphone physique.
 
 ## Parcours conseillé aux premiers testeurs
 
-1. Installer l’APK final ou accepter l’invitation TestFlight lorsque le build iOS sera prêt.
+1. Ouvrir le lien Android ci-dessus et installer l’APK sur un téléphone de test. Sur iPhone, attendre la préparation du build TestFlight : le fichier APK ne s’installe pas sur iOS.
 2. Créer un espace sur un premier téléphone. Générer une invitation et rejoindre cet espace sur le second téléphone.
 3. Dans **Nous > Ton compte**, associer un e-mail et un mot de passe avant de changer de téléphone ou de se déconnecter.
 4. Envoyer un mot doux, répondre chacun à la question du jour, ajouter un horaire répété, un restaurant, une course et une dépense. Vérifier les mises à jour sur l’autre téléphone.
