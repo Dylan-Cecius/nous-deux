@@ -2,6 +2,8 @@
 
 Application mobile pour les couples (Android + iOS), faite avec Expo / React Native.
 
+Pour la version de test et les vérifications restantes, lire [BETA-TESTING.md](BETA-TESTING.md).
+
 ## Ce que fait l'app
 
 | Onglet | Contenu |
@@ -12,7 +14,7 @@ Application mobile pour les couples (Android + iOS), faite avec Expo / React Nat
 | **Listes** | Rêves (bucket list, confettis quand on coche), Films & séries (tirage au sort), **Courses** partagées, **Cadeaux secrets** (invisibles pour l'autre) |
 | **Nous** | Profils et couleurs, **Souvenirs** (album), **Dépenses communes** (qui doit combien), notifications, **thème de couleur**, invitations temporaires |
 
-Sur chaque écran, le bouton **micro** ouvre l'**assistant** : « Ajoute Chez Mario dans nos favoris », « Je bosse jeudi de 9h à 17h », « Ajoute du lait aux courses »… Il propose les actions, tu valides.
+Lorsque le service IA et son indicateur d’activation sont configurés, le bouton **micro** ouvre l'**assistant** : « Ajoute Chez Mario dans nos favoris », « Je bosse jeudi de 9h à 17h », « Ajoute du lait aux courses »… Il propose les actions, tu valides.
 
 Appui long sur un élément pour le supprimer.
 
@@ -23,9 +25,9 @@ Appui long sur un élément pour le supprimer.
 | Tout l'app en mode local | ✅ | ✅ |
 | Synchro à deux, photos partagées | ✅ avec Firebase | ✅ avec Firebase |
 | Rappels J-1 / Jour J (notifications locales) | ✅ | ✅ |
-| Notifications envoyées à ta moitié (push) | ❌ (Android) | ✅ après `eas init` |
-| Dictée vocale | ❌ (saisie au clavier possible) | ✅ |
-| Assistant IA, import de planning, recherche de restos | ✅ avec Firebase + Cloud Functions | ✅ |
+| Notifications envoyées à ta moitié (push) | Désactivées dans Expo Go | Après configuration FCM/APNs, permission et test sur téléphone |
+| Dictée vocale | Indisponible | Avec assistant activé et permission micro |
+| Assistant IA, import de planning, recherche de restos | Avec services serveur, clés et indicateurs activés | Même configuration requise ; désactivés dans la bêta actuelle |
 
 ## Lancer l'app sur ton téléphone (5 min)
 
@@ -75,20 +77,18 @@ Le déploiement des Cloud Functions et l’utilisation de Storage nécessitent l
    cd functions; npm install; cd ..; npx.cmd firebase-tools deploy --only functions,firestore,storage
    ```
 
-Les clés restent sur le serveur (Cloud Functions) : elles ne sont jamais dans l'app.
+Les clés de ces fournisseurs restent sur le serveur (Cloud Functions) : elles ne sont jamais dans l'app. Une fois chaque service déployé et testé, activer son indicateur `EXPO_PUBLIC_ASSISTANT_ENABLED=true` ou `EXPO_PUBLIC_PLACES_ENABLED=true` dans l’environnement EAS concerné et refaire le build. Sans cette configuration, l’assistant et la recherche Places sont masqués ; l’ajout manuel de restaurants reste disponible.
 
 ## Notifications push et dictée vocale
 
-Elles ont besoin d'une vraie version installée de l'app (pas Expo Go) :
+Utiliser une version installée pour les tests natifs. Le profil `preview` produit un APK autonome :
 
 ```bash
-npx.cmd eas-cli@latest init
-```
-```bash
-npx.cmd eas-cli@latest build --platform android --profile development
+npx eas-cli@latest build --platform android --profile preview
 ```
 
-Installe l'APK obtenu sur ton téléphone, puis lance `npx.cmd expo start` : l'app se connecte à ton PC comme avec Expo Go.
+Il fonctionne sans Expo Go ni serveur de développement. Les notifications push exigent aussi les identifiants FCM/APNs et une permission accordée dans **Nous > Notifications**. Leur livraison doit être vérifiée sur un téléphone physique. La dictée reste masquée tant que l’assistant est désactivé.
+
 ## Publier sur le Play Store et l'App Store
 
 Tout se fait dans le cloud avec **EAS** : pas besoin de Mac pour iOS.
@@ -107,7 +107,7 @@ Tout se fait dans le cloud avec **EAS** : pas besoin de Mac pour iOS.
    ```bash
    npx eas-cli@latest env:create --environment production --name EXPO_PUBLIC_FIREBASE_API_KEY --value "..." --visibility plaintext
    ```
-   (à répéter pour chaque variable de `.env`), ou laisse simplement le fichier `.env` dans le projet : il est envoyé avec le build.
+   (à répéter pour les six variables Firebase ; utiliser `preview` pour les profils `preview` et `beta`). Le fichier `.env` est ignoré par Git : ne pas compter sur son envoi. Le hook de build refuse une configuration Firebase incomplète. Les variables `EXPO_PUBLIC_*` sont intégrées à l’application et ne doivent jamais contenir de secrets serveur.
 3. Connexion et configuration :
    ```bash
    npx eas-cli@latest login

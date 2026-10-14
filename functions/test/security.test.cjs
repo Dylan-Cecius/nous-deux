@@ -7,7 +7,7 @@ const { getFirestore } = require('firebase-admin/firestore');
 const { getAuth } = require('firebase-admin/auth');
 const { getStorage } = require('firebase-admin/storage');
 const { initializeTestEnvironment, assertFails, assertSucceeds } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs } = require('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, serverTimestamp, Timestamp } = require('firebase/firestore');
 const { ref, uploadBytes, getBytes } = require('firebase/storage');
 
 const projectId = 'demo-nous-deux-security';
@@ -90,6 +90,21 @@ test('les notes ne permettent pas d’usurper un auteur et les modifications par
   await assertFails(updateDoc(doc(client('bob'), path), { createdBy: 'bob' }));
   await assertFails(updateDoc(doc(client('bob'), path), { start: '25:00' }));
   await assertFails(getDoc(doc(client('mallory'), path)));
+});
+
+test('l’heure serveur permet les écritures malgré une horloge client en avance, sans accepter les dates futures', async () => {
+  await seed();
+  const alice = client('alice');
+  const note = doc(alice, `couples/${cid}/notes/server-time`);
+  const data = { text: 'Heure serveur', from: 'alice', kind: 'note' };
+  const future = Date.now() + 3600000;
+  await assertFails(setDoc(note, { ...data, createdAt: future }));
+  await assertFails(setDoc(note, { ...data, createdAt: Timestamp.fromMillis(future) }));
+  await assertSucceeds(setDoc(note, { ...data, createdAt: serverTimestamp() }));
+  const saved = (await getDoc(note)).data().createdAt;
+  assert.ok(saved instanceof Timestamp);
+  await assertSucceeds(updateDoc(note, { text: 'Modifié' }));
+  await assertFails(updateDoc(note, { createdAt: Timestamp.fromMillis(saved.toMillis() - 1000) }));
 });
 
 test('les listes, souvenirs et dépenses valident les champs sans bloquer les usages normaux', async () => {

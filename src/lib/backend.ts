@@ -15,6 +15,8 @@ import {
   doc,
   getDoc,
   onSnapshot,
+  serverTimestamp,
+  Timestamp,
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
@@ -512,7 +514,12 @@ function cloudBackend(coupleId: string, uid: string): Backend {
     },
     subscribe: (name, cb) => {
       if (name === 'answers') return subscribeAnswers(coupleId, uid, cb as (items: Answer[]) => void);
-      return onSnapshot(col(name), (snap) => cb(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as any)), () => cb([]));
+      return onSnapshot(col(name), (snap) => cb(snap.docs.map((d) => {
+        const data = d.data({ serverTimestamps: 'estimate' });
+        // Les anciennes données utilisent des millisecondes ; les nouvelles sont datées par Firebase.
+        if (data.createdAt instanceof Timestamp) data.createdAt = data.createdAt.toMillis();
+        return { ...data, id: d.id } as Collections[typeof name];
+      })), () => cb([]));
     },
     async add(name, data) {
       if (name === 'answers') {
@@ -520,7 +527,8 @@ function cloudBackend(coupleId: string, uid: string): Backend {
         await callServer('submitDailyAnswer', { coupleId, date: answer.date, text: answer.text });
         return;
       }
-      await addDoc(col(name), clean(data));
+      const payload = clean(data);
+      await addDoc(col(name), 'createdAt' in payload ? { ...payload, createdAt: serverTimestamp() } : payload);
     },
     async addEvents(events) {
       if (!events.length || events.length > 52) throw new Error('Choisis entre 1 et 52 horaires.');
