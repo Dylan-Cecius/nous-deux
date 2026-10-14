@@ -27,7 +27,7 @@ npx expo export --platform web
 
 Le CLI Firebase est une dépendance de développement ; il n'est pas embarqué dans les fonctions déployées. Les tests serveur utilisent exclusivement `demo-nous-deux-security` avec les émulateurs Auth, Firestore et Storage. Ils refusent de démarrer sans ces émulateurs. Aucun appel à Anthropic, Places ou Expo Push n'est nécessaire aux tests.
 
-22 tests de l'app et 16 scénarios serveur/règles couvrent notamment les accès interdits, les usages partagés autorisés, les courses entre invitations/réponses, les quotas, le consentement, la réauthentification, la reprise après panne Storage et une migration exécutée deux fois.
+23 tests de l'app et 16 scénarios serveur/règles couvrent notamment les accès interdits, les usages partagés autorisés, les courses entre invitations/réponses, les quotas, le consentement, la réauthentification, la reprise après panne Storage, une migration exécutée deux fois et la récupération d'une session dont l'espace a été corrigé côté serveur.
 
 ## Activation sur un projet existant
 
@@ -73,4 +73,14 @@ Ne pas restaurer les anciennes règles permissives pour contourner une erreur. E
 - Les quotas limitent les appels payants aux fournisseurs ; ils ne constituent pas un plafond de facturation Firebase. App Check et les alertes de budget doivent être configurés pour les builds distribués. App Check n'est pas activé par ces modifications, afin de ne pas prétendre à une attestation absente d'Expo Go.
 - La politique de confidentialité publique, les déclarations des stores, le parcours web de demande de suppression exigé par Google Play et les vérifications sur appareils réels restent des étapes de publication distinctes.
 
-Au moment de la validation locale, le CLI du PC ne disposait d'aucun compte Firebase connecté : les corrections et la migration n'ont donc pas été appliquées à `nous-deux-80525`.
+## Déploiement vérifié le 14 octobre 2026
+
+Les neuf fonctions de sécurité sont déployées sur `nous-deux-80525`, en `europe-west1` avec Node 22. Les règles Firestore et Storage sont actives et la migration a été appliquée. Le nettoyage des anciennes images de conteneur est configuré à sept jours ; il ne concerne pas les photos de l'app.
+
+Une sauvegarde complète des données et des anciennes règles a été conservée sur l'ordinateur du propriétaire avant la migration. Un doublon entièrement vide a été retiré ; l'espace contenant les données a été conservé et son index utilisateur réparé. Les deux comptes existants, les cinq documents de contenu et la photo ont été vérifiés après migration ; le fichier photo est identique à sa sauvegarde. Le jeton push existant a été déplacé dans l'espace privé de son propriétaire.
+
+Huit parcours ont ensuite été vérifiés sur le vrai service avec trois comptes temporaires : exclusion d'un tiers, invitation à usage unique, protection des profils, réponses privées puis révélées, consentement révocable, confidentialité d'une photo, suppression d'un membre sans supprimer le partenaire, puis suppression du dernier membre. Les comptes et données de test ont été nettoyés ; aucune suppression n'était en attente à la fin du contrôle.
+
+La copie de travail du propriétaire contient les corrections et le serveur Expo Go a été redémarré. Le manifeste iOS et le bundle ont répondu avec succès. L'export web, le lint et les vérifications TypeScript passent également. Le parcours visuel sur un téléphone reste à vérifier.
+
+Les fonctions facultatives `assistant` et `searchPlaces` ne sont pas déployées : leurs clés Anthropic et Google Places restent à configurer. Cette activation de la sécurité ne constitue pas une publication sur les stores.
