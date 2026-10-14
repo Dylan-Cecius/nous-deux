@@ -23,6 +23,7 @@ import { showDialog } from '@/components/dialog';
 import { Fonts, useTheme } from '@/constants/theme';
 import { useCollection, useSession } from '@/lib/couple-context';
 import { pickOne } from '@/lib/random';
+import { features } from '@/lib/features';
 import type { Restaurant, RestaurantStatus } from '@/lib/types';
 
 const STATUSES: { value: RestaurantStatus; label: string }[] = [
@@ -210,7 +211,7 @@ function RestoSheet({
 
   return (
     <Sheet visible title={resto ? resto.name : 'Nouveau resto'} onClose={onClose}>
-      {!resto && backend.mode === 'cloud' && (
+      {!resto && backend.mode === 'cloud' && features.places && (
         <PlaceSearch
           onPick={(p) => {
             setName(p.name);
@@ -223,15 +224,15 @@ function RestoSheet({
       {!!found.photoUrl && (
         <Image source={{ uri: found.photoUrl }} style={{ width: '100%', height: 160, borderRadius: 18 }} contentFit="cover" />
       )}
-      <Field label="Nom" value={name} onChangeText={setName} placeholder="Chez Mario" />
+      <Field label="Nom" value={name} maxLength={200} onChangeText={setName} placeholder="Chez Mario" />
       {!!found.address && (
         <T variant="small" muted>
           {found.address}
         </T>
       )}
       <Row style={{ gap: 12 }}>
-        <Field label="Cuisine" value={cuisine} onChangeText={setCuisine} placeholder="Italien" grow />
-        <Field label="Quartier" value={place} onChangeText={setPlace} placeholder="Lyon 2e" grow />
+        <Field label="Cuisine" value={cuisine} maxLength={200} onChangeText={setCuisine} placeholder="Italien" grow />
+        <Field label="Ville / quartier" value={place} maxLength={500} onChangeText={setPlace} placeholder="Liège" grow />
       </Row>
       <Chips label="Liste" options={STATUSES} value={status} onChange={setStatus} />
       {status !== 'envie' && (
@@ -242,7 +243,7 @@ function RestoSheet({
           <Hearts value={rating} onChange={setRating} size={32} />
         </View>
       )}
-      <Field label="Notes" value={note} onChangeText={setNote} placeholder="Prendre la burrata, réserver le samedi…" multiline />
+      <Field label="Notes" value={note} maxLength={4000} onChangeText={setNote} placeholder="Prendre la burrata, réserver le samedi…" multiline />
       <Button label="Enregistrer" disabled={!name.trim()} onPress={save} />
       {resto && (
         <Button

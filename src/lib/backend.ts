@@ -15,7 +15,10 @@ import {
   doc,
   getDoc,
   onSnapshot,
+  serverTimestamp,
+  Timestamp,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
@@ -27,6 +30,7 @@ import { toCompactDataUri } from './photos';
 import {
   PRIVATE_COLLECTIONS,
   type Answer,
+  type AgendaEvent,
   type CollectionName,
   type Collections,
   type Couple,
@@ -48,6 +52,8 @@ export interface Backend {
   updateMember(memberId: string, patch: Partial<Omit<Member, 'id'>>): Promise<void>;
   subscribe<K extends CollectionName>(col: K, cb: (items: Collections[K][]) => void): () => void;
   add<K extends CollectionName>(col: K, data: Omit<Collections[K], 'id'>): Promise<void>;
+  /** Ajoute toute une série d'horaires, ou aucun, pour éviter les doublons après un échec partiel. */
+  addEvents(events: Omit<AgendaEvent, 'id'>[]): Promise<void>;
   update<K extends CollectionName>(col: K, id: string, patch: Partial<Collections[K]>): Promise<void>;
   remove(col: CollectionName, id: string): Promise<void>;
   /** Enregistre une photo (Firebase Storage, ou dossier de l'app en mode local) et renvoie son adresse. */
@@ -101,7 +107,7 @@ function functionMessage(e: unknown): string {
       return 'L’opération n’a pas abouti. Réessaie dans un instant.';
     case 'functions/unavailable':
     case 'functions/deadline-exceeded':
-      return 'L’assistant ne répond pas pour le moment. Vérifie ta connexion et réessaie.';
+      return 'Le service ne répond pas pour le moment. Vérifie ta connexion et réessaie.';
     case 'functions/failed-precondition':
     case 'functions/already-exists':
     case 'functions/unauthenticated':
@@ -188,9 +194,9 @@ async function readLocal<T>(key: string, fallback: T): Promise<T> {
 }
 
 async function writeLocal<T>(key: string, value: T) {
+  await AsyncStorage.setItem(key, JSON.stringify(value));
   cache.set(key, value);
   listeners.get(key)?.forEach((cb) => cb(value));
-  await AsyncStorage.setItem(key, JSON.stringify(value));
 }
 
 function watchLocal<T>(key: string, fallback: T, cb: (value: T) => void) {
@@ -239,6 +245,11 @@ function localBackend(): Backend {
       const items = await readLocal<any[]>(colKey(col), []);
       await writeLocal(colKey(col), [...items, { ...data, id: newId() }]);
     },
+    async addEvents(events) {
+      if (!events.length || events.length > 52) throw new Error('Choisis entre 1 et 52 horaires.');
+      const items = await readLocal<AgendaEvent[]>(colKey('events'), []);
+      await writeLocal(colKey('events'), [...items, ...events.map((event) => ({ ...event, id: newId() }))]);
+    },
     async update(col, id, patch) {
       const items = await readLocal<any[]>(colKey(col), []);
       await writeLocal(
@@ -254,8 +265,8 @@ function localBackend(): Backend {
       );
     },
     async uploadPhoto(localUri) {
-      // Sur le web, l'adresse renvoyée par le sélecteur d'images suffit.
-      if (Platform.OS === 'web') return localUri;
+      // Une URL blob disparaît au rechargement : conserver le contenu en mode local web.
+      if (Platform.OS === 'web') return toCompactDataUri(localUri);
       // Le sélecteur d'images rend un fichier temporaire : on le copie dans le dossier de l'app.
       const { File, Paths } = await import('expo-file-system');
       const dest = new File(Paths.document, `photo-${newId()}.jpg`);
@@ -503,7 +514,12 @@ function cloudBackend(coupleId: string, uid: string): Backend {
     },
     subscribe: (name, cb) => {
       if (name === 'answers') return subscribeAnswers(coupleId, uid, cb as (items: Answer[]) => void);
-      return onSnapshot(col(name), (snap) => cb(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as any)), () => cb([]));
+      return onSnapshot(col(name), (snap) => cb(snap.docs.map((d) => {
+        const data = d.data({ serverTimestamps: 'estimate' });
+        // Les anciennes données utilisent des millisecondes ; les nouvelles sont datées par Firebase.
+        if (data.createdAt instanceof Timestamp) data.createdAt = data.createdAt.toMillis();
+        return { ...data, id: d.id } as Collections[typeof name];
+      })), () => cb([]));
     },
     async add(name, data) {
       if (name === 'answers') {
@@ -511,7 +527,14 @@ function cloudBackend(coupleId: string, uid: string): Backend {
         await callServer('submitDailyAnswer', { coupleId, date: answer.date, text: answer.text });
         return;
       }
-      await addDoc(col(name), clean(data));
+      const payload = clean(data);
+      await addDoc(col(name), 'createdAt' in payload ? { ...payload, createdAt: serverTimestamp() } : payload);
+    },
+    async addEvents(events) {
+      if (!events.length || events.length > 52) throw new Error('Choisis entre 1 et 52 horaires.');
+      const batch = writeBatch(db);
+      for (const event of events) batch.set(doc(col('events')), clean(event));
+      await batch.commit();
     },
     async update(name, id, patch) {
       const { id: _ignored, ...rest } = patch as { id?: string };

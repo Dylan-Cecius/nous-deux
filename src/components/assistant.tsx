@@ -11,15 +11,18 @@ import { hasAiConsent } from '@/lib/backend';
 import { bump, success } from '@/lib/haptics';
 import { pickPhoto } from '@/lib/photos';
 import { listen, voiceSupported } from '@/lib/voice';
+import { features } from '@/lib/features';
 
 type Mode = AssistantMode;
 
 export function AssistantProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<Mode | null>(null);
+  const { backend } = useSession();
+  const available = features.assistant && backend.mode === 'cloud';
   return (
-    <AssistantContext.Provider value={{ open: (m = 'voice') => setMode(m) }}>
+    <AssistantContext.Provider value={available ? { open: (m = 'voice') => setMode(m) } : null}>
       {children}
-      {mode && <AssistantSheet mode={mode} onClose={() => setMode(null)} />}
+      {available && mode && <AssistantSheet mode={mode} onClose={() => setMode(null)} />}
     </AssistantContext.Provider>
   );
 }

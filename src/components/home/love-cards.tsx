@@ -9,6 +9,7 @@ import { sendLoveNote } from '@/lib/assistant';
 import { useCollection, useSession } from '@/lib/couple-context';
 import { formatRelative, quote } from '@/lib/dates';
 import { bump, success } from '@/lib/haptics';
+import { useAsyncAction } from '@/lib/use-async-action';
 
 /** Bouton « Je pense à toi » : un appui envoie un cœur et une notification à ta moitié. */
 export function PingCard() {
@@ -37,19 +38,22 @@ export function PingCard() {
     .filter((n) => n.kind === 'ping' && n.from !== backend.userId)
     .sort((a, b) => b.createdAt - a.createdAt)[0];
 
-  const ping = async () => {
+  const { run: ping, pending } = useAsyncAction(async () => {
+    await sendLoveNote(session, '💗', 'ping');
     success();
     celebrate('hearts');
     setSent(true);
     setTimeout(() => setSent(false), 2500);
-    await sendLoveNote(session, '💗', 'ping');
-  };
+  });
+  const waitingForPartner = backend.mode === 'cloud' && !partner;
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Envoyer « je pense à toi »"
       onPress={ping}
+      disabled={pending || sent || waitingForPartner}
+      accessibilityState={{ disabled: pending || sent || waitingForPartner, busy: pending }}
       style={({ pressed }) => [
         {
           flexDirection: 'row',
@@ -68,9 +72,9 @@ export function PingCard() {
         </Animated.View>
       </View>
       <View style={{ flex: 1, gap: 2 }}>
-        <T variant="h3">{sent ? 'Cœur envoyé !' : 'Je pense à toi'}</T>
-        <T variant="small" muted numberOfLines={1}>
-          {lastReceived && partner
+        <T variant="h3">{sent ? backend.mode === 'local' ? 'Cœur enregistré !' : 'Cœur envoyé !' : 'Je pense à toi'}</T>
+        <T variant="small" muted>
+          {waitingForPartner ? 'Invite ta moitié pour lui envoyer un petit cœur.' : backend.mode === 'local' ? 'Un petit cœur conservé sur ce téléphone.' : lastReceived && partner
             ? `${partner.name} a pensé à toi ${formatRelative(lastReceived.createdAt)}`
             : `Un appui, et ${partner?.name ?? 'ta moitié'} reçoit un petit cœur`}
         </T>

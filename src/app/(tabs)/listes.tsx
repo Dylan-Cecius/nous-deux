@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { userError } from '@/lib/errors';
 import { Pressable, View } from 'react-native';
 
 import { celebrate } from '@/components/celebrate';
@@ -87,14 +88,15 @@ export default function Listes() {
   const done = sorted.filter((i) => i.done);
   const copy = COPY[tab];
 
-  const toggle = (item: Entry) => {
+  const toggle = async (item: Entry) => {
+    try { await backend.update(col, item.id, { done: !item.done }); }
+    catch (error) { showDialog('Modification impossible', userError(error)); return; }
     if (!item.done) {
       if (tab === 'bucket') {
         success();
         celebrate('confetti');
       } else tap();
     }
-    backend.update(col, item.id, { done: !item.done });
   };
 
   const pickMovie = () => {
@@ -109,7 +111,10 @@ export default function Listes() {
   const clearBasket = () =>
     showDialog('Vider le panier ?', `${done.length} article${done.length > 1 ? 's' : ''} coché${done.length > 1 ? 's' : ''} seront retirés.`, [
       { text: 'Annuler', style: 'cancel' },
-      { text: 'Vider', style: 'destructive', onPress: () => done.forEach((i) => backend.remove('items', i.id)) },
+      { text: 'Vider', style: 'destructive', onPress: async () => {
+        try { for (const item of done) await backend.remove('items', item.id); }
+        catch (error) { showDialog('Suppression interrompue', userError(error)); }
+      } },
     ]);
 
   const renderItem = (item: Entry, index: number) => (
@@ -295,8 +300,8 @@ function ItemSheet({ item, tab, onClose }: { item?: Entry; tab: Tab; onClose: ()
           onChange={setMedia}
         />
       )}
-      <Field label="Quoi ?" value={title} onChangeText={setTitle} placeholder={copy.placeholder} />
-      <Field label={copy.detail} value={detail} onChangeText={setDetail} placeholder={copy.detailPlaceholder} />
+      <Field label="Quoi ?" value={title} maxLength={200} onChangeText={setTitle} placeholder={copy.placeholder} />
+      <Field label={copy.detail} value={detail} maxLength={2000} onChangeText={setDetail} placeholder={copy.detailPlaceholder} />
       <Button label="Enregistrer" disabled={!title.trim()} onPress={save} />
       {item && (
         <Button

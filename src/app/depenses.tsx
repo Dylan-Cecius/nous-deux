@@ -26,10 +26,10 @@ export default function Depenses() {
   const balance = me ? balanceFor(expenses, me.id) : 0;
   const total = expenses.filter((e) => e.kind !== 'settle').reduce((s, e) => s + e.amount, 0);
 
-  const settle = () => {
+  const settle = async () => {
     if (!me || !partner || balance === 0) return;
     // Celui qui doit rembourse l'autre : le solde revient à zéro.
-    addSettlement(backend, Math.abs(balance), balance > 0 ? partner.id : me.id);
+    await addSettlement(backend, Math.abs(balance), balance > 0 ? partner.id : me.id);
     success();
   };
 
@@ -115,12 +115,13 @@ function ExpenseSheet({ onClose }: { onClose: () => void }) {
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState(backend.userId);
   const value = Number(amount.replace(',', '.'));
-  const valid = title.trim() && value > 0;
+  const valid = title.trim() && Number.isFinite(value) && value >= 0.01 && value <= 100000;
 
   return (
     <Sheet visible title="Nouvelle dépense" onClose={onClose}>
-      <Field label="Quoi ?" value={title} onChangeText={setTitle} placeholder="Courses, resto, billets de train…" />
+      <Field label="Quoi ?" value={title} maxLength={200} onChangeText={setTitle} placeholder="Courses, resto, billets de train…" />
       <Field label="Montant (€)" value={amount} onChangeText={setAmount} placeholder="42,50" keyboardType="decimal-pad" />
+      {!!amount && (!Number.isFinite(value) || value < 0.01 || value > 100000) && <T variant="small">Entre un montant entre 0,01 € et 100 000 €.</T>}
       <Chips
         label="Payé par"
         options={members.map((m) => ({ value: m.id, label: m.name, color: m.color }))}

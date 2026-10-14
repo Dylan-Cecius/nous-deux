@@ -1,4 +1,4 @@
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
@@ -6,6 +6,7 @@ import { addDays, daysBetween, fromKey, nextOccurrence, todayKey } from './dates
 import type { SpecialDate } from './types';
 
 const supported = Platform.OS !== 'web';
+export const pushSupported = supported && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
 let remindersGeneration = 0;
 
 export async function clearReminders() {
@@ -47,7 +48,8 @@ export async function ensurePermission(): Promise<boolean> {
  * Nécessite un projet EAS (`eas init`) et une vraie app (pas Expo Go sur Android) : renvoie null sinon.
  */
 export async function getPushToken(): Promise<string | null> {
-  if (!supported || !(await ensurePermission())) return null;
+  // Aucun dialogue de permission au lancement : l'utilisateur active les notifications dans Nous.
+  if (!pushSupported || !(await Notifications.getPermissionsAsync()).granted) return null;
   const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
   if (!projectId) return null;
   try {

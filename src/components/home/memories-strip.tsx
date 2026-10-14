@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
 import { showDialog } from '@/components/dialog';
@@ -15,11 +15,14 @@ import { pickPhoto } from '@/lib/photos';
 export function useAddMemory() {
   const { backend } = useSession();
   const [busy, setBusy] = useState(false);
+  const sending = useRef(false);
   const add = async () => {
-    const picked = await pickPhoto();
-    if (!picked) return;
+    if (sending.current) return;
+    sending.current = true;
     setBusy(true);
     try {
+      const picked = await pickPhoto();
+      if (!picked) return;
       const photoUrl = await backend.uploadPhoto(picked.uri);
       await backend.add('memories', {
         photoUrl,
@@ -32,6 +35,7 @@ export function useAddMemory() {
     } catch (e) {
       showDialog('Photo non enregistrée', e instanceof Error ? e.message : String(e));
     } finally {
+      sending.current = false;
       setBusy(false);
     }
   };

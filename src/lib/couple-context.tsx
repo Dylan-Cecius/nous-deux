@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { clearSession, loadSession, type Backend } from './backend';
 import { BOTH, type CollectionName, type Collections, type Couple, type Member } from './types';
@@ -6,6 +6,8 @@ import { BothColor } from '@/constants/theme';
 
 type CoupleState = {
   loading: boolean;
+  restoreError: boolean;
+  retrySession: () => Promise<void>;
   backend: Backend | null;
   couple: Couple | null;
   setBackend: (backend: Backend) => void;
@@ -17,28 +19,37 @@ const CoupleContext = createContext<CoupleState | null>(null);
 export function CoupleProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [backend, setBackend] = useState<Backend | null>(null);
-  const [couple, setCouple] = useState<Couple | null>(null);
+  const [snapshot, setSnapshot] = useState<{ backend: Backend; couple: Couple | null } | null>(null);
+  const couple = snapshot?.backend === backend ? snapshot?.couple ?? null : null;
+  const [restoreError, setRestoreError] = useState(false);
+  const restore = useCallback(() => loadSession()
+    .then((restored) => { setBackend(restored); setRestoreError(false); })
+    .catch(() => setRestoreError(true))
+    .finally(() => setLoading(false)), []);
+  const retrySession = async () => {
+    setLoading(true);
+    await restore();
+  };
 
   useEffect(() => {
-    loadSession()
-      .then(setBackend)
-      .catch((e) => console.warn('Impossible de restaurer la session', e))
-      .finally(() => setLoading(false));
-  }, []);
+    void restore();
+  }, [restore]);
 
   useEffect(() => {
     if (!backend) return;
-    return backend.subscribeCouple(setCouple);
+    let active = true;
+    const stop = backend.subscribeCouple((couple) => { if (active) setSnapshot({ backend, couple }); });
+    return () => { active = false; stop(); };
   }, [backend]);
 
   const signOut = async () => {
     await clearSession();
     setBackend(null);
-    setCouple(null);
+    setSnapshot(null);
   };
 
   return (
-    <CoupleContext.Provider value={{ loading, backend, couple, setBackend, signOut }}>
+    <CoupleContext.Provider value={{ loading, restoreError, retrySession, backend, couple, setBackend, signOut }}>
       {children}
     </CoupleContext.Provider>
   );
@@ -68,12 +79,14 @@ export function useSession() {
 /** Abonnement temps réel à une collection du couple. */
 export function useCollection<K extends CollectionName>(name: K) {
   const { backend } = useCouple();
-  const [items, setItems] = useState<Collections[K][]>([]);
+  const [snapshot, setSnapshot] = useState<{ backend: Backend; name: K; items: Collections[K][] } | null>(null);
 
   useEffect(() => {
     if (!backend) return;
-    return backend.subscribe(name, setItems);
+    let active = true;
+    const stop = backend.subscribe(name, (items) => { if (active) setSnapshot({ backend, name, items }); });
+    return () => { active = false; stop(); };
   }, [backend, name]);
 
-  return items;
+  return snapshot?.backend === backend && snapshot?.name === name ? snapshot.items : [];
 }

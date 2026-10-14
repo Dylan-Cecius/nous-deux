@@ -14,7 +14,10 @@ service cloud.firestore {
     function optionalText(data, key, maximum) { return !(key in data) || text(data[key], maximum); }
     function date(value) { return value is string && value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
     function time(value) { return value is string && value.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$'); }
-    function timestamp(value) { return value is number && value >= 0 && value <= request.time.toMillis() + 300000; }
+    function timestamp(value) {
+      return (value is timestamp && value <= request.time) ||
+        (value is number && value >= 0 && value <= request.time.toMillis() + 300000);
+    }
     function ownAuthor(data) { return data.createdBy == request.auth.uid; }
     function sameAuthor() { return request.resource.data.createdBy == resource.data.createdBy; }
     function profileValid(p) {

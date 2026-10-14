@@ -278,7 +278,7 @@ function EventSheet({
   const [end, setEnd] = useState(event?.end ?? '17:00');
   const [repeat, setRepeat] = useState('0');
 
-  const valid = !!title.trim();
+  const valid = !!title.trim() && start < end;
 
   const save = async () => {
     if (!valid) return;
@@ -288,9 +288,7 @@ function EventSheet({
     } else {
       const weeks = Number(repeat);
       const seriesId = weeks > 0 ? `${Date.now()}` : undefined;
-      for (let i = 0; i < Math.max(1, weeks); i++) {
-        await backend.add('events', { ...data, date: addDays(date, i * 7), seriesId });
-      }
+      await backend.addEvents(Array.from({ length: Math.max(1, weeks) }, (_, i) => ({ ...data, date: addDays(date, i * 7), seriesId })));
       await notifyPartner(session, 'Agenda', `${session.me?.name ?? 'Ta moitié'} a ajouté « ${data.title} ».`);
     }
     onClose();
@@ -307,7 +305,7 @@ function EventSheet({
 
   return (
     <Sheet visible title={event ? 'Modifier l’horaire' : 'Nouvel horaire'} onClose={onClose}>
-      <Field label="Titre" value={title} onChangeText={setTitle} placeholder="Boulot, sport, resto…" />
+      <Field label="Titre" value={title} maxLength={200} onChangeText={setTitle} placeholder="Boulot, sport, resto…" />
       <Chips
         label="Pour qui ?"
         options={[
@@ -334,6 +332,7 @@ function EventSheet({
         <TimeField label="Début" value={start} onChange={setStart} grow />
         <TimeField label="Fin" value={end} onChange={setEnd} grow />
       </Row>
+      {start >= end && <T variant="small">L’heure de fin doit être après l’heure de début. Pour une nuit, ajoute un horaire sur chaque journée.</T>}
       {!event && <Chips label="Répéter chaque semaine" options={REPEATS} value={repeat} onChange={setRepeat} />}
       <Button label="Enregistrer" disabled={!valid} onPress={save} />
       {event && (

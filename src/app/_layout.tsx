@@ -13,7 +13,8 @@ import { Platform, useColorScheme, View } from 'react-native';
 
 import { CelebrationLayer } from '@/components/celebrate';
 import { DialogHost } from '@/components/dialog';
-import { PrefsProvider } from '@/constants/theme';
+import { Button, Card, T } from '@/components/ui';
+import { PrefsProvider, useTheme } from '@/constants/theme';
 import { CoupleProvider, useCouple } from '@/lib/couple-context';
 
 SplashScreen.preventAutoHideAsync();
@@ -47,7 +48,8 @@ export default function RootLayout() {
 }
 
 function RootStack() {
-  const { loading, backend } = useCouple();
+  const { loading, backend, restoreError, retrySession } = useCouple();
+  const t = useTheme();
   const [fontsLoaded, fontError] = useFonts({
     DMSans_400Regular,
     DMSans_500Medium,
@@ -64,6 +66,16 @@ function RootStack() {
 
   if (!ready) return null;
 
+  if (restoreError) return (
+    <View style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: t.background }}>
+      <Card>
+        <T variant="h2">Retrouvons votre espace</T>
+        <T>La connexion n’a pas abouti. Ton compte est conservé : vérifie ton réseau, puis réessaie.</T>
+        <Button label="Réessayer" onPress={retrySession} />
+      </Card>
+    </View>
+  );
+
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={!!backend}>
@@ -74,6 +86,7 @@ function RootStack() {
       <Stack.Protected guard={!backend}>
         <Stack.Screen name="onboarding" />
       </Stack.Protected>
+      <Stack.Screen name="aide" />
     </Stack>
   );
 }
