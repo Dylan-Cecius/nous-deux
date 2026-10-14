@@ -9,9 +9,9 @@ export function getSupportContact() {
 
 // The owner-private preview must never appear as a public support resource.
 export function getPublicSupportLinks() {
-  if (config.publicationStatus !== 'published' || !config.retentionVerified ||
+  if (config.publicationStatus !== 'published' || config.retentionVerified !== true ||
       !config.operatorName.trim() || !config.operatorLegalName.trim() || !config.operatorAddress.trim() ||
-      !config.supportEmail.trim() || !config.securityRetention.trim() ||
+      !getSupportContact() || !config.securityRetention.trim() ||
       !config.supportRetention.trim() || !config.backupRetention.trim()) return null;
   try {
     const url = new URL(config.siteUrl);
