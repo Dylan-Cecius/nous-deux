@@ -10,7 +10,7 @@ const outputIndex = args.indexOf('--output');
 if (outputIndex >= 0 && (!args[outputIndex + 1] || args[outputIndex + 1].startsWith('--'))) throw new Error('--output attend un répertoire.');
 const output = path.resolve(outputIndex >= 0 ? args[outputIndex + 1] : path.join(root, 'website/dist'));
 const config = JSON.parse(await readFile(path.join(root, 'src/constants/public-info.json'), 'utf8'));
-const required = ['operatorName', 'operatorAddress', 'supportEmail', 'securityRetention', 'supportRetention', 'backupRetention'];
+const required = ['operatorName', 'operatorLegalName', 'operatorAddress', 'supportEmail', 'securityRetention', 'supportRetention', 'backupRetention'];
 const missing = required.filter(key => !config[key]?.trim());
 if (config.publicationStatus !== 'published') missing.push('publicationStatus=published');
 if (config.retentionVerified !== true) missing.push('retentionVerified=true');

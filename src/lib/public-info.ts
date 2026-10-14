@@ -10,7 +10,7 @@ export function getSupportContact() {
 // The owner-private preview must never appear as a public support resource.
 export function getPublicSupportLinks() {
   if (config.publicationStatus !== 'published' || !config.retentionVerified ||
-      !config.operatorName.trim() || !config.operatorAddress.trim() ||
+      !config.operatorName.trim() || !config.operatorLegalName.trim() || !config.operatorAddress.trim() ||
       !config.supportEmail.trim() || !config.securityRetention.trim() ||
       !config.supportRetention.trim() || !config.backupRetention.trim()) return null;
   try {

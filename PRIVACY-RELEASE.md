@@ -1,11 +1,11 @@
 # Pages de confidentialité, d’assistance et de suppression
 
-État au 14 octobre 2026 : aperçu privé préparé. Coordonnées confirmées par l’éditeur : **XII Tech Studio**, **Rue de Jace 189, 4101 Jemeppe-sur-Meuse, Belgique**, **xiitechstudio@gmail.com**. La politique de conservation et les autres mentions légales applicables restent à finaliser. Ce document ne constitue pas une validation juridique ni une autorisation de publication publique.
+État au 14 octobre 2026 : aperçu privé préparé. L’utilisateur a précisé que **XII Tech Studio est le nom utilisé pour son activité informatique, avec le même numéro de TVA que son activité de coiffure**. Il ne présente pas XII Tech Studio comme une société distincte. Le nom commercial est confirmé ; l’identité officielle et le numéro de TVA associés restent à fournir. Coordonnées déjà fournies : **Rue de Jace 189, 4101 Jemeppe-sur-Meuse, Belgique**, **xiitechstudio@gmail.com**. La politique de conservation et les autres mentions applicables restent à finaliser. Ce document ne constitue pas une validation juridique ni une autorisation de publication publique.
 
 ## Source et génération
 
 - `website/` contient les trois pages, leur style et la préparation locale des e-mails.
-- `src/constants/public-info.json` centralise l’identité, le contact et les informations de publication.
+- `src/constants/public-info.json` distingue le nom commercial (`operatorName`) du nom légal de son éditeur (`operatorLegalName`), encore vide. Le contact et les informations de publication y sont également centralisés. La génération publique et les liens dans l’app exigent les deux noms ; le contact d’assistance reste utilisable pendant le brouillon.
 - `npm run website:preview` génère un aperçu explicitement marqué comme brouillon, avec `noindex`.
 - `npm run website:build` refuse de produire une version publique tant que les informations requises manquent. Le garde-fou vérifie leur présence, pas leur exactitude juridique.
 - Les polices et le logo sont copiés depuis les dépendances et les ressources existantes ; leurs licences accompagnent la sortie. Exécuter `npm ci` avant une génération sur un nouveau poste.
@@ -13,7 +13,7 @@
 
 ## Informations à confirmer avec l’éditeur
 
-1. Nom commercial et adresse professionnelle confirmés ci-dessus. Vérifier la dénomination légale correspondante et compléter le numéro BCE et les autres mentions applicables avant publication.
+1. Nom commercial confirmé : XII Tech Studio, utilisé pour l’activité informatique sous le même numéro de TVA que la coiffure. Demander le nom officiel du titulaire (nom complet ou dénomination enregistrée) et le numéro de TVA ; ne pas les déduire d’un compte Apple, GitHub ou du profil ChatGPT. L’adresse et l’e-mail sont déjà fournis. Vérifier ensuite les mentions applicables à cette identité et les déclarations professionnelles des stores. Aucune société distincte ni modification des activités enregistrées n’a été créée par ce travail.
 2. Le contact d’assistance confirmé est `xiitechstudio@gmail.com`. Organiser sa consultation régulière et le traitement des demandes relatives aux données.
 3. Durée de conservation des demandes d’assistance et organisation de leur effacement.
 4. Périmètre réel des prestataires, garanties de transfert applicables et bases juridiques ; vérifier notamment le traitement des contenus intimes librement saisis et les règles d’accès liées à l’âge avant une diffusion publique.
