@@ -35,7 +35,15 @@ Cette version exige une mise à jour coordonnée de l'app, des fonctions et des 
 
 1. Se connecter au compte administrateur du projet avec le CLI (`firebase login`) et vérifier le projet sélectionné explicitement. Les fonctions nécessitent un projet disposant de la facturation appropriée ; ne pas activer de forfait payant implicitement.
 2. Faire une sauvegarde Firestore/Storage dans l'environnement du propriétaire. Préparer une fenêtre de mise à jour et arrêter les anciens clients pendant le basculement.
-3. Compiler et déployer les fonctions de sécurité. Les fonctions `assistant` et `searchPlaces` nécessitent leurs secrets existants. Elles peuvent être déployées séparément si les services facultatifs ne sont pas configurés.
+3. Compiler et déployer les fonctions de sécurité avec l'entrée indépendante des services facultatifs. Le CLI analyse aussi les paramètres des fonctions non sélectionnées : l'entrée `core.ts` évite donc d'exiger les clés Anthropic/Places pour sécuriser l'app.
+
+   ```sh
+   npm --prefix functions run build
+   node functions/scripts/stage-security.cjs
+   node functions/node_modules/firebase-tools/lib/bin/firebase.js deploy --config firebase.security.json --project nous-deux-80525 --only functions:createCouple,functions:createInvitation,functions:joinCouple,functions:submitDailyAnswer,functions:setAiConsent,functions:registerPushToken,functions:notifyPartner,functions:deleteAccount,functions:retryAccountDeletions
+   ```
+
+   Le filtre explicite conserve les éventuelles fonctions facultatives déjà déployées. Déployer `assistant` et `searchPlaces` depuis `firebase.json` lorsque leurs secrets sont configurés.
 4. Fournir au script de migration des identifiants administrateur via Application Default Credentials. La connexion du CLI Firebase seule ne fournit pas nécessairement ces identifiants au SDK Admin. Ne jamais mettre une clé de service dans le dépôt ou dans `EXPO_PUBLIC_*`.
 5. Exécuter la simulation, qui ne modifie rien :
 

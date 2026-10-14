@@ -136,12 +136,17 @@ export async function loadSession(): Promise<Backend | null> {
     return null;
   }
   try {
-    const couple = await getDoc(doc(db, 'couples', session.coupleId));
+    // L'index serveur est la référence après une migration ou un changement d'appareil.
+    // Un ancien identifiant local ne doit pas déconnecter un compte anonyme récupérable.
+    const index = await getDoc(doc(db, 'users', session.userId));
+    const coupleId = (index.data()?.coupleId as string | undefined) ?? session.coupleId;
+    const couple = await getDoc(doc(db, 'couples', coupleId));
     if (!couple.data()?.members?.includes(session.userId)) {
       await clearSession();
       return null;
     }
-    return cloudBackend(session.coupleId, session.userId);
+    if (coupleId !== session.coupleId) await saveCloudSession(coupleId, session.userId);
+    return cloudBackend(coupleId, session.userId);
   } catch (error) {
     if ((error as { code?: string }).code === 'permission-denied') {
       await clearSession();

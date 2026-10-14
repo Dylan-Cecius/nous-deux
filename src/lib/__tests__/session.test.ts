@@ -59,3 +59,14 @@ test('un compte non anonyme ne lance pas une suppression sans confirmation du mo
   await expect(deleteMyAccount({ mode: 'cloud', userId: 'alice', coupleId: 'couple' } as Backend))
     .rejects.toThrow('Confirme ton mot de passe');
 });
+
+test('une migration répare une ancienne session grâce à l’index serveur sans déconnexion', async () => {
+  await AsyncStorage.setItem('session', JSON.stringify({ mode: 'cloud', userId: 'alice', coupleId: 'old-empty' }));
+  (getDoc as jest.Mock)
+    .mockResolvedValueOnce({ data: () => ({ coupleId: 'recovered' }) })
+    .mockResolvedValueOnce({ data: () => ({ members: ['alice'] }) });
+  expect((await loadSession())?.coupleId).toBe('recovered');
+  expect(JSON.parse((await AsyncStorage.getItem('session'))!).coupleId).toBe('recovered');
+  expect(signOut).not.toHaveBeenCalled();
+  expect(signInAnonymously).not.toHaveBeenCalled();
+});

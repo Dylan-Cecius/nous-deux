@@ -1,0 +1,10 @@
+{
+  "functions": [{
+    "source": "functions/.security-deploy",
+    "codebase": "default",
+    "predeploy": [
+      "npm --prefix functions run build",
+      "node functions/scripts/stage-security.cjs"
+    ]
+  }]
+}
