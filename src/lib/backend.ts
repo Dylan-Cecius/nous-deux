@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  deleteUser,
+  reauthenticateWithCredential,
+  signOut as firebaseSignOut,
   EmailAuthProvider,
   linkWithCredential,
   sendPasswordResetEmail,
@@ -9,27 +10,23 @@ import {
 } from 'firebase/auth';
 import {
   addDoc,
-  arrayRemove,
-  arrayUnion,
   collection,
   deleteDoc,
-  deleteField,
   doc,
   getDoc,
-  getDocs,
   onSnapshot,
-  setDoc,
   updateDoc,
-  writeBatch,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { Platform } from 'react-native';
 
-import { firebase } from './firebase';
+import { firebase, isFirebaseConfigured } from './firebase';
+import { clearReminders } from './notifications';
 import { toCompactDataUri } from './photos';
 import {
   PRIVATE_COLLECTIONS,
+  type Answer,
   type CollectionName,
   type Collections,
   type Couple,
@@ -99,12 +96,15 @@ function functionMessage(e: unknown): string {
   const { code = '', message = '' } = (e as { code?: string; message?: string }) ?? {};
   switch (code) {
     case 'functions/not-found':
+      return 'Cette fonction n’est pas encore disponible. Réessaie après la mise à jour du service.';
     case 'functions/internal':
-      // Fonction pas encore déployée (forfait Blaze et clés à configurer).
-      return 'L’assistant n’est pas encore activé pour votre espace. Il arrivera bientôt !';
+      return 'L’opération n’a pas abouti. Réessaie dans un instant.';
     case 'functions/unavailable':
     case 'functions/deadline-exceeded':
       return 'L’assistant ne répond pas pour le moment. Vérifie ta connexion et réessaie.';
+    case 'functions/failed-precondition':
+    case 'functions/already-exists':
+    case 'functions/unauthenticated':
     case 'functions/resource-exhausted':
     case 'functions/invalid-argument':
     case 'functions/permission-denied':
@@ -116,7 +116,7 @@ function functionMessage(e: unknown): string {
 
 export class CloudOnlyError extends Error {
   constructor() {
-    super('Cette fonction a besoin de la synchronisation Firebase (voir le README).');
+    super('Cette fonction est disponible dans un espace synchronisé.');
   }
 }
 
@@ -129,14 +129,45 @@ export async function loadSession(): Promise<Backend | null> {
   if (!raw) return null;
   const session = JSON.parse(raw) as Session;
   if (session.mode === 'local') return localBackend();
-  const uid = await ensureSignedIn();
-  // Espaces créés avant l'index users/{uid} : on l'ajoute au passage (sans bloquer l'ouverture).
-  setDoc(doc(firebase().db, 'users', uid), { coupleId: session.coupleId }, { merge: true }).catch(() => {});
-  return cloudBackend(session.coupleId, uid);
+  const { auth, db } = firebase();
+  await auth.authStateReady();
+  if (!auth.currentUser || auth.currentUser.uid !== session.userId) {
+    await clearSession();
+    return null;
+  }
+  try {
+    // L'index serveur est la référence après une migration ou un changement d'appareil.
+    // Un ancien identifiant local ne doit pas déconnecter un compte anonyme récupérable.
+    const index = await getDoc(doc(db, 'users', session.userId));
+    const coupleId = (index.data()?.coupleId as string | undefined) ?? session.coupleId;
+    const couple = await getDoc(doc(db, 'couples', coupleId));
+    if (!couple.data()?.members?.includes(session.userId)) {
+      await clearSession();
+      return null;
+    }
+    if (coupleId !== session.coupleId) await saveCloudSession(coupleId, session.userId);
+    return cloudBackend(coupleId, session.userId);
+  } catch (error) {
+    if ((error as { code?: string }).code === 'permission-denied') {
+      await clearSession();
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function clearSession() {
+  if (isFirebaseConfigured) await firebaseSignOut(firebase().auth);
   await AsyncStorage.removeItem(SESSION_KEY);
+  await clearReminders().catch(() => {});
+}
+
+async function callServer<T>(name: string, data: object): Promise<T> {
+  try {
+    return (await httpsCallable(firebase().functions, name)(data)).data as T;
+  } catch (error) {
+    throw new Error(functionMessage(error));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -257,14 +288,6 @@ async function ensureSignedIn(): Promise<string> {
   return cred.user.uid;
 }
 
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-function randomCode() {
-  let code = '';
-  for (let i = 0; i < 6; i++) code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
-  return code;
-}
-
 /** Firestore refuse les champs `undefined`. */
 function clean<T extends object>(data: T): T {
   return Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined)) as T;
@@ -275,8 +298,6 @@ function clean<T extends object>(data: T): T {
  * c'est ce qui permet de retrouver son espace en se reconnectant sur un autre téléphone.
  */
 async function saveCloudSession(coupleId: string, userId: string) {
-  const { db } = firebase();
-  await setDoc(doc(db, 'users', userId), { coupleId }, { merge: true });
   await AsyncStorage.setItem(
     SESSION_KEY,
     JSON.stringify({ mode: 'cloud', coupleId, userId } satisfies Session),
@@ -349,91 +370,88 @@ export async function resetPassword(email: string) {
   }
 }
 
-/** Collections partagées du couple (pour la suppression de l'espace). */
-const SHARED_COLLECTIONS: CollectionName[] = ['events', 'restaurants', 'items', 'dates', 'notes', 'answers', 'memories', 'expenses'];
-
-async function deleteAll(paths: string[][]) {
-  const { db } = firebase();
-  for (const [first, ...rest] of paths) {
-    const snap = await getDocs(collection(db, first, ...rest));
-    // Lots de 400 suppressions (limite Firestore : 500 opérations par lot).
-    for (let i = 0; i < snap.docs.length; i += 400) {
-      const batch = writeBatch(db);
-      snap.docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
-      await batch.commit();
-    }
-  }
-}
-
-/**
- * Supprime le compte de ce téléphone et ses données personnelles (idées cadeaux, profil).
- * S'il reste l'autre membre, les données partagées lui restent ; si on était seul,
- * tout l'espace est effacé.
- */
-export async function deleteMyAccount(backend: Backend) {
+/** Supprime côté serveur ; le nettoyage continue automatiquement après une panne. */
+export async function deleteMyAccount(backend: Backend, password?: string): Promise<'complete' | 'pending'> {
   if (backend.mode === 'local') {
+    if (Platform.OS !== 'web') {
+      const { Directory, Paths } = await import('expo-file-system');
+      for (const file of new Directory(Paths.document).list()) {
+        if (file.name.startsWith('photo-')) file.delete();
+      }
+    }
     const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith('local:'));
     await AsyncStorage.multiRemove(keys);
     cache.clear();
     await clearSession();
-    return;
+    return 'complete';
   }
-
-  const { auth, db } = firebase();
-  const uid = backend.userId;
-  const coupleRef = doc(db, 'couples', backend.coupleId);
-  await deleteAll(PRIVATE_COLLECTIONS.map((c) => ['couples', backend.coupleId, 'private', uid, c]));
-
-  const data = (await getDoc(coupleRef)).data() as CoupleDoc | undefined;
-  if (data && data.members.length <= 1) {
-    await deleteAll(SHARED_COLLECTIONS.map((c) => ['couples', backend.coupleId, c]));
-    await deleteDoc(coupleRef);
-  } else if (data) {
-    await updateDoc(coupleRef, { members: arrayRemove(uid), [`profiles.${uid}`]: deleteField() });
+  const user = firebase().auth.currentUser;
+  if (!user || user.uid !== backend.userId) throw new Error('Reconnecte-toi avant de supprimer ton compte.');
+  if (!user.isAnonymous) {
+    if (!password || !user.email) throw new Error('Confirme ton mot de passe avant de supprimer ton compte.');
+    try {
+      await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+      await user.getIdToken(true);
+    } catch (error) {
+      throw new Error(authMessage(error));
+    }
   }
-  await deleteDoc(doc(db, 'users', uid));
-
-  try {
-    if (auth.currentUser) await deleteUser(auth.currentUser);
-  } catch (e) {
-    throw new Error(authMessage(e));
-  }
+  const result = await callServer<{ status: 'complete' | 'pending' }>('deleteAccount', { coupleId: backend.coupleId });
   await clearSession();
+  return result.status;
 }
 
 export async function createCloudCouple(me: Omit<Member, 'id'>) {
   const uid = await ensureSignedIn();
-  const { db } = firebase();
-  let code = randomCode();
-  while ((await getDoc(doc(db, 'couples', code))).exists()) code = randomCode();
-  const data: CoupleDoc = {
-    members: [uid],
-    profiles: { [uid]: me },
-    createdAt: Date.now(),
-  };
-  await setDoc(doc(db, 'couples', code), data);
-  await saveCloudSession(code, uid);
-  return cloudBackend(code, uid);
+  const { coupleId } = await callServer<{ coupleId: string }>('createCouple', { profile: { name: me.name, color: me.color } });
+  await saveCloudSession(coupleId, uid);
+  return cloudBackend(coupleId, uid);
 }
 
 export async function joinCloudCouple(rawCode: string, me: Omit<Member, 'id'>) {
-  const code = rawCode.trim().toUpperCase();
   const uid = await ensureSignedIn();
+  const code = rawCode.replace(/\s|-/g, '').toUpperCase();
+  const { coupleId } = await callServer<{ coupleId: string }>('joinCouple', { code, profile: { name: me.name, color: me.color } });
+  await saveCloudSession(coupleId, uid);
+  return cloudBackend(coupleId, uid);
+}
+
+export type Invitation = { code: string; expiresAt: number };
+export function createCoupleInvitation(backend: Backend) {
+  return backend.call<Invitation>('createInvitation', {});
+}
+
+export const AI_CONSENT_VERSION = 'anthropic-2026-10-14';
+export async function hasAiConsent(backend: Backend) {
+  if (backend.mode !== 'cloud') return false;
+  const snap = await getDoc(doc(firebase().db, 'users', backend.userId, 'settings', 'privacy'));
+  return snap.data()?.aiConsent === AI_CONSENT_VERSION;
+}
+
+/** Fusionne uniquement nos réponses privées, les statuts sans texte et les réponses révélées. */
+function subscribeAnswers(coupleId: string, uid: string, cb: (items: Answer[]) => void) {
   const { db } = firebase();
-  const ref = doc(db, 'couples', code);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) throw new Error('Aucun couple ne correspond à ce code.');
-  const data = snap.data() as CoupleDoc;
-  if (!data.members.includes(uid)) {
-    if (data.members.length >= 2) {
-      throw new Error(
-        'Ce couple est déjà complet. Si c’est ton espace et que tu as changé de téléphone, choisis « J’ai déjà un compte » et connecte-toi avec ton e-mail.',
-      );
+  let own: Answer[] = [];
+  let revealed: Answer[] = [];
+  let statuses: { date: string; responded: string[] }[] = [];
+  const emit = () => {
+    const merged = new Map<string, Answer>();
+    for (const state of statuses) for (const from of state.responded) {
+      merged.set(`${state.date}_${from}`, { id: `${state.date}_${from}`, date: state.date, from, text: '', createdAt: 0 });
     }
-    await updateDoc(ref, { members: arrayUnion(uid), [`profiles.${uid}`]: me });
-  }
-  await saveCloudSession(code, uid);
-  return cloudBackend(code, uid);
+    for (const answer of [...revealed, ...own]) merged.set(`${answer.date}_${answer.from}`, answer);
+    cb([...merged.values()]);
+  };
+  const stopOwn = onSnapshot(collection(db, 'couples', coupleId, 'private', uid, 'answers'), (snap) => {
+    own = snap.docs.map((d) => ({ ...d.data(), id: d.id }) as Answer); emit();
+  }, () => { own = []; emit(); });
+  const stopRevealed = onSnapshot(collection(db, 'couples', coupleId, 'revealedAnswers'), (snap) => {
+    revealed = snap.docs.map((d) => ({ ...d.data(), id: d.id }) as Answer); emit();
+  }, () => { revealed = []; emit(); });
+  const stopStatus = onSnapshot(collection(db, 'couples', coupleId, 'answerStatus'), (snap) => {
+    statuses = snap.docs.map((d) => d.data() as { date: string; responded: string[] }); emit();
+  }, () => { statuses = []; emit(); });
+  return () => { stopOwn(); stopRevealed(); stopStatus(); };
 }
 
 function cloudBackend(coupleId: string, uid: string): Backend {
@@ -470,7 +488,6 @@ function cloudBackend(coupleId: string, uid: string): Backend {
               id,
               name: data.profiles[id]?.name ?? '…',
               color: data.profiles[id]?.color ?? '#999999',
-              pushToken: data.profiles[id]?.pushToken,
             })),
           });
         },
@@ -478,16 +495,22 @@ function cloudBackend(coupleId: string, uid: string): Backend {
       ),
     updateCouple: (patch) => updateDoc(coupleRef, clean(patch)),
     async updateMember(memberId, patch) {
+      if (memberId !== uid) throw new Error('Tu peux uniquement modifier ton propre profil.');
       const fields = Object.fromEntries(
         Object.entries(clean(patch)).map(([k, v]) => [`profiles.${memberId}.${k}`, v]),
       );
       await updateDoc(coupleRef, fields);
     },
-    subscribe: (name, cb) =>
-      onSnapshot(col(name), (snap) =>
-        cb(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as any)),
-      ),
+    subscribe: (name, cb) => {
+      if (name === 'answers') return subscribeAnswers(coupleId, uid, cb as (items: Answer[]) => void);
+      return onSnapshot(col(name), (snap) => cb(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as any)), () => cb([]));
+    },
     async add(name, data) {
+      if (name === 'answers') {
+        const answer = data as Omit<Answer, 'id'>;
+        await callServer('submitDailyAnswer', { coupleId, date: answer.date, text: answer.text });
+        return;
+      }
       await addDoc(col(name), clean(data));
     },
     async update(name, id, patch) {
@@ -501,7 +524,7 @@ function cloudBackend(coupleId: string, uid: string): Backend {
       // Sans Firebase Storage (forfait gratuit) : photo réduite, rangée directement dans Firestore.
       if (!storageAvailable) return toCompactDataUri(localUri);
       const { storage } = firebase();
-      const target = ref(storage, `couples/${coupleId}/photos/${Date.now()}-${uid}.jpg`);
+      const target = ref(storage, `couples/${coupleId}/photos/${uid}/${newId()}.jpg`);
       try {
         await uploadBytes(target, await readAsBlob(localUri), { contentType: 'image/jpeg' });
         return await getDownloadURL(target);
@@ -514,13 +537,7 @@ function cloudBackend(coupleId: string, uid: string): Backend {
       }
     },
     async call<T>(name: string, data: object) {
-      const { functions } = firebase();
-      try {
-        const result = await httpsCallable(functions, name)({ ...data, coupleId });
-        return result.data as T;
-      } catch (e) {
-        throw new Error(functionMessage(e));
-      }
+      return callServer<T>(name, { ...data, coupleId });
     },
   };
 }

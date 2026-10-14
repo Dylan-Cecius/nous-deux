@@ -1,19 +1,22 @@
 rules_version = '2';
-
-// Photos du couple (souvenirs, photo de la carte compteur) : réservées aux deux membres.
 service firebase.storage {
   match /b/{bucket}/o {
-    match /couples/{coupleId}/photos/{file} {
-      function isMember() {
-        return request.auth != null &&
-          request.auth.uid in firestore.get(/databases/(default)/documents/couples/$(coupleId)).data.members;
-      }
-      allow read: if isMember();
-      // Images uniquement, 10 Mo maximum.
-      allow write: if isMember() &&
-        request.resource.size < 10 * 1024 * 1024 &&
-        request.resource.contentType.matches('image/.*');
-      allow delete: if isMember();
+    function member(coupleId) {
+      return request.auth != null &&
+        !firestore.exists(/databases/(default)/documents/accountDeletions/$(request.auth.uid)) &&
+        request.auth.uid in firestore.get(/databases/(default)/documents/couples/$(coupleId)).data.members;
+    }
+    function writable(coupleId) {
+      return member(coupleId) && !('deletionLock' in firestore.get(/databases/(default)/documents/couples/$(coupleId)).data);
+    }
+    match /couples/{coupleId}/photos/{file} { allow read: if member(coupleId); }
+    match /couples/{coupleId}/photos/{uid}/{file} {
+      allow read: if member(coupleId);
+      allow create: if resource == null && writable(coupleId) && request.auth.uid == uid &&
+        request.resource.size > 0 && request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType in ['image/jpeg','image/png','image/webp'];
+      allow delete: if writable(coupleId) && request.auth.uid == uid;
+      allow update: if false;
     }
   }
 }

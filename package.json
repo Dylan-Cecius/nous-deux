@@ -56,10 +56,12 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "jest"
+    "test": "jest",
+    "test:security": "npm --prefix functions run build && functions/node_modules/.bin/firebase emulators:exec --project demo-nous-deux-security --only auth,firestore,storage \"npm --prefix functions test\""
   },
   "private": true,
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "modulePathIgnorePatterns": ["<rootDir>/functions/"]
   }
 }

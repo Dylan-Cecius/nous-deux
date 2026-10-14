@@ -16,31 +16,27 @@ export function AccountCard() {
   const { backend } = useSession();
   const { signOut } = useCouple();
   const [securing, setSecuring] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [deletionError, setDeletionError] = useState<string | null>(null);
   const [, refresh] = useState(0);
   const account = backend.mode === 'cloud' ? currentAccount() : null;
 
-  const askDelete = () =>
-    showDialog(
-      'Supprimer ton compte ?',
-      backend.mode === 'local'
-        ? 'Toutes les données de ce téléphone seront effacées. C’est définitif.'
-        : 'Ton compte, ton profil et tes idées cadeaux seront effacés. Les données partagées restent pour ta moitié ; si tu es seul·e dans l’espace, tout l’espace est effacé. C’est définitif.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteMyAccount(backend);
-              await signOut();
-            } catch (e) {
-              showDialog('Suppression impossible', errorText(e));
-            }
-          },
-        },
-      ],
-    );
+  const executeDelete = async () => {
+    if (busy) return;
+    setBusy(true);
+    setDeletionError(null);
+    try {
+      const status = await deleteMyAccount(backend, password);
+      setPassword('');
+      setDeleting(false);
+      await signOut();
+      if (status === 'pending') showDialog('Suppression en cours', 'Ton accès est désactivé. Le nettoyage se poursuivra automatiquement, même si tu fermes l’app.');
+    } catch (error) { setDeletionError(errorText(error)); }
+    finally { setBusy(false); }
+  };
+  const askDelete = () => { setPassword(''); setDeletionError(null); setDeleting(true); };
 
   return (
     <Card style={{ gap: 12 }}>
@@ -71,6 +67,18 @@ export function AccountCard() {
       )}
 
       <Button label="Supprimer mon compte" variant="danger" icon="trash-outline" small onPress={askDelete} />
+
+      {deleting && (
+        <Sheet visible title="Supprimer ton compte" onClose={() => { if (!busy) setDeleting(false); }}>
+          <T>{backend.mode === 'local'
+            ? 'Les données et les photos enregistrées par l’app sur ce téléphone seront effacées. Cette action est définitive.'
+            : 'Ton profil, tes réponses, tes mots doux, tes idées cadeaux et tes photos seront effacés. Les autres éléments partagés restent pour ta moitié ; si tu es seul dans l’espace, tout sera effacé.'}</T>
+          {account && !account.anonymous && <Field label="Confirme ton mot de passe" value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" />}
+          {deletionError && <T>{deletionError}</T>}
+          <Button label={busy ? 'Suppression…' : 'Supprimer définitivement'} variant="danger" disabled={busy || (!!account && !account.anonymous && !password)} onPress={executeDelete} />
+          <Button label="Annuler" variant="ghost" disabled={busy} onPress={() => setDeleting(false)} />
+        </Sheet>
+      )}
 
       {securing && (
         <SecureSheet

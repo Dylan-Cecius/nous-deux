@@ -6,6 +6,15 @@ import { addDays, daysBetween, fromKey, nextOccurrence, todayKey } from './dates
 import type { SpecialDate } from './types';
 
 const supported = Platform.OS !== 'web';
+let remindersGeneration = 0;
+
+export async function clearReminders() {
+  remindersGeneration++;
+  if (supported) {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    await Notifications.dismissAllNotificationsAsync();
+  }
+}
 
 if (supported) {
   Notifications.setNotificationHandler({
@@ -49,23 +58,9 @@ export async function getPushToken(): Promise<string | null> {
   }
 }
 
-/** Envoie une notification push au téléphone de ta moitié, via le service Expo. */
-export async function sendPush(tokens: (string | undefined)[], title: string, body: string) {
-  const to = tokens.filter((t): t is string => !!t);
-  if (to.length === 0) return;
-  try {
-    await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(to.map((token) => ({ to: token, title, body, sound: 'default' }))),
-    });
-  } catch {
-    // Pas de réseau : la notification est perdue, les données restent synchronisées.
-  }
-}
-
 /** Reprogramme les rappels locaux « J-1 » et « Jour J » (à 9h) pour les comptes à rebours. */
 export async function scheduleCountdownReminders(dates: SpecialDate[]) {
+  const generation = ++remindersGeneration;
   if (!supported) return;
   const granted = (await Notifications.getPermissionsAsync()).granted;
   if (!granted) return;
@@ -89,10 +84,12 @@ export async function scheduleCountdownReminders(dates: SpecialDate[]) {
       const at = fromKey(day);
       at.setHours(9, 0, 0, 0);
       if (at.getTime() <= Date.now()) continue;
-      await Notifications.scheduleNotificationAsync({
+      if (generation !== remindersGeneration) return;
+      const identifier = await Notifications.scheduleNotificationAsync({
         content: { title: 'Nous Deux', body, data: { kind: 'countdown' } },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at },
       });
+      if (generation !== remindersGeneration) await Notifications.cancelScheduledNotificationAsync(identifier);
     }
   }
 }

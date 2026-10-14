@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Pressable, Share, Switch, View } from 'react-native';
+import { Pressable, Switch, View } from 'react-native';
 
+import { InvitationCard } from '@/components/invitation-card';
 import { HomeHero } from '@/components/home/home-hero';
 import { NoteCard, PingCard } from '@/components/home/love-cards';
 import { MemoriesStrip } from '@/components/home/memories-strip';
@@ -13,7 +14,7 @@ import { daysBetween, fromKey, nextOccurrence, todayKey } from '@/lib/dates';
 
 export default function Home() {
   const t = useTheme();
-  const { backend, partner, nameOf, colorOf } = useSession();
+  const { backend, nameOf, colorOf } = useSession();
   const dates = useCollection('dates');
   const events = useCollection('events');
   const [dateOpen, setDateOpen] = useState(false);
@@ -30,22 +31,7 @@ export default function Home() {
 
   return (
     <Screen hero={<HomeHero />}>
-      {backend.mode === 'cloud' && !partner && (
-        <Card tone="soft">
-          <T variant="caption" color={t.primaryDark}>
-            Invite ta moitié
-          </T>
-          <T>Ta moitié installe l’app, choisit « J’ai reçu un code » et entre :</T>
-          <T variant="title" style={{ letterSpacing: 8, textAlign: 'center', paddingVertical: 6 }}>
-            {backend.coupleId}
-          </T>
-          <Button
-            label="Envoyer le code"
-            icon="share-outline"
-            onPress={() => Share.share({ message: `Rejoins-moi sur Nous Deux 💞 Code : ${backend.coupleId}` })}
-          />
-        </Card>
-      )}
+      <InvitationCard />
 
       <PingCard />
       <NoteCard />
