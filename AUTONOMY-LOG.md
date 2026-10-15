@@ -768,3 +768,9 @@ Base 8abac2d720941dd9d3641d34840abf9e4b49bd31. Six tests rouges après correctio
 
 Documentation officielle RN 0.86 Accessibility relue. Grille react-best-practices appliquée aux trois composants TSX et règle d’état dérivé relue : aucune souscription réseau, effet ou dépendance ajouté pour ces libellés. Preuves : lint/TypeScript, 47 suites / 867 tests (7,84 s), diff et git diff --check propres. Ces tests vérifient les propriétés, pas les annonces natives ou la navigation VoiceOver/TalkBack. Aucun rendu visuel, build, diffusion, dépense ou contenu réel.
 
+## 2026-10-15, 17:15 Europe/Brussels — Champs reçus des listes
+
+Base be7aacbc2b138fab4e0b3d05ecbfb1712bfddd3e. Six tests rouges : détail/titre/type reçus ignorés, fiche intacte réécrite et ancien bouton en création/édition. Brouillon par champ, synchronisation bornée et patch minimal ; aucun statut coché, propriétaire, date de création ou catégorie renvoyé lors de l’édition. Cadeaux filtrés par propriétaire avant toute synchronisation. Les scénarios de verrou existants saisissent désormais avant de vérifier une mutation ; le test film/série vérifie une vraie modification. Quatre contrôles ajoutés : courses, cadeaux, changement de propriétaire et conservation lors d’erreur/espaces.
+
+Une erreur TypeScript sur le rétrécissement de l’union Gift/ListItem a été observée puis corrigée par lecture explicite de media, avant validation. Preuves finales : lint/TypeScript, 47 suites / 877 tests (7,37 s), diff relu et git diff --check. Revue React conforme au modèle du souvenir, pas d’effet supplémentaire de synchronisation. Les contrôles sont simulés, sans contenu privé réel ; pas de verrou serveur de conflit sur un même champ. Serveur/règles inchangés. Aucun build, déploiement ou coût.
+

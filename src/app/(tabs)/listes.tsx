@@ -321,15 +321,27 @@ function ItemSheet({ item, tab, onClose }: { item?: Entry; tab: Tab; onClose: ()
   const copy = SHEET[kind];
   const collection = useCollectionState(kind === 'gifts' ? 'gifts' : 'items');
   const context = useMemo(() => ({ backend }), [backend]);
-  const latest = useRef<{ context: typeof context; collection: typeof collection } | null>(null);
+  const [draft, setDraft] = useState({
+    title: item?.title ?? '', detail: item?.detail ?? '', media: item?.media ?? 'film',
+    baseTitle: item?.title ?? '', baseDetail: item?.detail ?? '', baseMedia: item?.media ?? 'film',
+  });
+  const received = item && !collection.loading && !collection.error ? collection.items.find(entry => entry.id === item.id &&
+    (kind === 'gifts' ? entry.createdBy === backend.userId : 'list' in entry && entry.list === kind)) : undefined;
+  const baseTitle = received?.title ?? draft.baseTitle;
+  const baseDetail = received ? received.detail ?? '' : draft.baseDetail;
+  const baseMedia = received ? ('media' in received && received.media === 'serie' ? 'serie' : 'film') : draft.baseMedia;
+  const title = draft.baseTitle !== baseTitle && draft.title.trim() === draft.baseTitle ? baseTitle : draft.title;
+  const detail = draft.baseDetail !== baseDetail && draft.detail.trim() === draft.baseDetail ? baseDetail : draft.detail;
+  const media = draft.media === draft.baseMedia ? baseMedia : draft.media;
+  if (draft.baseTitle !== baseTitle || draft.baseDetail !== baseDetail || draft.baseMedia !== baseMedia) {
+    setDraft({ title, detail, media, baseTitle, baseDetail, baseMedia });
+  }
+  const latest = useRef<{ context: typeof context; collection: typeof collection; draft: typeof draft } | null>(null);
   const closed = useRef(false);
   useEffect(() => {
-    latest.current = { context, collection };
+    latest.current = { context, collection, draft };
     return () => { latest.current = null; };
-  }, [context, collection]);
-  const [title, setTitle] = useState(item?.title ?? '');
-  const [detail, setDetail] = useState(item?.detail ?? '');
-  const [media, setMedia] = useState<'film' | 'serie'>(item?.media ?? 'film');
+  }, [context, collection, draft]);
   const { run, pending } = useAsyncAction((action: () => unknown) => action());
   const isCurrent = () => !closed.current && latest.current?.context === context;
   const containsItem = (state: typeof collection) => !item || state.items.some((entry) => entry.id === item.id &&
@@ -347,15 +359,20 @@ function ItemSheet({ item, tab, onClose }: { item?: Entry; tab: Tab; onClose: ()
   });
 
   const save = () => runCurrent(async () => {
-    if (!title.trim()) return;
-    const base = { title: title.trim(), detail: detail.trim() };
-    if (kind === 'gifts') {
-      if (item) await backend.update('gifts', item.id, base);
-      else await backend.add('gifts', { ...base, done: false, createdBy: backend.userId, createdAt: Date.now() });
+    const current = latest.current!.draft;
+    if (!current.title.trim()) return;
+    const base = { title: current.title.trim(), detail: current.detail.trim() };
+    if (item) {
+      const patch: { title?: string; detail?: string; media?: 'film' | 'serie' } = {};
+      if (base.title !== current.baseTitle) patch.title = base.title;
+      if (base.detail !== current.baseDetail) patch.detail = base.detail;
+      if (kind === 'films' && current.media !== current.baseMedia) patch.media = current.media;
+      if (Object.keys(patch).length) await backend.update(kind === 'gifts' ? 'gifts' : 'items', item.id, patch);
+    } else if (kind === 'gifts') {
+      await backend.add('gifts', { ...base, done: false, createdBy: backend.userId, createdAt: Date.now() });
     } else {
-      const data = { ...base, media: kind === 'films' ? media : undefined };
-      if (item) await backend.update('items', item.id, data);
-      else await backend.add('items', { ...data, list: kind, done: false, createdBy: backend.userId, createdAt: Date.now() });
+      const data = { ...base, media: kind === 'films' ? current.media : undefined };
+      await backend.add('items', { ...data, list: kind, done: false, createdBy: backend.userId, createdAt: Date.now() });
     }
     close();
   });
@@ -377,11 +394,11 @@ function ItemSheet({ item, tab, onClose }: { item?: Entry; tab: Tab; onClose: ()
           ]}
           value={media}
           disabled={pending}
-          onChange={(value) => run(() => { if (isCurrent()) setMedia(value); })}
+          onChange={(value) => run(() => { if (isCurrent()) setDraft(current => ({ ...current, media: value })); })}
         />
       )}
-      <Field label="Quoi ?" value={title} maxLength={200} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setTitle(value); })} placeholder={copy.placeholder} />
-      <Field label={copy.detail} value={detail} maxLength={2000} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setDetail(value); })} placeholder={copy.detailPlaceholder} />
+      <Field label="Quoi ?" value={title} maxLength={200} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setDraft(current => ({ ...current, title: value })); })} placeholder={copy.placeholder} />
+      <Field label={copy.detail} value={detail} maxLength={2000} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setDraft(current => ({ ...current, detail: value })); })} placeholder={copy.detailPlaceholder} />
       {unavailable && <T variant="small" muted>Liste indisponible ou article retiré. Ton brouillon est conservé ; recharge la liste avant de continuer.</T>}
       {collection.error && <Button label="Recharger la liste du formulaire" variant="outline" onPress={collection.retry} />}
       <Button label="Enregistrer" disabled={!title.trim() || pending || unavailable} onPress={save} />

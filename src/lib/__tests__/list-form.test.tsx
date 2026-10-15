@@ -40,9 +40,11 @@ const ask = async () => {
   return (confirmDelete as jest.Mock).mock.calls.at(-1)[1];
 };
 const refresh = async () => { await act(async () => root.update(<Listes />)); };
+const editTitle = async () => { await act(async () => root.root.findByProps({ label: 'Quoi ?' }).props.onChangeText('Brouillon fictif')); };
 
 test.each([0, 1])('le champ %s ne change pas pendant une sauvegarde, puis reprend après échec', async (index) => {
   await open();
+  await editTitle();
   const fields = () => root.root.findAllByType('field' as never);
   const previous = fields()[index].props.value;
   const change = fields()[index].props.onChangeText;
@@ -64,16 +66,17 @@ test('le choix film/série reste figé pendant la sauvegarde', async () => {
   await act(async () => { root = create(<Listes />); });
   await act(async () => root.root.findByType('segmented' as never).props.onChange('films'));
   await act(async () => root.root.findAll((node) => typeof node.props.onLongPress === 'function')[0].props.onPress());
+  await act(async () => root.root.findByType('chips' as never).props.onChange('serie'));
   const chips = () => root.root.findByType('chips' as never);
   const change = chips().props.onChange;
   let finish!: () => void;
   backend.update.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
   let pending!: Promise<void>;
-  await act(async () => { pending = button('Enregistrer')(); await change('serie'); });
-  expect(chips().props.value).toBe('film');
+  await act(async () => { pending = button('Enregistrer')(); await change('film'); });
+  expect(chips().props.value).toBe('serie');
   expect(chips().props.disabled).toBe(true);
   await act(async () => { finish(); await pending; });
-  expect(backend.update).toHaveBeenCalledWith('items', item.id, expect.objectContaining({ media: 'film' }));
+  expect(backend.update).toHaveBeenCalledWith('items', item.id, { media: 'serie' });
 });
 
 test.each(['closed', 'reopened', 'backend', 'loading', 'error', 'removed', 'moved'])('confirmation ignorée après %s', async (change) => {
@@ -107,6 +110,7 @@ test.each(['loading', 'error', 'removed'])('enregistrement bloqué après %s, br
 
 test('enregistrer et confirmer la suppression partagent le verrou, y compris la fermeture', async () => {
   await open();
+  await editTitle();
   const confirm = await ask();
   let finish!: () => void;
   backend.update.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
@@ -123,6 +127,7 @@ test('enregistrer et confirmer la suppression partagent le verrou, y compris la 
 
 test.each(['save', 'remove'])('double %s : une seule mutation', async (action) => {
   await open();
+  if (action === 'save') await editTitle();
   const perform = action === 'save' ? button('Enregistrer') : await ask();
   await act(async () => { await Promise.all([perform(), perform()]); });
   expect(backend.update.mock.calls.length + backend.remove.mock.calls.length).toBe(1);
@@ -130,10 +135,11 @@ test.each(['save', 'remove'])('double %s : une seule mutation', async (action) =
 
 test('une erreur conserve le brouillon et permet de réessayer', async () => {
   await open();
+  await editTitle();
   backend.update.mockRejectedValueOnce(new Error('Erreur fictive'));
   await act(async () => { await button('Enregistrer')(); });
   expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Erreur fictive');
-  expect(root.root.findByProps({ label: 'Quoi ?' }).props.value).toBe(item.title);
+  expect(root.root.findByProps({ label: 'Quoi ?' }).props.value).toBe('Brouillon fictif');
   await act(async () => { await button('Enregistrer')(); });
   expect(backend.update).toHaveBeenCalledTimes(2);
 });
@@ -155,6 +161,7 @@ test('un autre article reçoit son propre brouillon', async () => {
 
 test.each(['success', 'error'])('retour %s après remplacement de backend : ni fermeture ni erreur tardive', async (outcome) => {
   await open();
+  await editTitle();
   let finish!: () => void;
   backend.update.mockImplementationOnce(() => new Promise<void>((resolve, reject) => {
     finish = () => outcome === 'success' ? resolve() : reject(new Error('Ancienne erreur'));
@@ -211,4 +218,92 @@ test('un titre vide reste refusé même en appelant directement l’action', asy
   await open(true);
   await act(async () => { await button('Enregistrer')(); });
   expect(backend.add).not.toHaveBeenCalled();
+});
+
+test('une quantité actualisée n’est pas écrasée quand seul le titre est modifié', async () => {
+  await open();
+  await act(async () => root.root.findByProps({ label: 'Quoi ?' }).props.onChangeText('Mon titre'));
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, detail: 'Détail du partenaire' }] });
+  await refresh();
+  expect(root.root.findByProps({ label: 'Détails' }).props.value).toBe('Détail du partenaire');
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).toHaveBeenCalledWith('items', item.id, { title: 'Mon titre' });
+});
+
+test('un titre reçu ne remplace pas un détail en cours de saisie', async () => {
+  await open();
+  await act(async () => root.root.findByProps({ label: 'Détails' }).props.onChangeText('Mon détail'));
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, title: 'Titre du partenaire' }] });
+  await refresh();
+  expect(root.root.findByProps({ label: 'Quoi ?' }).props.value).toBe('Titre du partenaire');
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).toHaveBeenCalledWith('items', item.id, { detail: 'Mon détail' });
+});
+
+test('un article intact se ferme sans mutation', async () => {
+  await open();
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(root.root.findAllByType('sheet' as never)).toHaveLength(0);
+});
+
+test.each([false, true])('un ancien bouton relit le titre courant, création=%s', async fresh => {
+  await open(fresh);
+  const oldSave = button('Enregistrer');
+  await act(async () => root.root.findByProps({ label: 'Quoi ?' }).props.onChangeText('Titre courant'));
+  await act(async () => { await oldSave(); });
+  if (fresh) expect(backend.add).toHaveBeenCalledWith('items', expect.objectContaining({ title: 'Titre courant' }));
+  else expect(backend.update).toHaveBeenCalledWith('items', item.id, { title: 'Titre courant' });
+});
+
+test('le type série reçu du partenaire n’est pas écrasé par une modification du titre', async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, list: 'films', media: 'film' }] });
+  await act(async () => { root = create(<Listes />); });
+  await act(async () => root.root.findByType('segmented' as never).props.onChange('films'));
+  await act(async () => root.root.findAll(node => typeof node.props.onLongPress === 'function')[0].props.onPress());
+  await act(async () => root.root.findByProps({ label: 'Quoi ?' }).props.onChangeText('Nouveau titre'));
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, list: 'films', media: 'serie' }] });
+  await refresh();
+  expect(root.root.findByType('chips' as never).props.value).toBe('serie');
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).toHaveBeenCalledWith('items', item.id, { title: 'Nouveau titre' });
+});
+
+test.each(['shopping', 'gifts'])('le patch %s conserve les détails reçus et le statut existant', async tab => {
+  const entry = { ...item, list: tab, detail: 'Ancien détail', done: false };
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [entry] });
+  await act(async () => { root = create(<Listes />); });
+  await act(async () => root.root.findByType('segmented' as never).props.onChange(tab));
+  await act(async () => root.root.findAll(node => typeof node.props.onLongPress === 'function')[0].props.onPress());
+  await editTitle();
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...entry, detail: 'Détail reçu', done: true }] });
+  await refresh();
+  expect(root.root.findAllByType('field' as never)[1].props.value).toBe('Détail reçu');
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).toHaveBeenCalledWith(tab === 'gifts' ? 'gifts' : 'items', item.id, { title: 'Brouillon fictif' });
+});
+
+test('la propriété du cadeau est aussi revalidée avant un patch partiel', async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, list: 'gifts' }] });
+  await act(async () => { root = create(<Listes />); });
+  await act(async () => root.root.findByType('segmented' as never).props.onChange('gifts'));
+  await act(async () => root.root.findAll(node => typeof node.props.onLongPress === 'function')[0].props.onPress());
+  await editTitle();
+  const save = button('Enregistrer');
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, list: 'gifts', createdBy: 'bob', title: 'Privé autre membre' }] });
+  await refresh();
+  expect(root.root.findByProps({ label: 'Quoi ?' }).props.value).toBe('Brouillon fictif');
+  await act(async () => { await save(); });
+  expect(backend.update).not.toHaveBeenCalled();
+});
+
+test('un champ intact reçu reste conservé pendant une erreur, et les espaces pendant la frappe', async () => {
+  await open();
+  await act(async () => root.root.findByProps({ label: 'Quoi ?' }).props.onChangeText(`${item.title} `));
+  expect(root.root.findByProps({ label: 'Quoi ?' }).props.value).toBe(`${item.title} `);
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, detail: 'Détail reçu' }] });
+  await refresh();
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [], error: true });
+  await refresh();
+  expect(root.root.findByProps({ label: 'Détails' }).props.value).toBe('Détail reçu');
 });
