@@ -81,7 +81,7 @@ function ListesContent() {
   const items = useCollectionState('items');
   const gifts = useCollectionState('gifts');
   const [tab, setTab] = useState<Tab>('bucket');
-  const [editing, setEditing] = useState<Entry | 'new' | null>(null);
+  const [editing, setEditing] = useState<{ item?: Entry; tab: Tab } | null>(null);
 
   const col = tab === 'gifts' ? 'gifts' : 'items';
   const collection = tab === 'gifts' ? gifts : items;
@@ -159,7 +159,7 @@ function ListesContent() {
   const renderItem = (item: Entry, index: number) => (
     <Pressable
       key={item.id}
-      onPress={() => setEditing(item)}
+      onPress={() => setEditing({ item, tab })}
       onLongPress={() => askRemove(item)}
       style={({ pressed }) => ({
         flexDirection: 'row',
@@ -299,8 +299,8 @@ function ListesContent() {
           <Button label="Vider les articles cochés" variant="ghost" icon="trash-outline" disabled={pending} onPress={clearBasket} />
         )}
       </Screen>
-      {!unavailable && <Fab onPress={() => setEditing('new')} label={copy.add} />}
-      {editing && <ItemSheet item={editing === 'new' ? undefined : editing} tab={tab} onClose={() => setEditing(null)} />}
+      {!unavailable && <Fab onPress={() => setEditing({ tab })} label={copy.add} />}
+      {editing && <ItemSheet key={`${editing.tab}:${editing.item?.id ?? 'new'}`} item={editing.item} tab={editing.tab} onClose={() => setEditing(null)} />}
     </>
   );
 }
@@ -316,11 +316,35 @@ function ItemSheet({ item, tab, onClose }: { item?: Entry; tab: Tab; onClose: ()
   const { backend } = useSession();
   const kind = item?.list ?? tab;
   const copy = SHEET[kind];
+  const collection = useCollectionState(kind === 'gifts' ? 'gifts' : 'items');
+  const context = useMemo(() => ({ backend }), [backend]);
+  const latest = useRef<{ context: typeof context; collection: typeof collection } | null>(null);
+  const closed = useRef(false);
+  useEffect(() => {
+    latest.current = { context, collection };
+    return () => { latest.current = null; };
+  }, [context, collection]);
   const [title, setTitle] = useState(item?.title ?? '');
   const [detail, setDetail] = useState(item?.detail ?? '');
   const [media, setMedia] = useState<'film' | 'serie'>(item?.media ?? 'film');
+  const { run, pending } = useAsyncAction((action: () => unknown) => action());
+  const isCurrent = () => !closed.current && latest.current?.context === context;
+  const containsItem = (state: typeof collection) => !item || state.items.some((entry) => entry.id === item.id &&
+    (kind === 'gifts' ? entry.createdBy === backend.userId : 'list' in entry && entry.list === kind));
+  const unavailable = collection.loading || collection.error || !containsItem(collection);
+  const canWrite = () => {
+    const state = latest.current?.collection;
+    return isCurrent() && state && !state.loading && !state.error && containsItem(state);
+  };
+  const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
+  const runCurrent = (action: () => Promise<void>) => run(async () => {
+    if (!canWrite()) return;
+    try { await action(); }
+    catch (error) { if (isCurrent()) throw error; }
+  });
 
-  const save = async () => {
+  const save = () => runCurrent(async () => {
+    if (!title.trim()) return;
     const base = { title: title.trim(), detail: detail.trim() };
     if (kind === 'gifts') {
       if (item) await backend.update('gifts', item.id, base);
@@ -330,11 +354,18 @@ function ItemSheet({ item, tab, onClose }: { item?: Entry; tab: Tab; onClose: ()
       if (item) await backend.update('items', item.id, data);
       else await backend.add('items', { ...data, list: kind, done: false, createdBy: backend.userId, createdAt: Date.now() });
     }
-    onClose();
+    close();
+  });
+  const remove = () => {
+    if (!item || pending || !canWrite()) return;
+    confirmDelete(item.title, () => runCurrent(async () => {
+      await backend.remove(kind === 'gifts' ? 'gifts' : 'items', item.id);
+      close();
+    }));
   };
 
   return (
-    <Sheet visible title={item ? 'Modifier' : copy.title} onClose={onClose}>
+    <Sheet visible title={item ? 'Modifier' : copy.title} onClose={() => run(close)}>
       {kind === 'films' && (
         <Chips
           options={[
@@ -347,18 +378,16 @@ function ItemSheet({ item, tab, onClose }: { item?: Entry; tab: Tab; onClose: ()
       )}
       <Field label="Quoi ?" value={title} maxLength={200} onChangeText={setTitle} placeholder={copy.placeholder} />
       <Field label={copy.detail} value={detail} maxLength={2000} onChangeText={setDetail} placeholder={copy.detailPlaceholder} />
-      <Button label="Enregistrer" disabled={!title.trim()} onPress={save} />
+      {unavailable && <T variant="small" muted>Liste indisponible ou article retiré. Ton brouillon est conservé ; recharge la liste avant de continuer.</T>}
+      {collection.error && <Button label="Recharger la liste du formulaire" variant="outline" onPress={collection.retry} />}
+      <Button label="Enregistrer" disabled={!title.trim() || pending || unavailable} onPress={save} />
       {item && (
         <Button
           label="Supprimer"
           variant="danger"
           icon="trash-outline"
-          onPress={() =>
-            confirmDelete(item.title, async () => {
-              await backend.remove(kind === 'gifts' ? 'gifts' : 'items', item.id);
-              onClose();
-            })
-          }
+          disabled={pending || unavailable}
+          onPress={remove}
         />
       )}
     </Sheet>
