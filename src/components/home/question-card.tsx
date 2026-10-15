@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { showDialog } from '@/components/dialog';
-import { Card, Dot, Field, IconButton, Ionicons, Row, T } from '@/components/ui';
+import { Button, Card, Dot, Field, IconButton, Ionicons, Row, T } from '@/components/ui';
 import { useTheme } from '@/constants/theme';
 import { notifyPartner } from '@/lib/assistant';
-import { useCollection, useSession } from '@/lib/couple-context';
+import { useCollectionState, useSession } from '@/lib/couple-context';
 import { todayKey } from '@/lib/dates';
 import { success } from '@/lib/haptics';
 import { questionFor } from '@/lib/questions';
@@ -16,11 +16,18 @@ import type { Member } from '@/lib/types';
  * qu'une fois qu'on a soi-même répondu.
  */
 export function QuestionCard() {
+  const { backend } = useSession();
+  const today = todayKey();
+  // Les brouillons survivent à une reprise, mais ne passent pas à une autre session/question.
+  return <DailyQuestion key={JSON.stringify([backend.mode, backend.coupleId, backend.userId, today])} today={today} />;
+}
+
+function DailyQuestion({ today }: { today: string }) {
   const t = useTheme();
   const session = useSession();
   const { backend, members, me } = session;
-  const answers = useCollection('answers');
-  const today = todayKey();
+  const { items: answers, loading, error, retry } = useCollectionState('answers');
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const ofToday = answers.filter((a) => a.date === today);
   const answerOf = (id: string) => ofToday.find((a) => a.from === id);
   const iAnswered = !!answerOf(backend.userId);
@@ -34,11 +41,21 @@ export function QuestionCard() {
         </T>
       </Row>
       <T variant="h2">{questionFor(today)}</T>
-      {members.map((m) => {
+      {loading ? (
+        <T muted>Chargement des réponses…</T>
+      ) : error ? (
+        <View style={{ gap: 10 }}>
+          <T>Impossible de charger les réponses. Vérifie ta connexion puis réessaie. Ton brouillon est conservé tant que tu restes sur cet écran.</T>
+          <Button label="Réessayer" onPress={retry} />
+        </View>
+      ) : members.map((m) => {
         const answer = answerOf(m.id);
         // En mode local, les deux réponses se saisissent sur ce téléphone.
         const canAnswer = !answer && (m.id === backend.userId || backend.mode === 'local');
-        if (canAnswer) return <AnswerField key={m.id} member={m} isMe={m.id === me?.id} date={today} />;
+        if (canAnswer) return (
+          <AnswerField key={m.id} member={m} isMe={m.id === me?.id} date={today}
+            text={drafts[m.id] ?? ''} onChangeText={(text) => setDrafts((previous) => ({ ...previous, [m.id]: text }))} />
+        );
         return (
           <View key={m.id} style={{ gap: 4 }}>
             <Row style={{ gap: 6 }}>
@@ -68,10 +85,11 @@ export function QuestionCard() {
   );
 }
 
-function AnswerField({ member, isMe, date }: { member: Member; isMe: boolean; date: string }) {
+function AnswerField({ member, isMe, date, text, onChangeText }: {
+  member: Member; isMe: boolean; date: string; text: string; onChangeText: (text: string) => void;
+}) {
   const session = useSession();
   const { backend } = session;
-  const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const submit = async () => {
     if (!text.trim() || busy) return;
@@ -94,7 +112,7 @@ function AnswerField({ member, isMe, date }: { member: Member; isMe: boolean; da
         </T>
       </Row>
       <Row>
-        <Field value={text} onChangeText={setText} placeholder="Écris ta réponse…" grow maxLength={4000} editable={!busy} onSubmitEditing={submit} />
+        <Field value={text} onChangeText={onChangeText} placeholder="Écris ta réponse…" grow maxLength={4000} editable={!busy} onSubmitEditing={submit} />
         <IconButton icon="checkmark" label="Valider la réponse" variant="primary" onPress={submit} size={50} />
       </Row>
     </View>

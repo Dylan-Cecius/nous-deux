@@ -462,6 +462,7 @@ function subscribeAnswers(coupleId: string, uid: string, cb: (items: Answer[]) =
   let own: Answer[] = [];
   let revealed: Answer[] = [];
   let statuses: { date: string; responded: string[] }[] = [];
+  const ready = { own: false, revealed: false, statuses: false };
   let active = true;
   const stops: (() => void)[] = [];
   const stopAll = () => { for (const stop of stops.splice(0)) stop(); };
@@ -474,7 +475,8 @@ function subscribeAnswers(coupleId: string, uid: string, cb: (items: Answer[]) =
     if (onError) onError(error); else cb([]);
   };
   const emit = () => {
-    if (!active) return;
+    // Un flux vide reçu est distinct d’un flux dont le premier résultat manque encore.
+    if (!active || !ready.own || !ready.revealed || !ready.statuses) return;
     const merged = new Map<string, Answer>();
     for (const state of statuses) for (const from of state.responded) {
       merged.set(`${state.date}_${from}`, { id: `${state.date}_${from}`, date: state.date, from, text: '', createdAt: 0 });
@@ -484,15 +486,21 @@ function subscribeAnswers(coupleId: string, uid: string, cb: (items: Answer[]) =
   };
   track(onSnapshot(collection(db, 'couples', coupleId, 'private', uid, 'answers'), (snap) => {
     if (!active) return;
-    own = snap.docs.map((d) => ({ ...d.data(), id: d.id }) as Answer); emit();
+    own = snap.docs.map((d) => ({ ...d.data(), id: d.id }) as Answer);
+    ready.own = true;
+    emit();
   }, fail));
   track(onSnapshot(collection(db, 'couples', coupleId, 'revealedAnswers'), (snap) => {
     if (!active) return;
-    revealed = snap.docs.map((d) => ({ ...d.data(), id: d.id }) as Answer); emit();
+    revealed = snap.docs.map((d) => ({ ...d.data(), id: d.id }) as Answer);
+    ready.revealed = true;
+    emit();
   }, fail));
   track(onSnapshot(collection(db, 'couples', coupleId, 'answerStatus'), (snap) => {
     if (!active) return;
-    statuses = snap.docs.map((d) => d.data() as { date: string; responded: string[] }); emit();
+    statuses = snap.docs.map((d) => d.data() as { date: string; responded: string[] });
+    ready.statuses = true;
+    emit();
   }, fail));
   return () => { active = false; stopAll(); };
 }

@@ -41,13 +41,14 @@ test('une erreur de collection est transmise sans émettre une fausse liste vide
   expect(data).not.toHaveBeenCalled();
 });
 
-test('une erreur de réponses arrête les trois flux sans résultat partiel ultérieur', async () => {
+test.each([0, 1, 2])('une erreur du flux de réponses %i arrête les trois flux sans résultat partiel ultérieur', async (failed) => {
   await AsyncStorage.setItem('session', JSON.stringify({ mode: 'cloud', userId: 'alice', coupleId: 'couple' }));
   const backend = (await loadSession())!;
   const data = jest.fn();
   const error = jest.fn();
   const stop = backend.subscribe('answers', data, error);
-  (onSnapshot as jest.Mock).mock.calls[0][2]({ code: 'permission-denied' });
+  (onSnapshot as jest.Mock).mock.calls[(failed + 1) % 3][1]({ docs: [] });
+  (onSnapshot as jest.Mock).mock.calls[failed][2]({ code: 'permission-denied' });
   for (const call of (onSnapshot as jest.Mock).mock.calls) call[1]({ docs: [] });
   expect(error).toHaveBeenCalledTimes(1);
   expect(data).not.toHaveBeenCalled();
@@ -76,6 +77,26 @@ test('les réponses fusionnent toujours mes textes, les révélations et les sta
   expect(error).not.toHaveBeenCalled();
   stop();
 });
+
+test.each([[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]])(
+  'les réponses attendent les trois premiers résultats, ordre %i/%i/%i', async (first, second, third) => {
+    await AsyncStorage.setItem('session', JSON.stringify({ mode: 'cloud', userId: 'alice', coupleId: 'couple' }));
+    const backend = (await loadSession())!;
+    const data = jest.fn();
+    const stop = backend.subscribe('answers', data, jest.fn());
+    const calls = (onSnapshot as jest.Mock).mock.calls;
+    calls[first][1]({ docs: [] });
+    calls[first][1]({ docs: [] });
+    calls[second][1]({ docs: [] });
+    expect(data).not.toHaveBeenCalled();
+    calls[third][1]({ docs: [] });
+    expect(data).toHaveBeenCalledTimes(1);
+    expect(data).toHaveBeenLastCalledWith([]);
+    calls[first][1]({ docs: [] });
+    expect(data).toHaveBeenCalledTimes(2);
+    stop();
+  },
+);
 
 test('une erreur de collection locale ne devient pas une liste vide', async () => {
   await AsyncStorage.setItem('session', JSON.stringify({ mode: 'local' }));
