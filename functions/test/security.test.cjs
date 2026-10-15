@@ -428,6 +428,44 @@ test('les listes, souvenirs et dépenses valident les champs sans bloquer les us
   await assertFails(updateDoc(doc(alice, `couples/${cid}/expenses/one`), { amount: -1 }));
 });
 
+test('les patches de souvenir conservent les champs du partenaire et refusent un tiers', async () => {
+  await seed();
+  const path = `couples/${cid}/memories/partial`;
+  const original = { photoUrl: 'data:image/jpeg;base64,AAAA', caption: 'Légende fictive', date: '2020-01-02', createdBy: 'alice', createdAt: Date.now() };
+  await assertSucceeds(setDoc(doc(client('alice'), path), original));
+  await assertSucceeds(updateDoc(doc(client('bob'), path), { date: '2021-02-03' }));
+  await assertSucceeds(updateDoc(doc(client('alice'), path), { caption: 'Nouvelle légende' }));
+  assert.deepEqual((await getDoc(doc(client('bob'), path))).data(), { ...original, date: '2021-02-03', caption: 'Nouvelle légende' });
+  await assertFails(updateDoc(doc(client('mallory'), path), { caption: 'Interdit' }));
+  await assertFails(updateDoc(doc(client('bob'), path), { createdBy: 'bob' }));
+});
+
+test('les patches de listes préservent détails, type et statut coché', async () => {
+  await seed();
+  for (const list of ['bucket', 'shopping', 'films']) {
+    const path = `couples/${cid}/items/${list}`;
+    const original = { list, title: 'Titre fictif', detail: 'Ancien détail', done: false, createdBy: 'alice', createdAt: Date.now(), ...(list === 'films' ? { media: 'film' } : {}) };
+    await assertSucceeds(setDoc(doc(client('alice'), path), original));
+    const partnerPatch = { detail: 'Détail du partenaire', done: true, ...(list === 'films' ? { media: 'serie' } : {}) };
+    await assertSucceeds(updateDoc(doc(client('bob'), path), partnerPatch));
+    await assertSucceeds(updateDoc(doc(client('alice'), path), { title: 'Nouveau titre' }));
+    assert.deepEqual((await getDoc(doc(client('bob'), path))).data(), { ...original, ...partnerPatch, title: 'Nouveau titre' });
+    await assertFails(updateDoc(doc(client('mallory'), path), { title: 'Interdit' }));
+  }
+});
+
+test('les patches privés de cadeaux restent réservés au propriétaire', async () => {
+  await seed();
+  const path = `couples/${cid}/private/alice/gifts/partial`;
+  const original = { title: 'Cadeau fictif', detail: 'Détail privé fictif', done: true, createdBy: 'alice', createdAt: Date.now() };
+  await assertSucceeds(setDoc(doc(client('alice'), path), original));
+  await assertSucceeds(updateDoc(doc(client('alice'), path), { title: 'Autre titre' }));
+  assert.deepEqual((await getDoc(doc(client('alice'), path))).data(), { ...original, title: 'Autre titre' });
+  await assertFails(updateDoc(doc(client('bob'), path), { title: 'Interdit' }));
+  await assertFails(getDoc(doc(client('bob'), path)));
+  await assertFails(updateDoc(doc(client('alice'), path), { createdBy: 'bob' }));
+});
+
 test('Storage limite les fichiers au propriétaire, aux membres, aux images et à leur taille', async () => {
   await seed();
   const path = `couples/${cid}/photos/alice/secure-test.jpg`;

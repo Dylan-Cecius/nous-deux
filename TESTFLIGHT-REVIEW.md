@@ -56,6 +56,16 @@ Les règles Firestore préparées refusent désormais les marques directes et le
 3. Installer la nouvelle build en test interne, vérifier démarrage/reconnexion, photos, refus de permission, notifications, suppression avec un compte jetable et absence de perte de l’espace du partenaire.
 4. Envoyer la nouvelle build via EAS, puis l’ajouter au groupe externe et suivre sa revue éventuelle. Ne pas retirer automatiquement la build 6 en cours d’examen.
 
+## Essais natifs ciblés restant à faire — code du 15 octobre
+
+Checklist préparée, **non exécutée sur téléphone**. Attendre une build autorisée, les prérequis serveur ci-dessus et la preuve d’absence de coût supplémentaire. Employer exclusivement des images synthétiques et des comptes de test autorisés, jamais les albums ou comptes personnels.
+
+- Galerie/caméra : portrait très haut, paysage, petit format, annulation et refus de permission ; vérifier ratio, orientation et grand côté préparé (1600 maximum). Les tests d’API doublées ne prouvent ni qualité visuelle ni consommation mémoire.
+- Envoi photo : lecture indisponible/interrompue, changement de compte ou album devenu indisponible pendant le sélecteur ; vérifier message, déverrouillage et absence de création dans le nouveau contexte. Le délai de 60 secondes ne concerne que la lecture locale, pas l’upload déjà engagé.
+- Résultat ambigu : vérifier l’album actualisé avant tout nouvel ajout. Ne pas supprimer automatiquement un fichier dont l’association est inconnue ; idempotence des ajouts et réconciliation d’orphelins restent à traiter.
+- Édition à deux appareils : pendant qu’A modifie une légende ou un titre, B modifie un autre champ (date, détail, type film/série). A doit conserver sa saisie, recevoir les champs intacts et ne pas les réécrire. Deux éditions simultanées du même champ ne sont pas encore arbitrées côté serveur.
+- VoiceOver/TalkBack : parcourir miniatures, souvenir anniversaire, ajout occupé et fiche ; contrôler libellés complets, indication de destination et absence de focus inaccessible ou doublé. Les propriétés accessibles testées en Jest ne remplacent pas cet essai.
+
 ## Nettoyage technique : cible et déploiement
 
 `functions/src/retention.ts` prévoit un passage quotidien et au plus 500 documents par collection et par passage :

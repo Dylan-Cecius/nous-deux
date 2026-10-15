@@ -774,3 +774,9 @@ Base be7aacbc2b138fab4e0b3d05ecbfb1712bfddd3e. Six tests rouges : détail/titre/
 
 Une erreur TypeScript sur le rétrécissement de l’union Gift/ListItem a été observée puis corrigée par lecture explicite de media, avant validation. Preuves finales : lint/TypeScript, 47 suites / 877 tests (7,37 s), diff relu et git diff --check. Revue React conforme au modèle du souvenir, pas d’effet supplémentaire de synchronisation. Les contrôles sont simulés, sans contenu privé réel ; pas de verrou serveur de conflit sur un même champ. Serveur/règles inchangés. Aucun build, déploiement ou coût.
 
+## 2026-10-15, 17:19 Europe/Brussels — Patches partiels vérifiés sur émulateurs
+
+Base da7396149875eefb20a565ae07765a4c7d2176c9. Amélioration de preuve justifiée : les nouveaux formulaires envoient des patches minimaux, tandis que les anciens contrôles de règles ne vérifiaient que le statut coché pour ces listes. Trois tests ajoutés utilisent de vrais updateDoc/getDoc sur l’émulateur : conservation des champs complémentaires de souvenir, trois catégories de listes et confidentialité des cadeaux. Refus vérifié pour tiers et usurpation d’auteur ; aucune règle ni logique serveur changée. Ce sont des contrôles de compatibilité, pas trois bugs serveur prétendument corrigés.
+
+Compilation fonctions et 48 tests sécurité réussis en 25,62 s, sortie 0, émulateurs demo-nous-deux-security arrêtés. Lint/TypeScript et git diff --check propres ; dernière suite applicative 47 suites / 877 tests à 17:15, aucun code applicatif changé depuis. Diff relu. Checklist native des photos, pertes de contexte, éditions partagées et accessibilité ajoutée à TESTFLIGHT-REVIEW.md : essais explicitement non réalisés, coût/accès à vérifier avant build. Aucun compte, image ou fichier réel utilisé, aucun envoi externe, déploiement ou dépense.
+
