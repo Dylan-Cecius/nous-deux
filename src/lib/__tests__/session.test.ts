@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { signOut, signInAnonymously } from 'firebase/auth';
+import { signOut, signInAnonymously, signInWithEmailAndPassword } from 'firebase/auth';
 import { getDoc } from 'firebase/firestore';
-import { clearSession, loadSession, deleteMyAccount, type Backend } from '../backend';
+import { clearSession, loadSession, signInWithEmail, deleteMyAccount, type Backend } from '../backend';
 import { firebase } from '../firebase';
 import { clearReminders } from '../notifications';
 
@@ -15,6 +15,7 @@ jest.mock('../firebase', () => ({
 jest.mock('firebase/auth', () => ({
   signOut: jest.fn().mockResolvedValue(undefined),
   signInAnonymously: jest.fn(),
+  signInWithEmailAndPassword: jest.fn(),
   reauthenticateWithCredential: jest.fn(),
   EmailAuthProvider: { credential: jest.fn() },
 }));
@@ -25,8 +26,48 @@ jest.mock('firebase/storage', () => ({}));
 beforeEach(async () => {
   jest.clearAllMocks();
   await AsyncStorage.clear();
-  (getDoc as jest.Mock).mockResolvedValue({ data: () => ({ members: ['alice', 'bob'] }) });
+  (getDoc as jest.Mock).mockReset().mockResolvedValue({ data: () => ({ members: ['alice', 'bob'] }) });
+  (signInWithEmailAndPassword as jest.Mock).mockResolvedValue({ user: { uid: 'alice' } });
 });
+
+test('la reconnexion vérifie le couple avant d’enregistrer la session', async () => {
+  (getDoc as jest.Mock)
+    .mockResolvedValueOnce({ data: () => ({ coupleId: 'recovered' }) })
+    .mockResolvedValueOnce({ data: () => ({ members: ['alice', 'bob'] }) });
+  const backend = await signInWithEmail(' alice@example.test ', 'test-password');
+  expect(backend.coupleId).toBe('recovered');
+  expect(getDoc).toHaveBeenCalledTimes(2);
+  expect(signInWithEmailAndPassword).toHaveBeenCalledWith(expect.anything(), 'alice@example.test', 'test-password');
+  expect(JSON.parse((await AsyncStorage.getItem('session'))!)).toEqual({ mode: 'cloud', userId: 'alice', coupleId: 'recovered' });
+});
+
+test.each([undefined, { members: ['bob'] }])('un ancien rattachement ne valide pas une session inaccessible : %p', async (couple) => {
+  (getDoc as jest.Mock)
+    .mockResolvedValueOnce({ data: () => ({ coupleId: 'old-space' }) })
+    .mockResolvedValueOnce({ data: () => couple });
+  await expect(signInWithEmail('alice@example.test', 'test-password')).rejects.toThrow('accès à cet espace');
+  expect(await AsyncStorage.getItem('session')).toBeNull();
+  expect(signOut).not.toHaveBeenCalled();
+  expect(signInAnonymously).not.toHaveBeenCalled();
+});
+
+test.each(['unavailable', 'permission-denied'])(
+  'un échec de lecture du couple reste explicite et permet de réessayer : %s', async (code) => {
+    (getDoc as jest.Mock)
+      .mockResolvedValueOnce({ data: () => ({ coupleId: 'recovered' }) })
+      .mockRejectedValueOnce({ code });
+    await expect(signInWithEmail('alice@example.test', 'test-password')).rejects.toThrow(
+      code === 'unavailable' ? 'Vérifie ta connexion' : 'accès à cet espace',
+    );
+    expect(await AsyncStorage.getItem('session')).toBeNull();
+    expect(signOut).not.toHaveBeenCalled();
+    (getDoc as jest.Mock)
+      .mockResolvedValueOnce({ data: () => ({ coupleId: 'recovered' }) })
+      .mockResolvedValueOnce({ data: () => ({ members: ['alice'] }) });
+    expect((await signInWithEmail('alice@example.test', 'test-password')).coupleId).toBe('recovered');
+    expect(signInAnonymously).not.toHaveBeenCalled();
+  },
+);
 
 test('la déconnexion révoque la session Firebase locale et retire la session de l’app', async () => {
   await AsyncStorage.setItem('session', JSON.stringify({ mode: 'cloud', userId: 'alice', coupleId: 'couple' }));

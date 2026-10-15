@@ -366,11 +366,28 @@ export async function signInWithEmail(email: string, password: string): Promise<
   } catch (e) {
     throw new Error(authMessage(e));
   }
-  const index = await getDoc(doc(db, 'users', uid));
-  const coupleId = index.data()?.coupleId as string | undefined;
-  if (!coupleId) throw new Error('Ce compte n’est relié à aucun espace de couple.');
-  await saveCloudSession(coupleId, uid);
-  return cloudBackend(coupleId, uid);
+  try {
+    const index = await getDoc(doc(db, 'users', uid));
+    const coupleId = index.data()?.coupleId;
+    if (typeof coupleId !== 'string' || !coupleId) throw new Error('Ce compte n’est relié à aucun espace de couple.');
+    // Un ancien index ne suffit pas : vérifier l’espace avant de quitter la connexion.
+    const couple = await getDoc(doc(db, 'couples', coupleId));
+    const members = couple.data()?.members;
+    if (!Array.isArray(members) || !members.includes(uid)) {
+      throw new Error('Ton compte n’a plus accès à cet espace. Contacte l’assistance si cela te semble anormal.');
+    }
+    await saveCloudSession(coupleId, uid);
+    return cloudBackend(coupleId, uid);
+  } catch (error) {
+    const code = (error as { code?: string })?.code;
+    if (code === 'permission-denied') {
+      throw new Error('Ton compte n’a plus accès à cet espace. Contacte l’assistance si cela te semble anormal.');
+    }
+    if (code === 'unavailable' || code === 'deadline-exceeded') {
+      throw new Error('Impossible de retrouver votre espace pour le moment. Vérifie ta connexion et réessaie.');
+    }
+    throw error;
+  }
 }
 
 export async function resetPassword(email: string) {
