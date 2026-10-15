@@ -2,14 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
 
 import { celebrate } from './celebrate';
-import { useCollection, useSession } from '@/lib/couple-context';
+import { useCollection, useCollectionState, useSession } from '@/lib/couple-context';
 import { success } from '@/lib/haptics';
 import { getPushToken, scheduleCountdownReminders } from '@/lib/notifications';
 
 /** Tâches discrètes : notifications, rappels, et pluie de cœurs quand ta moitié pense à toi. */
 export function BackgroundTasks() {
   const { backend, me, partner } = useSession();
-  const dates = useCollection('dates');
+  const { items: dates, loading: datesLoading, error: datesError } = useCollectionState('dates');
   const notes = useCollection('notes');
   const myId = me?.id;
 
@@ -23,8 +23,10 @@ export function BackgroundTasks() {
 
   // Rappels « J-1 » et « Jour J » pour les comptes à rebours.
   useEffect(() => {
+    // Une liste inconnue n'est pas une liste vide : ne pas effacer les rappels existants.
+    if (datesLoading || datesError) return;
     scheduleCountdownReminders(dates).catch(() => {});
-  }, [dates]);
+  }, [dates, datesLoading, datesError]);
 
   // Dernier cœur déjà « vu » sur ce téléphone (date d'envoi), mémorisé entre deux ouvertures.
   const seenKey = `seen:ping:${backend.coupleId}`;

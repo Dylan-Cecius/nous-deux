@@ -9,7 +9,7 @@ import { AccountCard } from '@/components/account';
 import { Avatar, Button, Card, ColorPicker, Field, Ionicons, Row, Screen, T, type IconName } from '@/components/ui';
 import { showDialog } from '@/components/dialog';
 import { AccentThemes, cardShadow, MemberColors, usePrefs, useTheme, type AccentId } from '@/constants/theme';
-import { useCollection, useSession } from '@/lib/couple-context';
+import { useCollectionState, useSession } from '@/lib/couple-context';
 import { tap } from '@/lib/haptics';
 import { ensurePermission, getPushToken, pushSupported, scheduleCountdownReminders } from '@/lib/notifications';
 import { useAsyncAction } from '@/lib/use-async-action';
@@ -96,9 +96,9 @@ function ThemePicker() {
 export default function Nous() {
   const t = useTheme();
   const { backend, members, signOut } = useSession();
-  const memories = useCollection('memories');
-  const expenses = useCollection('expenses');
-  const dates = useCollection('dates');
+  const memories = useCollectionState('memories');
+  const expenses = useCollectionState('expenses');
+  const dates = useCollectionState('dates');
   const canEdit = (m: Member) => backend.mode === 'local' || m.id === backend.userId;
 
   const leave = () => {
@@ -129,28 +129,35 @@ export default function Nous() {
           first
           icon="images-outline"
           title="Souvenirs"
-          detail={memories.length ? `${memories.length} photo${memories.length > 1 ? 's' : ''}` : 'Votre album photo à deux'}
+          detail={memories.loading ? 'Chargement des souvenirs…' : memories.error ? 'Souvenirs indisponibles' : memories.items.length ? `${memories.items.length} photo${memories.items.length > 1 ? 's' : ''}` : 'Votre album photo à deux'}
           onPress={() => router.push('/souvenirs')}
         />
         <LinkRow
           icon="wallet-outline"
           title="Dépenses communes"
-          detail={expenses.length ? 'Qui doit combien à qui' : 'Partagez les frais à moitié'}
+          detail={expenses.loading ? 'Chargement des dépenses…' : expenses.error ? 'Dépenses indisponibles' : expenses.items.length ? 'Qui doit combien à qui' : 'Partagez les frais à moitié'}
           onPress={() => router.push('/depenses')}
         />
         <LinkRow
           icon="notifications-outline"
           title="Notifications"
-          detail="Mots doux, rappels J-1, nouveaux horaires"
+          detail={dates.loading ? 'Chargement des dates…' : dates.error ? 'Dates indisponibles · rappels inchangés' : 'Mots doux, rappels J-1, nouveaux horaires'}
           onPress={async () => {
             if (Platform.OS === 'web') {
               showDialog('Notifications sur téléphone', 'Les rappels et les notifications se règlent dans l’application installée sur ton téléphone.');
               return;
             }
+            if (dates.loading || dates.error) {
+              showDialog(
+                dates.loading ? 'Chargement des dates' : 'Dates indisponibles',
+                'Les rappels existants restent inchangés. Attends le chargement des dates ou réessaie avant de les activer.',
+              );
+              return;
+            }
             const granted = await ensurePermission();
             let pushRegistered = false;
             if (granted) {
-              await scheduleCountdownReminders(dates);
+              await scheduleCountdownReminders(dates.items);
               if (backend.mode === 'cloud') {
                 const token = await getPushToken();
                 if (token) {
@@ -175,6 +182,10 @@ export default function Nous() {
         />
         <LinkRow icon="help-circle-outline" title="Aide et confidentialité" detail="Votre espace, vos données et vos comptes" onPress={() => router.push('/aide')} />
       </View>
+
+      {memories.error && <Button label="Réessayer les souvenirs" variant="outline" onPress={memories.retry} />}
+      {expenses.error && <Button label="Réessayer les dépenses" variant="outline" onPress={expenses.retry} />}
+      {dates.error && <Button label="Réessayer les dates" variant="outline" onPress={dates.retry} />}
 
       <AccountCard />
 
