@@ -185,10 +185,27 @@ const LOCAL_PARTNER = 'partner';
 const cache = new Map<string, unknown>();
 const listeners = new Map<string, Set<(value: any) => void>>();
 const localWrites = new Map<string, Promise<void>>();
+const localOperations = new Set<Promise<unknown>>();
+const localBackends = new WeakMap<Backend, number>();
+let localEpoch = 0;
+let localReadVersion = 0;
+let deletingLocal = false;
+const localUnavailable = () => new Error('Cet espace local est fermé ou en cours de suppression.');
+
+/** Bloque les nouveaux travaux pendant la suppression et suit ceux déjà engagés. */
+function localOperation<T>(epoch: number, action: () => Promise<T>): Promise<T> {
+  if (deletingLocal || epoch !== localEpoch) return Promise.reject(localUnavailable());
+  const task = Promise.resolve().then(action);
+  localOperations.add(task);
+  void task.then(() => localOperations.delete(task), () => localOperations.delete(task));
+  return task;
+}
 
 async function readLocal<T>(key: string, fallback: T): Promise<T> {
   if (cache.has(key)) return cache.get(key) as T;
+  const version = localReadVersion;
   const raw = await AsyncStorage.getItem(key);
+  if (version !== localReadVersion) throw localUnavailable();
   // Une écriture ou une autre lecture peut avoir rempli le cache entre-temps.
   if (cache.has(key)) return cache.get(key) as T;
   const value = raw ? (JSON.parse(raw) as T) : fallback;
@@ -216,11 +233,15 @@ function mutateLocal<T>(key: string, fallback: T, change: (current: T) => T): Pr
   return task;
 }
 
-function watchLocal<T>(key: string, fallback: T, cb: (value: T) => void, onError?: (error: unknown) => void) {
+function watchLocal<T>(epoch: number, key: string, fallback: T, cb: (value: T) => void, onError?: (error: unknown) => void) {
+  if (epoch !== localEpoch || deletingLocal) {
+    onError?.(localUnavailable());
+    return () => {};
+  }
   let active = true;
   let received = false;
   const receive = (value: T) => {
-    if (!active) return;
+    if (!active || epoch !== localEpoch) return;
     received = true;
     cb(value);
   };
@@ -228,7 +249,7 @@ function watchLocal<T>(key: string, fallback: T, cb: (value: T) => void, onError
   listeners.get(key)!.add(receive);
   readLocal(key, fallback).then(
     (value) => { if (!received) receive(value); },
-    (error) => { if (active && !received) onError?.(error); },
+    (error) => { if (active && epoch === localEpoch && !received) onError?.(error); },
   );
   return () => {
     active = false;
@@ -246,53 +267,61 @@ export async function createLocalCouple(me: Omit<Member, 'id'>, partner: Omit<Me
       { id: LOCAL_PARTNER, ...partner },
     ],
   };
-  await writeLocal('local:couple', couple);
-  await AsyncStorage.setItem(SESSION_KEY, JSON.stringify({ mode: 'local' } satisfies Session));
-  return localBackend();
+  return localOperation(localEpoch, async () => {
+    await writeLocal('local:couple', couple);
+    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify({ mode: 'local' } satisfies Session));
+    return localBackend();
+  });
 }
 
 function localBackend(): Backend {
   const colKey = (col: string) => `local:col:${col}`;
-  return {
+  const epoch = localEpoch;
+  const operate = <T>(action: () => Promise<T>) => localOperation(epoch, action);
+  const backend: Backend = {
     mode: 'local',
     userId: LOCAL_ME,
     coupleId: 'local',
-    subscribeCouple: (cb, onError) => watchLocal<Couple | null>('local:couple', null, cb, onError),
+    subscribeCouple: (cb, onError) => watchLocal<Couple | null>(epoch, 'local:couple', null, cb, onError),
     async updateCouple(patch) {
-      await mutateLocal<Couple | null>('local:couple', null, (couple) => couple ? { ...couple, ...patch } : couple);
+      await operate(() => mutateLocal<Couple | null>('local:couple', null, (couple) => couple ? { ...couple, ...patch } : couple));
     },
     async updateMember(memberId, patch) {
-      await mutateLocal<Couple | null>('local:couple', null, (couple) => couple ? {
+      await operate(() => mutateLocal<Couple | null>('local:couple', null, (couple) => couple ? {
         ...couple, members: couple.members.map((m) => m.id === memberId ? { ...m, ...patch } : m),
-      } : couple);
+      } : couple));
     },
-    subscribe: (col, cb, onError) => watchLocal(colKey(col), [], cb, onError),
+    subscribe: (col, cb, onError) => watchLocal(epoch, colKey(col), [], cb, onError),
     async add(col, data) {
-      await mutateLocal<any[]>(colKey(col), [], (items) => [...items, { ...data, id: newId() }]);
+      await operate(() => mutateLocal<any[]>(colKey(col), [], (items) => [...items, { ...data, id: newId() }]));
     },
     async addEvents(events) {
       if (!events.length || events.length > 52) throw new Error('Choisis entre 1 et 52 horaires.');
-      await mutateLocal<AgendaEvent[]>(colKey('events'), [], (items) => [...items, ...events.map((event) => ({ ...event, id: newId() }))]);
+      await operate(() => mutateLocal<AgendaEvent[]>(colKey('events'), [], (items) => [...items, ...events.map((event) => ({ ...event, id: newId() }))]));
     },
     async update(col, id, patch) {
-      await mutateLocal<any[]>(colKey(col), [], (items) => items.map((it) => it.id === id ? { ...it, ...patch } : it));
+      await operate(() => mutateLocal<any[]>(colKey(col), [], (items) => items.map((it) => it.id === id ? { ...it, ...patch } : it)));
     },
     async remove(col, id) {
-      await mutateLocal<any[]>(colKey(col), [], (items) => items.filter((it) => it.id !== id));
+      await operate(() => mutateLocal<any[]>(colKey(col), [], (items) => items.filter((it) => it.id !== id)));
     },
     async uploadPhoto(localUri) {
-      // Une URL blob disparaît au rechargement : conserver le contenu en mode local web.
-      if (Platform.OS === 'web') return toCompactDataUri(localUri);
-      // Le sélecteur d'images rend un fichier temporaire : on le copie dans le dossier de l'app.
-      const { File, Paths } = await import('expo-file-system');
-      const dest = new File(Paths.document, `photo-${newId()}.jpg`);
-      await new File(localUri).copy(dest);
-      return dest.uri;
+      return operate(async () => {
+        // Une URL blob disparaît au rechargement : conserver le contenu en mode local web.
+        if (Platform.OS === 'web') return toCompactDataUri(localUri);
+        // Le sélecteur d'images rend un fichier temporaire : on le copie dans le dossier de l'app.
+        const { File, Paths } = await import('expo-file-system');
+        const dest = new File(Paths.document, `photo-${newId()}.jpg`);
+        await new File(localUri).copy(dest);
+        return dest.uri;
+      });
     },
     async call() {
       throw new CloudOnlyError();
     },
   };
+  localBackends.set(backend, epoch);
+  return backend;
 }
 // ---------------------------------------------------------------------------
 // Mode cloud (Firebase)
@@ -425,17 +454,29 @@ export async function resetPassword(email: string) {
 /** Supprime côté serveur ; le nettoyage continue automatiquement après une panne. */
 export async function deleteMyAccount(backend: Backend, password?: string): Promise<'complete' | 'pending'> {
   if (backend.mode === 'local') {
-    if (Platform.OS !== 'web') {
-      const { Directory, Paths } = await import('expo-file-system');
-      for (const file of new Directory(Paths.document).list()) {
-        if (file.name.startsWith('photo-')) file.delete();
+    if (deletingLocal || localBackends.get(backend) !== localEpoch) throw localUnavailable();
+    deletingLocal = true;
+    localReadVersion++;
+    try {
+      // Les écritures/copies déjà engagées finissent avant l'inventaire à effacer.
+      await Promise.allSettled([...localOperations]);
+      if (Platform.OS !== 'web') {
+        const { Directory, Paths } = await import('expo-file-system');
+        for (const file of new Directory(Paths.document).list()) {
+          if (file.name.startsWith('photo-')) file.delete();
+        }
       }
+      const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith('local:'));
+      await AsyncStorage.multiRemove(keys);
+      await clearSession();
+      localEpoch++;
+      listeners.clear();
+      return 'complete';
+    } finally {
+      cache.clear();
+      localReadVersion++;
+      deletingLocal = false;
     }
-    const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith('local:'));
-    await AsyncStorage.multiRemove(keys);
-    cache.clear();
-    await clearSession();
-    return 'complete';
   }
   const user = firebase().auth.currentUser;
   if (!user || user.uid !== backend.userId) throw new Error('Reconnecte-toi avant de supprimer ton compte.');

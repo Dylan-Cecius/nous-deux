@@ -4,7 +4,7 @@ import type { AgendaEvent } from '../types';
 jest.mock('@react-native-async-storage/async-storage', () => jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'));
 jest.mock('../firebase', () => ({ isFirebaseConfigured: false, firebase: jest.fn() }));
 jest.mock('../photos', () => ({ toCompactDataUri: jest.fn() }));
-jest.mock('../notifications', () => ({ clearReminders: jest.fn() }));
+jest.mock('../notifications', () => ({ clearReminders: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('firebase/auth', () => ({}));
 jest.mock('firebase/firestore', () => ({}));
 jest.mock('firebase/functions', () => ({}));
@@ -12,13 +12,16 @@ jest.mock('firebase/storage', () => ({}));
 
 let storage: typeof import('@react-native-async-storage/async-storage').default;
 let backend: Backend;
+let api: typeof import('../backend');
 beforeEach(async () => {
   jest.resetModules();
+  jest.replaceProperty(jest.requireActual('react-native').Platform, 'OS', 'web');
   storage = jest.requireMock('@react-native-async-storage/async-storage');
   await storage.clear();
-  const { createLocalCouple } = jest.requireActual<typeof import('../backend')>('../backend');
-  backend = await createLocalCouple({ name: 'Alice fictive', color: '#123456' }, { name: 'Bob fictif', color: '#abcdef' });
+  api = jest.requireActual<typeof import('../backend')>('../backend');
+  backend = await api.createLocalCouple({ name: 'Alice fictive', color: '#123456' }, { name: 'Bob fictif', color: '#abcdef' });
 });
+afterEach(() => { jest.restoreAllMocks(); });
 const read = async (key: string) => JSON.parse((await storage.getItem(key))!);
 const note = (text: string) => ({ text, from: 'me', createdAt: 1 });
 const event: Omit<AgendaEvent, 'id'> = { title: 'Horaire fictif', who: 'me', date: '2026-10-15', start: '09:00', end: '12:00', kind: 'travail', createdBy: 'me' };
@@ -129,4 +132,130 @@ test('une erreur initiale courante remonte et un nouvel abonnement peut reprendr
   await new Promise<void>((resolve) => { retry = backend.subscribe('notes', (items) => { data(items); resolve(); }, error); });
   expect(data).toHaveBeenCalledWith([]);
   retry();
+});
+
+test('la suppression attend une écriture engagée et ne laisse aucune donnée locale réapparaître', async () => {
+  await storage.setItem('preferences:theme', 'dark');
+  const write = (storage.setItem as jest.Mock).getMockImplementation()!;
+  let finish!: () => void;
+  let started!: () => void;
+  const entered = new Promise<void>((resolve) => { started = resolve; });
+  (storage.setItem as jest.Mock).mockImplementationOnce((key, value) => new Promise<void>((resolve) => {
+    finish = () => { void write(key, value).then(resolve); }; started();
+  }));
+  const first = backend.add('notes', note('En cours'));
+  await entered;
+  const second = backend.add('notes', note('En attente'));
+  let deleted = false;
+  const deletion = api.deleteMyAccount(backend).then(() => { deleted = true; });
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  const completedTooEarly = deleted;
+  finish();
+  await Promise.allSettled([first, second]);
+  await deletion;
+  expect(completedTooEarly).toBe(false);
+  expect((await storage.getAllKeys()).filter((key) => key.startsWith('local:') || key === 'session')).toEqual([]);
+  expect(await storage.getItem('preferences:theme')).toBe('dark');
+});
+
+test('une nouvelle écriture et une autre suppression sont refusées pendant le nettoyage', async () => {
+  const remove = (storage.multiRemove as jest.Mock).getMockImplementation()!;
+  let finish!: () => void; let started!: () => void;
+  const entered = new Promise<void>((resolve) => { started = resolve; });
+  (storage.multiRemove as jest.Mock).mockImplementationOnce((keys) => new Promise<void>((resolve) => {
+    finish = () => { void remove(keys).then(resolve); }; started();
+  }));
+  const deletion = api.deleteMyAccount(backend);
+  await entered;
+  const results = await Promise.allSettled([
+    backend.add('notes', note('Trop tard')), api.deleteMyAccount(backend),
+    api.createLocalCouple({ name: 'Autre', color: '#123456' }, { name: 'Partenaire', color: '#abcdef' }),
+  ]);
+  finish(); await deletion;
+  expect(results.map((result) => result.status)).toEqual(['rejected', 'rejected', 'rejected']);
+});
+
+test('un ancien backend ne peut pas écrire ni effacer un nouvel espace local', async () => {
+  const old = backend;
+  await api.deleteMyAccount(old);
+  backend = await api.createLocalCouple({ name: 'Nouveau', color: '#123456' }, { name: 'Partenaire', color: '#abcdef' });
+  await backend.add('notes', note('Nouvel espace'));
+  const data = jest.fn(); const error = jest.fn();
+  const stop = old.subscribe('notes', data, error);
+  expect(data).not.toHaveBeenCalled();
+  expect(error).toHaveBeenCalledTimes(1);
+  stop();
+  const results = await Promise.allSettled([old.add('notes', note('Ancien espace')), api.deleteMyAccount(old)]);
+  expect(results.map((result) => result.status)).toEqual(['rejected', 'rejected']);
+  expect((await read('local:col:notes')).map((x: { text: string }) => x.text)).toEqual(['Nouvel espace']);
+});
+
+test('une lecture terminée après suppression ne repeuple pas le cache ni les abonnés', async () => {
+  let finish!: (raw: string | null) => void;
+  (storage.getItem as jest.Mock).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+  const data = jest.fn(); const error = jest.fn();
+  const stop = backend.subscribe('notes', data, error);
+  await api.deleteMyAccount(backend);
+  backend = await api.createLocalCouple({ name: 'Nouveau', color: '#123456' }, { name: 'Partenaire', color: '#abcdef' });
+  finish(JSON.stringify([{ ...note('Ancien texte'), id: 'old' }]));
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  expect(data).not.toHaveBeenCalled();
+  expect(error).not.toHaveBeenCalled();
+  await backend.add('notes', note('Nouveau texte'));
+  expect((await read('local:col:notes')).map((x: { text: string }) => x.text)).toEqual(['Nouveau texte']);
+  stop();
+});
+
+test('la suppression attend aussi une préparation de photo déjà engagée', async () => {
+  const photos = jest.requireMock('../photos');
+  let finish!: (uri: string) => void;
+  photos.toCompactDataUri.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+  const photo = backend.uploadPhoto('fictitious://photo');
+  let deleted = false;
+  const deletion = api.deleteMyAccount(backend).then(() => { deleted = true; });
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  const completedTooEarly = deleted;
+  finish('fictitious://saved');
+  await photo; await deletion;
+  expect(completedTooEarly).toBe(false);
+  await expect(backend.add('memories', { photoUrl: 'fictitious://saved', date: '2026-10-15', createdBy: 'me', createdAt: 1 })).rejects.toThrow();
+});
+
+test('un échec du nettoyage reste visible, libère le verrou et permet une reprise', async () => {
+  await backend.add('notes', note('À supprimer'));
+  (storage.multiRemove as jest.Mock).mockRejectedValueOnce(new Error('Nettoyage fictif refusé'));
+  await expect(api.deleteMyAccount(backend)).rejects.toThrow('Nettoyage fictif refusé');
+  await backend.add('notes', note('Encore présent'));
+  expect(await read('local:col:notes')).toHaveLength(2);
+  await expect(api.deleteMyAccount(backend)).resolves.toBe('complete');
+  expect(await storage.getItem('local:col:notes')).toBeNull();
+});
+
+test('une création locale engagée ne remémorise pas la session après le nettoyage', async () => {
+  const write = (storage.setItem as jest.Mock).getMockImplementation()!;
+  let finish!: () => void; let started!: () => void;
+  const entered = new Promise<void>((resolve) => { started = resolve; });
+  (storage.setItem as jest.Mock).mockImplementationOnce(write).mockImplementationOnce((key, value) => new Promise<void>((resolve) => {
+    finish = () => { void write(key, value).then(resolve); }; started();
+  }));
+  const creation = api.createLocalCouple({ name: 'En cours', color: '#123456' }, { name: 'Partenaire', color: '#abcdef' });
+  await entered;
+  const deletion = api.deleteMyAccount(backend);
+  finish();
+  const created = await creation;
+  await deletion;
+  expect(await storage.getItem('session')).toBeNull();
+  expect(await storage.getItem('local:couple')).toBeNull();
+  await expect(created.add('notes', note('Tardif'))).rejects.toThrow();
+});
+
+test('une préparation de photo refusée ne bloque pas définitivement le nettoyage', async () => {
+  let reject!: (error: Error) => void;
+  jest.requireMock('../photos').toCompactDataUri.mockReturnValue(new Promise((_resolve, no) => { reject = no; }));
+  const photo = backend.uploadPhoto('fictitious://photo');
+  const result = Promise.allSettled([photo]);
+  const deletion = api.deleteMyAccount(backend);
+  reject(new Error('Photo fictive illisible'));
+  expect((await result)[0].status).toBe('rejected');
+  await expect(deletion).resolves.toBe('complete');
 });
