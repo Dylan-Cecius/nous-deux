@@ -1,12 +1,14 @@
 # Marques de remboursement — protocole préparé
 
-État du 15 octobre 2026 : code serveur testé sur les seuls émulateurs demo-nous-deux-security, non déployé. Aucun paiement : le résultat est uniquement une ligne informative dans les dépenses. Le raccordement du client reste à réaliser à ce checkpoint.
+État du 15 octobre 2026 : code serveur testé sur les seuls émulateurs demo-nous-deux-security, non déployé. Aucun paiement : le résultat est uniquement une ligne informative dans les dépenses. Le client cloud est raccordé dans le code, avec tests d’écran simulés ; aucune nouvelle version n’est distribuée.
 
 ## Intention et concurrence
 
 `recordSettlement` reçoit coupleId, expectedUserId, requestId et au plus 500 entrées attendues (id, amount, paidBy, kind). Aucun titre intime ni montant de remboursement proposé par le client n’est nécessaire. Le serveur relit le relevé en transaction, refuse tout ajout/retrait/changement depuis la vue confirmée, recalcule le solde en centimes et crée une seule marque. Un compteur serveur dans le document couple sérialise les intentions concurrentes des deux membres.
 
 Le client doit conserver le même requestId et les mêmes entrées pour réessayer une intention après résultat ambigu. Une nouvelle intention explicite utilise un nouvel identifiant. Le reçu vérifie l’empreinte des entrées et renvoie le résultat initial sans recréer la marque, même si cette dernière a été supprimée entre-temps. Une autre intention sur l’ancien relevé échoue après le premier commit.
+
+L’écran conserve l’identifiant pendant les reprises du même relevé, y compris si le titre ou l’ordre des lignes change. Ce n’est pas un secret d’accès. La réponse doit contenir un identifiant de marque valide avant d’annoncer le succès. Aucun repli sur une écriture directe n’est autorisé si la fonction échoue ou manque. Après démontage/redémarrage, l’intention en mémoire n’est pas conservée : une nouvelle demande sur un ancien relevé est refusée par la précondition serveur. La reprise exacte après redémarrage nécessiterait une persistance dédiée. Le mode local garde son annotation et ses verrous existants, sans fonction cloud ni nouvelle garantie multi-onglets.
 
 Les reçus sont rangés sous `couples/{coupleId}/private/{uid}/settlementRequests/{requestId}`. Ils contiennent uniquement l’empreinte, l’identifiant de la marque et une date serveur. Les règles existantes refusent toute lecture/écriture directe, même par le demandeur. Le nettoyage privé existant les retire lors de la suppression du demandeur ; celui du couple les retire lors du départ du dernier membre. Aucun délai d’expiration ni engagement de conservation n’est inventé ici. Ce nouveau stockage préparé doit rejoindre l’inventaire de confidentialité avant toute mise en production.
 

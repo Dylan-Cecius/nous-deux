@@ -17,11 +17,12 @@ jest.mock('@/components/ui', () => ({ confirmDelete: jest.fn(), ...Object.fromEn
 let root: ReactTestRenderer;
 const expense = { id: 'expense', title: 'Dépense fictive', amount: 40, paidBy: 'alice', kind: 'expense', createdAt: 1 };
 const ready = { items: [expense], loading: false, error: false, retry: jest.fn() };
-const backend = { mode: 'cloud', coupleId: 'couple', userId: 'alice', add: jest.fn(), remove: jest.fn() };
+const backend = { mode: 'cloud', coupleId: 'couple', userId: 'alice', add: jest.fn(), call: jest.fn(), remove: jest.fn() };
 const session = { backend, me: { id: 'alice' }, partner: { id: 'bob', name: 'Bob' }, members: [{ id: 'alice' }, { id: 'bob' }], nameOf: () => 'Alice', colorOf: () => '#000' };
 beforeEach(() => {
   jest.clearAllMocks();
   backend.add.mockReset().mockResolvedValue(undefined); backend.remove.mockReset().mockResolvedValue(undefined);
+  backend.call.mockReset().mockResolvedValue({ settlementId: 'confirmed-fictitious-id' });
   (useSession as jest.Mock).mockReturnValue(session);
   (useCollectionState as jest.Mock).mockReturnValue(ready);
 });
@@ -50,39 +51,39 @@ test.each(['unmount', 'backend', 'member', 'partner', 'loading', 'error', 'chang
   else (useCollectionState as jest.Mock).mockReturnValue({ ...ready, ...(kind === 'changed' ? { items: [{ ...expense, amount: 50 }] } : { [kind]: true }) });
   if (kind === 'unmount') await act(async () => root.unmount()); else await refresh();
   await act(async () => { await settle(); });
-  expect(backend.add).not.toHaveBeenCalled();
+  expect(backend.call).not.toHaveBeenCalled();
   expect(success).not.toHaveBeenCalled();
 });
 
 test('suppression et marque informative partagent le verrou immédiat', async () => {
   await mount(); const confirm = await ask(); const settle = settleButton().props.onPress;
   let finish!: () => void;
-  backend.add.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+  backend.call.mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve({ settlementId: 'confirmed-fictitious-id' }); }));
   let pending!: Promise<void>;
   await act(async () => { pending = settle(); await settle(); await confirm(); });
-  expect(backend.add).toHaveBeenCalledTimes(1);
+  expect(backend.call).toHaveBeenCalledTimes(1);
   expect(backend.remove).not.toHaveBeenCalled();
   expect(settleButton().props.disabled).toBe(true);
   await act(async () => { finish(); await pending; });
   await act(async () => { await settleButton().props.onPress(); });
-  expect(backend.add).toHaveBeenCalledTimes(1);
+  expect(backend.call).toHaveBeenCalledTimes(1);
 });
 
 test('un nouveau solde confirmé utilise les valeurs courantes', async () => {
   await mount();
   await act(async () => { await settleButton().props.onPress(); });
-  expect(backend.add).toHaveBeenLastCalledWith('expenses', expect.objectContaining({ title: 'Remboursement', amount: 20, paidBy: 'bob', kind: 'settle' }));
+  expect(backend.call).toHaveBeenLastCalledWith('recordSettlement', expect.objectContaining({ expected: [{ id: 'expense', amount: 40, paidBy: 'alice', kind: 'expense' }] }));
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...expense, amount: 60, paidBy: 'bob' }] });
   await refresh();
   await act(async () => { await settleButton().props.onPress(); });
-  expect(backend.add).toHaveBeenLastCalledWith('expenses', expect.objectContaining({ amount: 30, paidBy: 'alice', kind: 'settle' }));
-  expect(backend.add).toHaveBeenCalledTimes(2);
+  expect(backend.call).toHaveBeenLastCalledWith('recordSettlement', expect.objectContaining({ expected: [{ id: 'expense', amount: 60, paidBy: 'bob', kind: 'expense' }] }));
+  expect(backend.call).toHaveBeenCalledTimes(2);
 });
 
 test.each(['settle', 'delete'])('l’échec courant de %s reste visible et réessayable', async (action) => {
   await mount();
   const run = action === 'settle' ? settleButton().props.onPress : await ask();
-  const method = action === 'settle' ? backend.add : backend.remove;
+  const method = action === 'settle' ? backend.call : backend.remove;
   method.mockRejectedValueOnce(new Error('Échec fictif'));
   await act(async () => { await run(); });
   expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Échec fictif');
@@ -93,7 +94,7 @@ test.each(['settle', 'delete'])('l’échec courant de %s reste visible et rées
 test.each(['settle', 'delete'])('l’erreur ancienne de %s est ignorée après changement de backend', async (action) => {
   await mount();
   const run = action === 'settle' ? settleButton().props.onPress : await ask();
-  const method = action === 'settle' ? backend.add : backend.remove;
+  const method = action === 'settle' ? backend.call : backend.remove;
   let reject!: (error: Error) => void;
   method.mockImplementationOnce(() => new Promise<void>((_, no) => { reject = no; }));
   let pending!: Promise<void>;
@@ -112,7 +113,7 @@ test('une suppression en cours bloque aussi les autres commandes de la liste', a
   let pending!: Promise<void>;
   await act(async () => { pending = confirm(); await confirm(); await settleButton().props.onPress(); });
   expect(backend.remove).toHaveBeenCalledTimes(1);
-  expect(backend.add).not.toHaveBeenCalled();
+  expect(backend.call).not.toHaveBeenCalled();
   await act(async () => { finish(); await pending; });
 });
 
@@ -124,7 +125,7 @@ test('une réémission du même relevé ne permet pas de doubler la marque enreg
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...second, title: 'Autre titre' }, { ...expense }] });
   await refresh();
   await act(async () => { await settleButton().props.onPress(); });
-  expect(backend.add).toHaveBeenCalledTimes(1);
+  expect(backend.call).toHaveBeenCalledTimes(1);
   expect(settleButton().props.disabled).toBe(true);
 });
 
@@ -136,5 +137,66 @@ test('après un relevé différent, le retour au solde initial permet une nouvel
   (useCollectionState as jest.Mock).mockReturnValue(ready);
   await refresh();
   await act(async () => { await settleButton().props.onPress(); });
-  expect(backend.add).toHaveBeenCalledTimes(2);
+  expect(backend.call).toHaveBeenCalledTimes(2);
+});
+
+test('le cloud utilise la transaction sans envoyer les titres ni un montant de remboursement', async () => {
+  await mount();
+  await act(async () => { await settleButton().props.onPress(); });
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(backend.call).toHaveBeenCalledWith('recordSettlement', {
+    expectedUserId: 'alice', requestId: expect.stringMatching(/^[A-Za-z0-9_-]{12,80}$/),
+    expected: [{ id: expense.id, amount: 40, paidBy: 'alice', kind: 'expense' }],
+  });
+});
+
+test('une réponse perdue conserve le même identifiant pour la reprise, même après réémission du relevé', async () => {
+  backend.call.mockRejectedValueOnce(new Error('Réponse fictive perdue'));
+  await mount();
+  await act(async () => { await settleButton().props.onPress(); });
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...expense, title: 'Titre modifié' }] });
+  await refresh();
+  await act(async () => { await settleButton().props.onPress(); });
+  expect(backend.call).toHaveBeenCalledTimes(2);
+  expect(backend.call.mock.calls[1][1]).toEqual(backend.call.mock.calls[0][1]);
+  expect(backend.add).not.toHaveBeenCalled();
+});
+
+test.each([undefined, null, {}, { settlementId: '' }, { settlementId: 'other/path' }])('réponse serveur invalide %j : aucun faux succès ni repli direct', async (response) => {
+  backend.call.mockResolvedValueOnce(response);
+  await mount();
+  await act(async () => { await settleButton().props.onPress(); });
+  expect(success).not.toHaveBeenCalled();
+  expect(showDialog).toHaveBeenCalledWith('Action impossible', expect.any(String));
+  expect(settleButton().props.disabled).toBe(false);
+  expect(backend.add).not.toHaveBeenCalled();
+  await act(async () => { await settleButton().props.onPress(); });
+  expect(backend.call.mock.calls[1][1].requestId).toBe(backend.call.mock.calls[0][1].requestId);
+});
+
+test('une fonction absente ne retombe jamais sur un ajout direct non protégé', async () => {
+  backend.call.mockRejectedValueOnce(new Error('Fonction non déployée'));
+  await mount();
+  await act(async () => { await settleButton().props.onPress(); });
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Fonction non déployée');
+});
+
+test('un relevé réellement différent reçoit une nouvelle intention', async () => {
+  await mount();
+  await act(async () => { await settleButton().props.onPress(); });
+  const first = backend.call.mock.calls[0]?.[1]?.requestId;
+  expect(first).toEqual(expect.any(String));
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...expense, amount: 60 }] });
+  await refresh();
+  await act(async () => { await settleButton().props.onPress(); });
+  expect(backend.call.mock.calls[1][1].requestId).not.toBe(first);
+});
+
+test('le mode local reste une annotation locale, sans appel serveur', async () => {
+  (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...backend, mode: 'local' } });
+  await mount();
+  await act(async () => { await settleButton().props.onPress(); });
+  expect(backend.call).not.toHaveBeenCalled();
+  expect(backend.add).toHaveBeenCalledWith('expenses', expect.objectContaining({ amount: 20, paidBy: 'bob', kind: 'settle' }));
 });

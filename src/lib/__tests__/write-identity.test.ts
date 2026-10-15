@@ -43,6 +43,7 @@ const operations: [string, (b: Backend) => Promise<unknown>][] = [
   ['modification', (b) => b.update('items', 'one', { title: 'Fictif' })],
   ['suppression', (b) => b.remove('items', 'one')],
   ['fonction', (b) => b.call('getInvitation', {})],
+  ['marque transactionnelle', (b) => b.call('recordSettlement', { expectedUserId: b.userId, requestId: 'fictitious-request', expected: [] })],
 ];
 
 describe.each(operations)('%s', (_name, perform) => {

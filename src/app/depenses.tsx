@@ -8,13 +8,28 @@ import { useCollectionState, useSession } from '@/lib/couple-context';
 import { formatRelative } from '@/lib/dates';
 import { success } from '@/lib/haptics';
 import type { Backend } from '@/lib/backend';
+import type { Expense } from '@/lib/types';
 import { balanceFor } from '@/lib/expenses';
 import { useAsyncAction } from '@/lib/use-async-action';
 
 const euros = (n: number) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }).replace(/ /g, ' ');
 
-function addSettlement(backend: Backend, amount: number, paidBy: string) {
-  return backend.add('expenses', { title: 'Remboursement', amount, paidBy, kind: 'settle', createdAt: Date.now() });
+// Identifiant de corrélation, jamais un secret ou une preuve d'autorisation.
+const settlementRequestId = () => `settle_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 14)}_${Math.random().toString(36).slice(2, 14)}`;
+
+async function addSettlement(backend: Backend, amount: number, paidBy: string, requestId: string, expenses: Expense[]) {
+  if (backend.mode === 'local') {
+    await backend.add('expenses', { title: 'Remboursement', amount, paidBy, kind: 'settle', createdAt: Date.now() });
+    return;
+  }
+  const result = await backend.call<unknown>('recordSettlement', {
+    expectedUserId: backend.userId, requestId,
+    expected: expenses.map((entry) => ({ id: entry.id, amount: entry.amount, paidBy: entry.paidBy, kind: entry.kind ?? 'expense' })),
+  });
+  const id = result && typeof result === 'object' && !Array.isArray(result) ? (result as { settlementId?: unknown }).settlementId : null;
+  if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
+    throw new Error('La confirmation du remboursement n’a pas pu être vérifiée. Réessaie pour retrouver le résultat de cette même demande.');
+  }
 }
 
 export default function Depenses() {
@@ -31,8 +46,8 @@ function DepensesContent() {
   const context = useMemo(() => ({ backend, meId: me?.id, partnerId: partner?.id }), [backend, me?.id, partner?.id]);
   // Un nouveau tableau, un ordre différent ou un titre modifié ne changent pas le relevé comptable.
   const revision = useMemo(() => JSON.stringify([...expenses].sort((a, b) => a.id.localeCompare(b.id))
-    .map((entry) => [entry.id, entry.amount, entry.paidBy, entry.kind])), [expenses]);
-  const snapshot = useMemo(() => ({ revision }), [revision]);
+    .map((entry) => [entry.id, entry.amount, entry.paidBy, entry.kind ?? 'expense'])), [expenses]);
+  const snapshot = useMemo(() => ({ revision, context, requestId: settlementRequestId() }), [revision, context]);
   const latest = useRef<{ context: typeof context; snapshot: typeof snapshot; expenses: typeof expenses; ready: boolean } | null>(null);
   const recorded = useRef<typeof snapshot | null>(null);
   const [recordedSnapshot, setRecordedSnapshot] = useState<typeof snapshot | null>(null);
@@ -52,7 +67,7 @@ function DepensesContent() {
     if (!canWrite() || !me || !partner || balance === 0 || latest.current?.snapshot !== snapshot || recorded.current === snapshot) return;
     // Information saisie par l’utilisateur, jamais un transfert d’argent.
     try {
-      await addSettlement(backend, Math.abs(balance), balance > 0 ? partner.id : me.id);
+      await addSettlement(backend, Math.abs(balance), balance > 0 ? partner.id : me.id, snapshot.requestId, expenses);
       if (!isCurrent()) return;
       // Ne pas rejouer le même solde en attendant le prochain snapshot de la collection.
       recorded.current = snapshot;
