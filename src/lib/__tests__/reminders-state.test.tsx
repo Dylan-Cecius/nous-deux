@@ -2,7 +2,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { BackgroundTasks } from '@/components/background-tasks';
 import Nous from '@/app/(tabs)/nous';
 import { useCollectionState, useSession } from '../couple-context';
-import { ensurePermission, scheduleCountdownReminders } from '../notifications';
+import { ensurePermission, getPushToken, scheduleCountdownReminders } from '../notifications';
 import { showDialog } from '@/components/dialog';
 
 jest.mock('../couple-context', () => {
@@ -91,4 +91,121 @@ test('les dates confirmées permettent encore d’activer les rappels locaux', a
   expect(ensurePermission).toHaveBeenCalledTimes(1);
   expect(scheduleCountdownReminders).toHaveBeenCalledWith([]);
   expect(showDialog).toHaveBeenCalledWith('Rappels activés', expect.any(String));
+});
+
+test.each(['unmount', 'backend', 'loading', 'error'])('le résultat de permission est ignoré après %s', async (kind) => {
+  let finish!: (granted: boolean) => void;
+  (ensurePermission as jest.Mock).mockImplementationOnce(() => new Promise<boolean>((resolve) => { finish = resolve; }));
+  await act(async () => { root = create(<Nous />); });
+  let pending!: Promise<void>;
+  await act(async () => { pending = root.root.findByProps({ title: 'Notifications' }).props.onPress(); });
+  if (kind === 'backend') (useSession as jest.Mock).mockReturnValue({ backend: { ...backend }, members: [] });
+  else if (kind !== 'unmount') (useCollectionState as jest.Mock).mockReturnValue({ ...ready, [kind]: true });
+  await act(async () => { if (kind === 'unmount') root.unmount(); else root.update(<Nous />); });
+  await act(async () => { finish(true); await pending; });
+  expect(scheduleCountdownReminders).not.toHaveBeenCalled();
+  expect(backend.call).not.toHaveBeenCalled();
+  expect((showDialog as jest.Mock).mock.calls.some(([title]) => title === 'Rappels activés')).toBe(false);
+});
+
+test('les dates fraîches sont utilisées après la réponse à la permission', async () => {
+  let finish!: (granted: boolean) => void;
+  (ensurePermission as jest.Mock).mockImplementationOnce(() => new Promise<boolean>((resolve) => { finish = resolve; }));
+  await act(async () => { root = create(<Nous />); });
+  let pending!: Promise<void>;
+  await act(async () => { pending = root.root.findByProps({ title: 'Notifications' }).props.onPress(); });
+  const dates = [{ id: 'fresh', title: 'Date fictive', date: '2999-01-01' }];
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: dates });
+  await act(async () => root.update(<Nous />));
+  await act(async () => { finish(true); await pending; });
+  expect(scheduleCountdownReminders).toHaveBeenCalledWith(dates);
+});
+
+test.each(['schedule', 'token', 'registration'])('pas d’étape ni de succès tardif après le changement de contexte pendant %s', async (step) => {
+  const cloud = { ...backend, mode: 'cloud' };
+  (useSession as jest.Mock).mockReturnValue({ backend: cloud, members: [] });
+  (getPushToken as jest.Mock).mockResolvedValue('fictitious-token');
+  let finish!: () => void;
+  const method = step === 'schedule' ? scheduleCountdownReminders : step === 'token' ? getPushToken : cloud.call;
+  (method as jest.Mock).mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve(step === 'token' ? 'fictitious-token' : undefined); }));
+  await act(async () => { root = create(<Nous />); });
+  let pending!: Promise<void>;
+  await act(async () => { pending = root.root.findByProps({ title: 'Notifications' }).props.onPress(); });
+  (useSession as jest.Mock).mockReturnValue({ backend: { ...cloud }, members: [] });
+  await act(async () => root.update(<Nous />));
+  await act(async () => { finish(); await pending; });
+  if (step !== 'registration') expect(cloud.call).not.toHaveBeenCalled();
+  if (step === 'schedule') expect(getPushToken).not.toHaveBeenCalled();
+  expect(showDialog).not.toHaveBeenCalled();
+});
+
+test.each(['unmount', 'backend'])('une confirmation de déconnexion périmée après %s ne déconnecte pas', async (change) => {
+  const signOut = jest.fn().mockResolvedValue(undefined);
+  (useSession as jest.Mock).mockReturnValue({ backend, members: [], signOut });
+  await act(async () => { root = create(<Nous />); });
+  await act(async () => root.root.findByProps({ label: 'Se déconnecter' }).props.onPress());
+  const confirm = (showDialog as jest.Mock).mock.calls[0][2][1].onPress;
+  if (change === 'backend') (useSession as jest.Mock).mockReturnValue({ backend: { ...backend }, members: [], signOut });
+  await act(async () => { if (change === 'unmount') root.unmount(); else root.update(<Nous />); });
+  await act(async () => { await confirm(); });
+  expect(signOut).not.toHaveBeenCalled();
+});
+
+test('deux confirmations de déconnexion ne lancent qu’une sortie et l’échec permet une reprise', async () => {
+  const signOut = jest.fn().mockRejectedValueOnce(new Error('Fictif')).mockResolvedValue(undefined);
+  (useSession as jest.Mock).mockReturnValue({ backend, members: [], signOut });
+  await act(async () => { root = create(<Nous />); });
+  await act(async () => root.root.findByProps({ label: 'Se déconnecter' }).props.onPress());
+  const confirm = (showDialog as jest.Mock).mock.calls[0][2][1].onPress;
+  await act(async () => { await Promise.all([confirm(), confirm()]); });
+  expect(signOut).toHaveBeenCalledTimes(1);
+  expect(showDialog).toHaveBeenCalledWith('Déconnexion impossible', expect.any(String));
+  await act(async () => { await confirm(); });
+  expect(signOut).toHaveBeenCalledTimes(2);
+});
+
+test('la déconnexion invalide une permission de notifications encore en attente', async () => {
+  let finish!: (granted: boolean) => void;
+  (ensurePermission as jest.Mock).mockImplementationOnce(() => new Promise<boolean>((resolve) => { finish = resolve; }));
+  (useSession as jest.Mock).mockReturnValue({ backend, members: [], signOut: jest.fn().mockResolvedValue(undefined) });
+  await act(async () => { root = create(<Nous />); });
+  let pending!: Promise<void>;
+  await act(async () => { pending = root.root.findByProps({ title: 'Notifications' }).props.onPress(); });
+  await act(async () => root.root.findByProps({ label: 'Se déconnecter' }).props.onPress());
+  const confirm = (showDialog as jest.Mock).mock.calls[0][2][1].onPress;
+  await act(async () => { await confirm(); finish(true); await pending; });
+  expect(scheduleCountdownReminders).not.toHaveBeenCalled();
+});
+
+test('une ancienne déconnexion en échec ne bloque pas les commandes du nouveau contexte', async () => {
+  let reject!: (error: Error) => void;
+  const signOut = jest.fn(() => new Promise<void>((_, no) => { reject = no; }));
+  (useSession as jest.Mock).mockReturnValue({ backend, members: [], signOut });
+  await act(async () => { root = create(<Nous />); });
+  await act(async () => root.root.findByProps({ label: 'Se déconnecter' }).props.onPress());
+  const confirm = (showDialog as jest.Mock).mock.calls[0][2][1].onPress;
+  let pending!: Promise<void>;
+  await act(async () => { pending = confirm(); });
+  (useSession as jest.Mock).mockReturnValue({ backend: { ...backend }, members: [], signOut: jest.fn().mockResolvedValue(undefined) });
+  await act(async () => root.update(<Nous />));
+  (showDialog as jest.Mock).mockClear();
+  await act(async () => { reject(new Error('Ancien échec')); await pending; });
+  expect(showDialog).not.toHaveBeenCalled();
+  await act(async () => root.root.findByProps({ label: 'Se déconnecter' }).props.onPress());
+  expect(showDialog).toHaveBeenCalledWith('Se déconnecter ?', expect.any(String), expect.any(Array));
+});
+
+test.each(['current', 'old'])('échec de permission %s : seule l’erreur courante est affichée', async (kind) => {
+  let reject!: (error: Error) => void;
+  (ensurePermission as jest.Mock).mockImplementationOnce(() => new Promise<boolean>((_, no) => { reject = no; }));
+  await act(async () => { root = create(<Nous />); });
+  let pending!: Promise<void>;
+  await act(async () => { pending = root.root.findByProps({ title: 'Notifications' }).props.onPress(); });
+  if (kind === 'old') {
+    (useSession as jest.Mock).mockReturnValue({ backend: { ...backend }, members: [] });
+    await act(async () => root.update(<Nous />));
+  }
+  await act(async () => { reject(new Error('Permission fictive indisponible')); await pending; });
+  if (kind === 'old') expect(showDialog).not.toHaveBeenCalled();
+  else expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Permission fictive indisponible');
 });

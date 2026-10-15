@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 
 import { InvitationCard } from '@/components/invitation-card';
@@ -94,14 +94,80 @@ function ThemePicker() {
 }
 
 export default function Nous() {
+  const { backend } = useSession();
+  return <NousContent key={`${backend.mode}:${backend.coupleId}:${backend.userId}`} />;
+}
+
+function NousContent() {
   const t = useTheme();
   const { backend, members, signOut } = useSession();
   const memories = useCollectionState('memories');
   const expenses = useCollectionState('expenses');
   const dates = useCollectionState('dates');
   const canEdit = (m: Member) => backend.mode === 'local' || m.id === backend.userId;
+  const context = useMemo(() => ({ backend }), [backend]);
+  const latest = useRef<{ context: typeof context; dates: typeof dates; signOut: typeof signOut } | null>(null);
+  const leaving = useRef<typeof context | null>(null);
+  useEffect(() => {
+    latest.current = { context, dates, signOut };
+    return () => { latest.current = null; };
+  }, [context, dates, signOut]);
+  const { run: runLeave, pending: exitPending } = useAsyncAction((action: () => unknown) => action());
+  const { run: runNotifications } = useAsyncAction((action: () => unknown) => action());
+  const isCurrent = () => latest.current?.context === context;
+  const canNotify = () => isCurrent() && leaving.current !== context;
+  const datesReady = () => {
+    const state = latest.current?.dates;
+    if (!state) return false;
+    if (state.loading || state.error) {
+      showDialog(state.loading ? 'Chargement des dates' : 'Dates indisponibles',
+        'Les dates ne sont pas disponibles. Attends leur chargement ou réessaie avant de continuer.');
+      return false;
+    }
+    return true;
+  };
+
+  const enableNotifications = () => runNotifications(async () => {
+    if (!canNotify()) return;
+    if (Platform.OS === 'web') {
+      showDialog('Notifications sur téléphone', 'Les rappels et les notifications se règlent dans l’application installée sur ton téléphone.');
+      return;
+    }
+    if (!datesReady()) return;
+    try {
+      const granted = await ensurePermission();
+      if (!canNotify() || !datesReady()) return;
+      let pushRegistered = false;
+      if (granted) {
+        await scheduleCountdownReminders(latest.current!.dates.items);
+        if (!canNotify() || !datesReady()) return;
+        if (backend.mode === 'cloud') {
+          const token = await getPushToken();
+          if (!canNotify() || !datesReady()) return;
+          if (token) {
+            await backend.call('registerPushToken', { token });
+            if (!canNotify() || !datesReady()) return;
+            pushRegistered = true;
+          }
+        }
+      }
+      showDialog(
+        granted ? 'Rappels activés' : 'Notifications désactivées',
+        granted
+          ? pushRegistered
+            ? 'Tes rappels de dates et les notifications de ta moitié sont activés.'
+            : backend.mode === 'local'
+              ? 'Tes rappels de dates sont activés sur ce téléphone.'
+              : !pushSupported
+                ? 'Tes rappels de dates sont activés. Les messages de ta moitié nécessitent la version installée de Nous Deux, hors Expo Go.'
+                : 'Tes rappels de dates sont activés. Les messages de ta moitié n’ont pas pu être activés : réessaie dans un instant.'
+          : 'Active-les dans les réglages du téléphone pour recevoir rappels et mots doux.',
+      );
+    } catch (error) { if (canNotify()) throw error; }
+  });
 
   const leave = () => {
+    if (!isCurrent() || leaving.current === context || exitPending) return;
     if (backend.mode === 'cloud' && currentAccount()?.anonymous) {
       showDialog('Protège ton accès', 'Ajoute un e-mail dans « Ton compte » avant de te déconnecter pour pouvoir retrouver votre espace.');
       return;
@@ -113,7 +179,21 @@ export default function Nous() {
         : 'Attention : en mode local, les données de ce téléphone ne seront plus accessibles.',
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Se déconnecter', style: 'destructive', onPress: () => signOut().catch(() => showDialog('Déconnexion impossible', 'Réessaie dans un instant.')) },
+        { text: 'Se déconnecter', style: 'destructive', onPress: () => runLeave(async () => {
+          if (!isCurrent() || leaving.current === context) return;
+          if (backend.mode === 'cloud' && currentAccount()?.anonymous) {
+            showDialog('Protège ton accès', 'Ajoute un e-mail dans « Ton compte » avant de te déconnecter pour pouvoir retrouver votre espace.');
+            return;
+          }
+          leaving.current = context;
+          try { await latest.current!.signOut(); }
+          catch {
+            if (isCurrent()) {
+              leaving.current = null;
+              showDialog('Déconnexion impossible', 'Réessaie dans un instant.');
+            }
+          }
+        }) },
       ],
     );
   };
@@ -142,43 +222,7 @@ export default function Nous() {
           icon="notifications-outline"
           title="Notifications"
           detail={dates.loading ? 'Chargement des dates…' : dates.error ? 'Dates indisponibles · rappels inchangés' : 'Mots doux, rappels J-1, nouveaux horaires'}
-          onPress={async () => {
-            if (Platform.OS === 'web') {
-              showDialog('Notifications sur téléphone', 'Les rappels et les notifications se règlent dans l’application installée sur ton téléphone.');
-              return;
-            }
-            if (dates.loading || dates.error) {
-              showDialog(
-                dates.loading ? 'Chargement des dates' : 'Dates indisponibles',
-                'Les rappels existants restent inchangés. Attends le chargement des dates ou réessaie avant de les activer.',
-              );
-              return;
-            }
-            const granted = await ensurePermission();
-            let pushRegistered = false;
-            if (granted) {
-              await scheduleCountdownReminders(dates.items);
-              if (backend.mode === 'cloud') {
-                const token = await getPushToken();
-                if (token) {
-                  await backend.call('registerPushToken', { token });
-                  pushRegistered = true;
-                }
-              }
-            }
-            showDialog(
-              granted ? 'Rappels activés' : 'Notifications désactivées',
-              granted
-                ? pushRegistered
-                  ? 'Tes rappels de dates et les notifications de ta moitié sont activés.'
-                  : backend.mode === 'local'
-                    ? 'Tes rappels de dates sont activés sur ce téléphone.'
-                    : !pushSupported
-                      ? 'Tes rappels de dates sont activés. Les messages de ta moitié nécessitent la version installée de Nous Deux, hors Expo Go.'
-                      : 'Tes rappels de dates sont activés. Les messages de ta moitié n’ont pas pu être activés : réessaie dans un instant.'
-                : 'Active-les dans les réglages du téléphone pour recevoir rappels et mots doux.',
-            );
-          }}
+          onPress={enableNotifications}
         />
         <LinkRow icon="help-circle-outline" title="Aide et confidentialité" detail="Votre espace, vos données et vos comptes" onPress={() => router.push('/aide')} />
       </View>
@@ -196,7 +240,7 @@ export default function Nous() {
         <Card tone="soft"><T>Mode local : les données restent sur ce téléphone.</T></Card>
       )}
 
-      <Button label="Se déconnecter" variant="danger" icon="log-out-outline" onPress={leave} />
+      <Button label="Se déconnecter" variant="danger" icon="log-out-outline" disabled={exitPending} onPress={leave} />
       <T variant="small" muted style={{ textAlign: 'center' }}>
         Nous Deux · version {Constants.expoConfig?.version}
       </T>
