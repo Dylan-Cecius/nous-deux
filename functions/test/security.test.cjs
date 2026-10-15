@@ -19,6 +19,7 @@ const db = getFirestore();
 const security = require('../lib/security');
 const { migrateSecurity } = require('../lib/migration');
 const { purgeTechnicalData, RETENTION } = require('../lib/retention');
+const settlementApi = () => require('../lib/settlements');
 const { createSpace, issueInvitation, acceptInvitation, submitAnswer, consumeQuota, queueDeletion, completeDeletion, requireAiConsent, AI_CONSENT_VERSION } = security;
 const profile = { name: 'Test', color: '#abcdef' };
 const cid = 'test-couple';
@@ -36,6 +37,168 @@ before(async () => {
 });
 beforeEach(async () => { await env.clearFirestore(); });
 after(async () => { await env?.cleanup(); await deleteApp(app); });
+
+const settlementInput = (requestId = 'request-alice-0001', expected = [{ id: 'original', amount: 40, paidBy: 'alice', kind: 'expense' }]) => ({
+  coupleId: cid, expectedUserId: 'alice', requestId, expected,
+});
+async function seedExpense() {
+  await seed();
+  await db.doc(`couples/${cid}/expenses/original`).set({ title: 'Dépense fictive', amount: 40, paidBy: 'alice', createdAt: Date.now() });
+}
+
+test('reproduction historique : deux écritures directes de la même marque sont acceptées par les anciennes règles', async () => {
+  await seedExpense();
+  const data = { title: 'Marque fictive', amount: 20, paidBy: 'bob', kind: 'settle', createdAt: serverTimestamp() };
+  await Promise.all([
+    assertSucceeds(setDoc(doc(client('alice'), `couples/${cid}/expenses/legacy-a`), data)),
+    assertSucceeds(setDoc(doc(client('bob'), `couples/${cid}/expenses/legacy-b`), data)),
+  ]);
+  assert.equal((await db.collection(`couples/${cid}/expenses`).get()).size, 3);
+  // Limite documentée des anciens clients : ces écritures ne passent pas par le protocole transactionnel.
+});
+
+test('une marque transactionnelle calcule le solde côté serveur et conserve un reçu privé minimal', async () => {
+  await seedExpense();
+  const { settlementId } = await settlementApi().recordSettlement.run(call('alice', settlementInput()));
+  const saved = (await db.doc(`couples/${cid}/expenses/${settlementId}`).get()).data();
+  assert.equal(saved.amount, 20);
+  assert.equal(saved.paidBy, 'bob');
+  assert.equal(saved.kind, 'settle');
+  const receiptPath = `couples/${cid}/private/alice/settlementRequests/request-alice-0001`;
+  const receipt = (await db.doc(receiptPath).get()).data();
+  assert.deepEqual(Object.keys(receipt).sort(), ['createdAt', 'fingerprint', 'settlementId']);
+  for (const uid of ['alice', 'bob', 'mallory']) await assertFails(getDoc(doc(client(uid), receiptPath)));
+});
+
+test('deux appareils ne peuvent pas solder deux fois le même relevé', async () => {
+  await seedExpense();
+  const results = await Promise.allSettled([
+    settlementApi().recordSettlement.run(call('alice', settlementInput())),
+    settlementApi().recordSettlement.run(call('bob', { ...settlementInput('request-bob-000001'), expectedUserId: 'bob' })),
+  ]);
+  assert.equal(results.filter(r => r.status === 'fulfilled').length, 1);
+  assert.equal(results.filter(r => r.status === 'rejected' && r.reason.code === 'failed-precondition').length, 1);
+  assert.equal((await db.collection(`couples/${cid}/expenses`).get()).size, 2);
+});
+
+test('rejouer la même intention après réponse perdue ne recrée pas la marque, même si elle a ensuite été supprimée', async () => {
+  await seedExpense();
+  const input = settlementInput();
+  const first = await settlementApi().recordSettlement.run(call('alice', input));
+  const retry = await settlementApi().recordSettlement.run(call('alice', input));
+  assert.deepEqual(retry, first);
+  assert.equal((await db.collection(`couples/${cid}/expenses`).get()).size, 2);
+  await db.doc(`couples/${cid}/expenses/${first.settlementId}`).delete();
+  assert.deepEqual(await settlementApi().recordSettlement.run(call('alice', input)), first);
+  assert.equal((await db.collection(`couples/${cid}/expenses`).get()).size, 1);
+  const renewed = await settlementApi().recordSettlement.run(call('alice', settlementInput('request-alice-0002')));
+  assert.notEqual(renewed.settlementId, first.settlementId);
+});
+
+test('un reçu ne peut pas être réutilisé avec une autre intention', async () => {
+  await seedExpense();
+  await settlementApi().recordSettlement.run(call('alice', settlementInput()));
+  const changed = settlementInput('request-alice-0001', [{ id: 'original', amount: 80, paidBy: 'alice', kind: 'expense' }]);
+  await assert.rejects(settlementApi().recordSettlement.run(call('alice', changed)), { code: 'failed-precondition' });
+  assert.equal((await db.collection(`couples/${cid}/expenses`).get()).size, 2);
+});
+
+test('un relevé modifié, retiré ou complété est refusé sans écriture de marque ni reçu', async () => {
+  for (const change of ['update', 'remove', 'append']) {
+    await env.clearFirestore(); await seedExpense();
+    if (change === 'update') await db.doc(`couples/${cid}/expenses/original`).update({ amount: 80 });
+    if (change === 'remove') await db.doc(`couples/${cid}/expenses/original`).delete();
+    if (change === 'append') await db.doc(`couples/${cid}/expenses/extra`).set({ amount: 10, paidBy: 'bob' });
+    await assert.rejects(settlementApi().recordSettlement.run(call('alice', settlementInput())), { code: 'failed-precondition' });
+    assert.equal((await db.collection(`couples/${cid}/private/alice/settlementRequests`).get()).size, 0);
+  }
+});
+
+test('l’identité, l’appartenance et le verrou de suppression sont contrôlés pour les marques', async () => {
+  await seedExpense();
+  await assert.rejects(settlementApi().recordSettlement.run(call('bob', settlementInput())), { code: 'failed-precondition' });
+  await assert.rejects(settlementApi().recordSettlement.run(call('mallory', { ...settlementInput(), expectedUserId: 'mallory' })), { code: 'permission-denied' });
+  await db.doc(`couples/${cid}`).update({ deletionLock: 'alice' });
+  await assert.rejects(settlementApi().recordSettlement.run(call('alice', settlementInput())), { code: 'failed-precondition' });
+  assert.equal((await db.collection(`couples/${cid}/expenses`).get()).size, 1);
+});
+
+test('le protocole refuse les doublons d’identifiants, montants invalides et relevés trop grands', async () => {
+  await seedExpense();
+  const item = settlementInput().expected[0];
+  for (const expected of [[item, item], [{ ...item, amount: -1 }], [{ ...item, amount: NaN }], Array.from({ length: 501 }, (_, i) => ({ ...item, id: String(i) }))]) {
+    await assert.rejects(settlementApi().recordSettlement.run(call('alice', { ...settlementInput(), expected })), { code: 'invalid-argument' });
+  }
+  assert.equal((await db.collection(`couples/${cid}/expenses`).get()).size, 1);
+});
+
+test('les demi-centimes sont cohérents et un solde nul ne crée aucune marque', async () => {
+  await seedExpense();
+  await db.doc(`couples/${cid}/expenses/original`).update({ amount: 10.31 });
+  const expected = [{ ...settlementInput().expected[0], amount: 10.31 }];
+  const first = await settlementApi().recordSettlement.run(call('alice', settlementInput('request-alice-0001', expected)));
+  const mark = (await db.doc(`couples/${cid}/expenses/${first.settlementId}`).get()).data();
+  assert.equal(mark.amount, 5.16);
+  const next = [...expected, { id: first.settlementId, amount: mark.amount, paidBy: mark.paidBy, kind: mark.kind }];
+  await assert.rejects(settlementApi().recordSettlement.run(call('bob', { ...settlementInput('request-bob-000001', next), expectedUserId: 'bob' })), { code: 'failed-precondition' });
+  assert.equal((await db.collection(`couples/${cid}/expenses`).get()).size, 2);
+});
+
+test('la même intention simultanée rend le même reçu et une seule marque', async () => {
+  await seedExpense();
+  const results = await Promise.all([
+    settlementApi().recordSettlement.run(call('alice', settlementInput())),
+    settlementApi().recordSettlement.run(call('alice', settlementInput())),
+  ]);
+  assert.deepEqual(results[0], results[1]);
+  assert.equal((await db.collection(`couples/${cid}/expenses`).get()).size, 2);
+  assert.equal((await db.doc(`couples/${cid}`).get()).data().expenseSettlementRevision, 1);
+});
+
+test('les reçus et le compteur transactionnel ne sont pas falsifiables par un client', async () => {
+  await seedExpense();
+  await settlementApi().recordSettlement.run(call('alice', settlementInput()));
+  const receipt = doc(client('alice'), `couples/${cid}/private/alice/settlementRequests/request-alice-0001`);
+  await assertFails(updateDoc(receipt, { fingerprint: 'forged' }));
+  await assertFails(deleteDoc(receipt));
+  await assertFails(setDoc(doc(client('alice'), `couples/${cid}/private/alice/settlementRequests/another-request`), { settlementId: 'forged' }));
+  await assertFails(updateDoc(doc(client('alice'), 'couples', cid), { expenseSettlementRevision: 0 }));
+  await assertSucceeds(updateDoc(doc(client('alice'), 'couples', cid), { since: date }));
+});
+
+test('la marque reste symétrique depuis le débiteur et indépendante de l’ordre des lignes', async () => {
+  await seedExpense();
+  await db.doc(`couples/${cid}/expenses/extra`).set({ amount: 0.31, paidBy: 'bob', title: 'Fictif' });
+  const expected = [{ id: 'extra', amount: 0.31, paidBy: 'bob', kind: 'expense' }, ...settlementInput().expected];
+  const { settlementId } = await settlementApi().recordSettlement.run(call('bob', { ...settlementInput('request-bob-000001', expected), expectedUserId: 'bob' }));
+  const mark = (await db.doc(`couples/${cid}/expenses/${settlementId}`).get()).data();
+  assert.equal(mark.amount, 19.85);
+  assert.equal(mark.paidBy, 'bob');
+  const retry = await settlementApi().recordSettlement.run(call('bob', { ...settlementInput('request-bob-000001', expected.reverse()), expectedUserId: 'bob' }));
+  assert.equal(retry.settlementId, settlementId);
+});
+
+test('les anciens payeurs et les relevés stockés trop grands sont refusés sans modification', async () => {
+  await seedExpense();
+  await db.doc(`couples/${cid}/expenses/original`).update({ paidBy: 'former-member' });
+  const expected = [{ ...settlementInput().expected[0], paidBy: 'former-member' }];
+  await assert.rejects(settlementApi().recordSettlement.run(call('alice', settlementInput('request-alice-0001', expected))), { code: 'failed-precondition' });
+  await db.doc(`couples/${cid}/expenses/original`).update({ paidBy: 'alice' });
+  const batch = db.batch();
+  for (let i = 0; i < 500; i++) batch.set(db.doc(`couples/${cid}/expenses/item-${i}`), { amount: 1, paidBy: 'alice' });
+  await batch.commit();
+  await assert.rejects(settlementApi().recordSettlement.run(call('alice', settlementInput())), { code: 'failed-precondition' });
+  assert.equal((await db.collection(`couples/${cid}/private/alice/settlementRequests`).get()).size, 0);
+  assert.equal((await db.collection(`couples/${cid}/expenses`).get()).size, 501);
+});
+
+test('un appel sans authentification ou sans identité confirmée est refusé avant tout quota', async () => {
+  await seedExpense();
+  await assert.rejects(settlementApi().recordSettlement.run({ data: settlementInput() }), { code: 'unauthenticated' });
+  const input = settlementInput(); delete input.expectedUserId;
+  await assert.rejects(settlementApi().recordSettlement.run(call('alice', input)), { code: 'failed-precondition' });
+  assert.equal((await db.collection('rateLimits').get()).size, 0);
+});
 
 test('création et jonction refusent une identité différente avant tout quota ou rattachement', async () => {
   await seed(['alice']);
@@ -378,6 +541,8 @@ test('suppression reprise après panne : photos, privé, Auth et index nettoyés
   await db.doc(`couples/${cid}`).update({ members: ['delete-alice', 'bob'], profiles: { 'delete-alice': profile, bob: profile } });
   await db.doc('users/delete-alice').set({ coupleId: cid });
   await db.doc(`couples/${cid}/private/delete-alice/gifts/one`).set({ title: 'secret' });
+  await db.doc(`couples/${cid}/private/delete-alice/settlementRequests/one`).set({ fingerprint: 'fictitious', settlementId: 'one' });
+  await db.doc(`couples/${cid}/private/bob/settlementRequests/one`).set({ fingerprint: 'fictitious', settlementId: 'other' });
   await db.doc(`couples/${cid}/notes/one`).set({ from: 'delete-alice', text: 'secret' });
   await db.doc(`couples/${cid}/expenses/one`).set({ paidBy: 'delete-alice', amount: 10 });
   await db.doc(`couples/${cid}/private/bob/gifts/one`).set({ title: 'conserver' });
@@ -407,6 +572,8 @@ test('suppression reprise après panne : photos, privé, Auth et index nettoyés
   assert.equal((await mine.exists())[0], false);
   assert.equal((await other.exists())[0], true);
   assert.equal((await db.doc(`couples/${cid}/private/delete-alice/gifts/one`).get()).exists, false);
+  assert.equal((await db.doc(`couples/${cid}/private/delete-alice/settlementRequests/one`).get()).exists, false);
+  assert.equal((await db.doc(`couples/${cid}/private/bob/settlementRequests/one`).get()).exists, true);
   assert.equal((await db.doc(`couples/${cid}/notes/one`).get()).exists, false);
   assert.equal((await db.doc(`couples/${cid}/private/bob/gifts/one`).get()).exists, true);
   assert.equal((await db.doc(`couples/${cid}/expenses/one`).get()).data().paidBy, 'former-member');

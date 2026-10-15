@@ -4,3 +4,4 @@ import { initializeApp } from 'firebase-admin/app';
 initializeApp();
 export { createCouple, createInvitation, joinCouple, submitDailyAnswer, setAiConsent, registerPushToken, notifyPartner, deleteAccount, retryAccountDeletions } from './security';
 export { cleanupTechnicalData } from './retention';
+export { recordSettlement } from './settlements';

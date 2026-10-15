@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { activeUid, consumeQuota, memberCouple, requireAiConsent } from './security';
 export { createCouple, createInvitation, joinCouple, submitDailyAnswer, setAiConsent, registerPushToken, notifyPartner, deleteAccount, retryAccountDeletions } from './security';
 export { cleanupTechnicalData } from './retention';
+export { recordSettlement } from './settlements';
 
 initializeApp();
 
