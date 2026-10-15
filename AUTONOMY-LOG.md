@@ -738,3 +738,9 @@ Base 6594e1388912d4887ff86d8ec89f5c5141791dec. Trois régressions reproduites av
 
 Documentation officielle Expo 57 ImagePicker/ImageManipulator consultée : dimensions parfois nulles (0), resize sur un seul axe conserve le ratio ; types installés relus. Preuves : lint/TypeScript, 47 suites / 827 tests applicatifs, git diff --check et diff relu. Ces contrôles ne produisent aucune image réelle ni preuve visuelle/native. Limite connue : métadonnées inconnues non bornées par ce correctif ; repli compact encore fondé sur la largeur. Aucun changement serveur, donnée réelle, service payant, build ou diffusion.
 
+## 2026-10-15, 16:56 Europe/Brussels — Dimensions décodées et compression compacte
+
+Base 91edb13d31c68aabb081ac39caeac35520ee0274. Huit tests rouges puis verts : métadonnées absentes, portrait compact, petit format agrandi, trois essais sur le grand côté et quatre dimensions décodées invalides. La préparation revalide les dimensions après décodage ; le repli réutilise la référence source décodée et borne le grand côté à 900/700/500 sans agrandir. Seuil strict de 600000 caractères et compressions inchangés, aucune reprise automatique d’écriture.
+
+Types installés et documentation Expo 57 consultés : manipulate accepte une référence d’image, renderAsync expose largeur/hauteur. Preuves : lint/TypeScript, 47 suites / 835 tests applicatifs (7,81 s), diff relu et git diff --check. Tests d’API doublées uniquement : aucune image réelle, mesure de mémoire, qualité visuelle ou exécution native. Serveur/règles inchangés, dernière preuve sécurité 45 tests à 16:37. Aucun build, déploiement, coût ni donnée réelle.
+

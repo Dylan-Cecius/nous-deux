@@ -1,7 +1,17 @@
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { ImageManipulator, SaveFormat, type ImageRef } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
 export type PickedPhoto = { uri: string; base64?: string; mediaType: 'image/jpeg' };
+
+/** Réutiliser la référence décodée sans agrandir les petites images. */
+async function fitImage(image: ImageRef, maximum: number): Promise<ImageRef> {
+  if (![image.width, image.height].every((value) => Number.isFinite(value) && value > 0)) {
+    throw new Error('Les dimensions de cette photo sont illisibles. Choisis une autre image.');
+  }
+  if (Math.max(image.width, image.height) <= maximum) return image;
+  return ImageManipulator.manipulate(image)
+    .resize(image.height > image.width ? { height: maximum } : { width: maximum }).renderAsync();
+}
 
 /**
  * Choisit une photo (galerie ou appareil photo) et la redimensionne pour rester légère.
@@ -24,7 +34,9 @@ export async function pickPhoto({ camera = false, withBase64 = false } = {}): Pr
   // très hauts inchangés. Une seule dimension conserve le ratio côté natif.
   if (asset.height > asset.width && asset.height > 1600) context.resize({ height: 1600 });
   else if (asset.width > 1600) context.resize({ width: 1600 });
-  const image = await context.renderAsync();
+  // Les métadonnées du sélecteur peuvent valoir 0 : vérifier aussi les
+  // dimensions réelles, disponibles après le décodage natif.
+  const image = await fitImage(await context.renderAsync(), 1600);
   const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.75, base64: withBase64 });
   return { uri: saved.uri, base64: saved.base64, mediaType: 'image/jpeg' };
 }
@@ -35,12 +47,13 @@ export async function pickPhoto({ camera = false, withBase64 = false } = {}): Pr
  * on réduit jusqu'à rester bien en dessous.
  */
 export async function toCompactDataUri(uri: string): Promise<string> {
-  for (const [width, compress] of [
+  const source = await ImageManipulator.manipulate(uri).renderAsync();
+  for (const [maximum, compress] of [
     [900, 0.6],
     [700, 0.5],
     [500, 0.45],
   ] as const) {
-    const image = await ImageManipulator.manipulate(uri).resize({ width }).renderAsync();
+    const image = await fitImage(source, maximum);
     const { base64 } = await image.saveAsync({ format: SaveFormat.JPEG, compress, base64: true });
     if (base64 && base64.length < 600_000) return `data:image/jpeg;base64,${base64}`;
   }
