@@ -147,3 +147,32 @@ test('le formulaire conserve son brouillon et propose une reprise de lecture', a
   expect(ready.retry).toHaveBeenCalledTimes(1);
   expect(field().props.value).toBe(' Brouillon fictif ');
 });
+
+test('une ancienne action relit titre, date et répétition courants', async () => {
+  await mount(); await fill();
+  const oldSave = button('Ajouter');
+  await act(async () => {
+    field().props.onChangeText(' Nouvelle date fictive ');
+    root.root.findByType('date' as never).props.onChange('2030-03-04');
+    root.root.findByType(Switch).props.onValueChange(true);
+  });
+  await act(async () => { await oldSave(); });
+  expect(backend.add).toHaveBeenCalledWith('dates', { title: 'Nouvelle date fictive', emoji: '', date: '2030-03-04', yearly: true });
+});
+
+test('une ancienne action ne contourne pas un titre vidé ensuite', async () => {
+  await mount(); await fill();
+  const oldSave = button('Ajouter');
+  await act(async () => field().props.onChangeText('  '));
+  await act(async () => { await oldSave(); });
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(sheet().props.visible).toBe(true);
+});
+
+test('une action obtenue avant saisie utilise la nouvelle date valide', async () => {
+  await mount(); await open();
+  const oldSave = button('Ajouter');
+  await act(async () => field().props.onChangeText('Fictif'));
+  await act(async () => { await oldSave(); });
+  expect(backend.add).toHaveBeenCalledWith('dates', expect.objectContaining({ title: 'Fictif' }));
+});

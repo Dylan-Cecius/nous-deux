@@ -148,24 +148,25 @@ function DateSheet({ onClose }: { onClose: () => void }) {
   const { backend } = useSession();
   const collection = useCollectionState('dates');
   const context = useMemo(() => ({ backend }), [backend]);
-  const latest = useRef<{ context: typeof context; collection: typeof collection } | null>(null);
-  const closed = useRef(false);
-  useEffect(() => {
-    latest.current = { context, collection };
-    return () => { latest.current = null; };
-  }, [context, collection]);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(todayKey());
   const [yearly, setYearly] = useState(false);
+  const latest = useRef<{ context: typeof context; collection: typeof collection; title: string; date: string; yearly: boolean } | null>(null);
+  const closed = useRef(false);
+  useEffect(() => {
+    latest.current = { context, collection, title, date, yearly };
+    return () => { latest.current = null; };
+  }, [context, collection, title, date, yearly]);
   const { run, pending } = useAsyncAction((action: () => unknown) => action());
   const isCurrent = () => !closed.current && latest.current?.context === context;
   const unavailable = collection.loading || collection.error;
   const canWrite = () => isCurrent() && latest.current && !latest.current.collection.loading && !latest.current.collection.error;
   const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
   const save = () => run(async () => {
-    if (!title.trim() || !canWrite()) return;
+    const current = latest.current;
+    if (!current?.title.trim() || !canWrite()) return;
     try {
-      await backend.add('dates', { title: title.trim(), emoji: '', date, yearly });
+      await backend.add('dates', { title: current.title.trim(), emoji: '', date: current.date, yearly: current.yearly });
       close();
     } catch (error) { if (isCurrent()) throw error; }
   });

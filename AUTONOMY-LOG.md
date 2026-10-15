@@ -864,3 +864,9 @@ Base 7409d4d1d6c54c4678fdd02b1e392f817de07b3b. Cinq tests rouges : ancienne acti
 
 Preuves : lint/TypeScript, 49 suites / 938 tests en 7,94 s, diff relu et git diff --check. Dernière sécurité : 67 tests à 18:14, serveur/règles inchangés. Ces tests saisissent des montants fictifs dans un backend doublé ; aucun paiement, transfert, compte réel ni opération financière. Pas de création ordinaire idempotente après réponse perdue, pas de validation clavier native ou de distribution. Aucun coût ni déploiement.
 
+## 2026-10-15, 18:18 Europe/Brussels — Ajout de date depuis une action ancienne
+
+Base f5f90c56649ba9504653010e7388526e57b9b14b. Trois tests rouges puis verts : titre/date/répétition périmés, titre vidé encore enregistré et action ancienne restant bloquée après saisie valide. La référence courante contient désormais les trois valeurs et la sauvegarde les relit ; fermeture, lecture et verrou immédiat inchangés.
+
+Preuves : lint/TypeScript, 49 suites / 941 tests en 8,15 s, git diff --check et diff relu. Revue react-best-practices appliquée aux deux formulaires ; règle advanced-use-latest lue, mécanisme de référence existant conservé pour ces actions d’interface, sans détourner useEffectEvent hors d’un effet. Pas de nouvelle souscription, d’effet de synchronisation du brouillon, de changement visuel ou natif. Dernière sécurité : 67 tests à 18:14 ; serveur/règles inchangés. Aucun rappel réel, données réelles, build, déploiement, distribution ou coût.
+
