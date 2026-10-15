@@ -17,18 +17,61 @@ jest.mock('expo-router', () => ({}));
 
 let root: ReactTestRenderer;
 let action!: ReturnType<typeof useAddMemory>;
+let available = true;
 const backend = { userId: 'alice', coupleId: 'old', uploadPhoto: jest.fn(), add: jest.fn() };
 const nextBackend = { userId: 'bob', coupleId: 'new', uploadPhoto: jest.fn(), add: jest.fn() };
 function Consumer() {
-  const current = useAddMemory();
+  const current = useAddMemory(available);
   useEffect(() => { action = current; });
   return null;
 }
 beforeEach(async () => {
+  available = true;
   (useSession as jest.Mock).mockReturnValue({ backend });
   (pickPhoto as jest.Mock).mockResolvedValue({ uri: 'fictitious://picked' });
   for (const b of [backend, nextBackend]) { b.uploadPhoto.mockResolvedValue('fictitious://saved'); b.add.mockResolvedValue(undefined); }
   await act(async () => { root = create(<Consumer />); });
+});
+
+test('un album indisponible ne permet pas de rouvrir la galerie avec un ancien bouton', async () => {
+  const oldAdd = action.add;
+  available = false;
+  await act(async () => { root.update(<Consumer />); });
+  await act(async () => { await oldAdd(); await action.add(); });
+  expect(pickPhoto).not.toHaveBeenCalled();
+  available = true;
+  await act(async () => { root.update(<Consumer />); });
+  await act(async () => { await oldAdd(); });
+  expect(pickPhoto).not.toHaveBeenCalled();
+});
+
+test.each(['picker', 'upload'])('une indisponibilité pendant %s abandonne les étapes suivantes même après reprise', async (stage) => {
+  let finish!: (value: any) => void;
+  const deferred = new Promise(resolve => { finish = resolve; });
+  if (stage === 'picker') (pickPhoto as jest.Mock).mockReturnValueOnce(deferred);
+  else backend.uploadPhoto.mockReturnValueOnce(deferred);
+  let pending!: Promise<void>;
+  await act(async () => { pending = action.add(); });
+  available = false;
+  await act(async () => { root.update(<Consumer />); });
+  available = true;
+  await act(async () => { root.update(<Consumer />); });
+  await act(async () => { finish(stage === 'picker' ? { uri: 'fictitious://picked' } : 'fictitious://saved'); await pending; });
+  if (stage === 'picker') expect(backend.uploadPhoto).not.toHaveBeenCalled();
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(success).not.toHaveBeenCalled();
+  expect(action.busy).toBe(false);
+});
+
+test('une ancienne écriture terminée après perte de disponibilité reste silencieuse', async () => {
+  let finish!: () => void;
+  backend.add.mockReturnValueOnce(new Promise<void>(resolve => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = action.add(); });
+  available = false;
+  await act(async () => { root.update(<Consumer />); });
+  await act(async () => { finish(); await pending; });
+  expect(success).not.toHaveBeenCalled(); expect(showDialog).not.toHaveBeenCalled();
 });
 afterEach(async () => { await act(async () => { root.unmount(); }); jest.resetAllMocks(); });
 const leave = async (change: string) => {

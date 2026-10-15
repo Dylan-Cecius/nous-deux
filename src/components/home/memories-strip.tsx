@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
 import { showDialog } from '@/components/dialog';
@@ -12,20 +12,21 @@ import { success } from '@/lib/haptics';
 import { pickPhoto } from '@/lib/photos';
 
 /** Ajoute une photo aux souvenirs (utilisé ici et sur l'écran Souvenirs). */
-export function useAddMemory() {
+export function useAddMemory(available: boolean) {
   const { backend } = useSession();
-  const [progress, setProgress] = useState<{ backend: typeof backend; busy: boolean } | null>(null);
-  const scopeRef = useRef<{ backend: typeof backend; active: boolean; sending: boolean } | null>(null);
+  const context = useMemo(() => ({ backend, available }), [backend, available]);
+  const [progress, setProgress] = useState<{ context: typeof context; busy: boolean } | null>(null);
+  const scopeRef = useRef<{ context: typeof context; active: boolean; sending: boolean } | null>(null);
   useEffect(() => {
-    const scope = { backend, active: true, sending: false };
+    const scope = { context, active: context.available, sending: false };
     scopeRef.current = scope;
     return () => { scope.active = false; };
-  }, [backend]);
+  }, [context]);
   const add = async () => {
     const scope = scopeRef.current;
-    if (!scope?.active || scope.backend !== backend || scope.sending) return;
+    if (!scope?.active || scope.context !== context || scope.sending) return;
     scope.sending = true;
-    setProgress({ backend, busy: true });
+    setProgress({ context, busy: true });
     try {
       const picked = await pickPhoto();
       if (!picked || !scope.active) return;
@@ -43,17 +44,17 @@ export function useAddMemory() {
       if (scope.active) showDialog('Photo non enregistrée', e instanceof Error ? e.message : String(e));
     } finally {
       scope.sending = false;
-      if (scope.active) setProgress({ backend, busy: false });
+      if (scope.active) setProgress({ context, busy: false });
     }
   };
-  return { add, busy: progress?.backend === backend && progress.busy };
+  return { add, busy: progress?.context === context && progress.busy };
 }
 
 /** Souvenirs sur l'accueil : « Il y a un an… » et les dernières photos. */
 export function MemoriesStrip() {
   const t = useTheme();
   const memories = useCollectionState('memories');
-  const { add, busy } = useAddMemory();
+  const { add, busy } = useAddMemory(!memories.loading && !memories.error);
   const today = todayKey();
   const sorted = [...memories.items].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
   const onThisDay = sorted.find((m) => m.date.slice(5) === today.slice(5) && m.date < today);

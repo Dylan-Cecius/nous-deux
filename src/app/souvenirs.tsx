@@ -18,7 +18,7 @@ export default function Souvenirs() {
 
 function SouvenirsContent() {
   const memories = useCollectionState('memories');
-  const { add, busy } = useAddMemory();
+  const { add, busy } = useAddMemory(!memories.loading && !memories.error);
   const [editing, setEditing] = useState<Memory | null>(null);
 
   const unavailable = memories.loading || memories.error;

@@ -720,3 +720,9 @@ Base ee2fc5624aed2eeaa88cd68cfe578b0b788330df. Le test du callback initial défa
 
 Preuves : lint/TypeScript, 46 suites / 806 tests applicatifs, diff relu et git diff --check propres. Dernière preuve sécurité inchangée : 45 tests à 16:37 ; serveur/règles non modifiés. Aucune donnée réelle, dépense, build ou distribution. Une panne d’un consommateur reste signalée à son canal d’erreur ; elle n’est pas transformée en invitation à rejouer l’écriture. L’audit suivant porte sur la disponibilité de l’album pendant un sélecteur/upload en attente.
 
+## 2026-10-15, 16:48 Europe/Brussels — Ajout photo lié à la disponibilité de l’album
+
+Base 58ad5908cedc9bfaf2d49a4429e48594f1648896. Quatre cas rouges : ancien bouton, sélecteur ou upload poursuivant après indisponibilité, succès tardif après écriture. useAddMemory reçoit la disponibilité connue par chaque consommateur ; contexte invalidé lors du changement et jamais ressuscité après reprise. Progression et verrou associés à ce contexte, sans nouvel abonnement réseau. Quatre tests supplémentaires utilisent les vrais boutons des deux écrans avec galerie doublée.
+
+Revue React appliquée aux dépendances primitives, refs et nettoyages ; documentation Expo 57/llms.txt et pages ImagePicker/ImageManipulator relues avant le travail photo. Preuves : lint/TypeScript et 46 suites / 814 tests applicatifs, diff relu et git diff --check. Aucun serveur/règle changé ; preuve sécurité précédente 45 tests à 16:37. Aucun sélecteur, upload ou donnée réelle. Limites : une écriture déjà envoyée n’est pas annulée ; fichier déjà envoyé non effacé car son association peut être ambiguë. Aucune build, distribution ou dépense.
+

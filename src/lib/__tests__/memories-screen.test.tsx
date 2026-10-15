@@ -6,7 +6,8 @@ import { pickPhoto } from '../photos';
 
 jest.mock('../couple-context', () => {
   const state = jest.fn();
-  return { useCollection: () => state().items, useCollectionState: state, useSession: () => ({ backend: { userId: 'alice' } }) };
+  const backend = { userId: 'alice', uploadPhoto: jest.fn().mockResolvedValue('test://uploaded'), add: jest.fn().mockResolvedValue(undefined) };
+  return { testBackend: backend, useCollection: () => state().items, useCollectionState: state, useSession: () => ({ backend }) };
 });
 jest.mock('../photos', () => ({ pickPhoto: jest.fn() }));
 jest.mock('../haptics', () => ({ success: jest.fn() }));
@@ -29,6 +30,23 @@ afterEach(async () => { if (root) await act(async () => root.unmount()); jest.cl
 const text = () => JSON.stringify(root.toJSON());
 
 describe.each([['album', Souvenirs], ['accueil', MemoriesStrip]] as const)('%s', (_name, Component) => {
+  test.each(['loading', 'error'])('le vrai bouton n’envoie pas une photo choisie après passage en %s', async (status) => {
+    let finish!: (value: unknown) => void;
+    (pickPhoto as jest.Mock).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    await act(async () => { root = create(<Component />); });
+    const add = _name === 'album'
+      ? root.root.findByProps({ label: 'Ajouter une photo' }).props.onPress
+      : root.root.findByProps({ accessibilityLabel: 'Ajouter un souvenir' }).props.onPress;
+    let pending!: Promise<void>;
+    await act(async () => { pending = add(); });
+    (useCollectionState as jest.Mock).mockReturnValue({ ...ready, [status]: true });
+    await act(async () => { root.update(<Component />); });
+    await act(async () => { finish({ uri: 'test://picked' }); await pending; await add(); });
+    expect(pickPhoto).toHaveBeenCalledTimes(1);
+    expect(jest.requireMock('../couple-context').testBackend.uploadPhoto).not.toHaveBeenCalled();
+    expect(jest.requireMock('../couple-context').testBackend.add).not.toHaveBeenCalled();
+  });
+
   test.each(['loading', 'error'])('des souvenirs en %s ne ressemblent pas à un album vide', async (status) => {
     (useCollectionState as jest.Mock).mockReturnValue({ ...ready, [status]: true });
     await act(async () => { root = create(<Component />); });
