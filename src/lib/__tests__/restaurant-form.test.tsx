@@ -41,9 +41,63 @@ const ask = async () => {
   return (confirmDelete as jest.Mock).mock.calls.at(-1)[1];
 };
 const refresh = async () => { await act(async () => root.update(<Restos />)); };
+const field = (label: string) => root.root.findByProps({ label });
+const edit = async (label: string, value: string) => { await act(async () => field(label).props.onChangeText(value)); };
+
+test('la cuisine reçue reste intacte quand seul le nom est saisi', async () => {
+  await open();
+  await edit('Nom', 'Mon nom');
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...resto, cuisine: 'Italien', note: 'Réserver' }] });
+  await refresh();
+  expect(field('Cuisine').props.value).toBe('Italien');
+  expect(field('Notes').props.value).toBe('Réserver');
+  expect(field('Nom').props.value).toBe('Mon nom');
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).toHaveBeenCalledWith('restaurants', resto.id, { name: 'Mon nom' });
+});
+
+test('une fiche intacte ferme sans réécrire les champs du partenaire', async () => {
+  await open();
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...resto, name: 'Nom reçu', status: 'favori', rating: 4 }] });
+  await refresh();
+  expect(field('Nom').props.value).toBe('Nom reçu');
+  expect(field('Liste').props.value).toBe('favori');
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(root.root.findAllByType('sheet' as never)).toHaveLength(0);
+});
+
+test.each([false, true])('un ancien bouton relit le brouillon courant (création %s)', async (fresh) => {
+  await open(fresh);
+  const save = button('Enregistrer');
+  await edit('Nom', 'Dernière saisie');
+  await edit('Ville / quartier', 'Liège');
+  await act(async () => { await save(); });
+  if (fresh) expect(backend.add).toHaveBeenCalledWith('restaurants', expect.objectContaining({ name: 'Dernière saisie', place: 'Liège' }));
+  else expect(backend.update).toHaveBeenCalledWith('restaurants', resto.id, { name: 'Dernière saisie', place: 'Liège' });
+});
+
+test('le statut saisi conserve la note et les métadonnées reçues', async () => {
+  await open();
+  await act(async () => field('Liste').props.onChange('teste'));
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...resto, rating: 5, address: 'Adresse reçue', mapsUrl: 'https://maps.google.com/?cid=2' }] });
+  await refresh();
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).toHaveBeenCalledWith('restaurants', resto.id, { status: 'teste' });
+});
+
+test('la dernière valeur reçue reste affichée après perte de lecture', async () => {
+  await open();
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...resto, cuisine: 'Reçue' }] });
+  await refresh();
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, error: true, items: [] });
+  await refresh();
+  expect(field('Cuisine').props.value).toBe('Reçue');
+});
 
 test.each(['Nom', 'Cuisine', 'Ville / quartier', 'Notes'])('%s ne change pas pendant une sauvegarde et reprend après échec', async (label) => {
   await open();
+  await edit('Nom', 'Nom saisi');
   const field = () => root.root.findByProps({ label });
   const previous = field().props.value;
   const change = field().props.onChangeText;
@@ -79,7 +133,7 @@ test('liste et note restent figées pendant la sauvegarde puis redeviennent modi
   expect(chips().props.disabled).toBe(false);
   expect(heart().props.disabled).toBe(false);
   await act(async () => { await button('Enregistrer')(); });
-  expect(backend.update).toHaveBeenLastCalledWith('restaurants', resto.id, expect.objectContaining({ status: 'favori', rating: 0 }));
+  expect(backend.update).toHaveBeenLastCalledWith('restaurants', resto.id, { status: 'favori' });
 });
 
 test.each(['closed', 'reopened', 'backend', 'member', 'loading', 'error', 'removed'])('confirmation ignorée après %s', async (change) => {
@@ -112,6 +166,7 @@ test.each(['loading', 'error', 'removed'])('enregistrement bloqué après %s, br
 
 test('enregistrement, suppression et fermeture sont exclusifs', async () => {
   await open();
+  await edit('Nom', 'Nom saisi');
   const confirm = await ask();
   let finish!: () => void;
   backend.update.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
@@ -126,6 +181,7 @@ test('enregistrement, suppression et fermeture sont exclusifs', async () => {
 
 test.each(['save', 'remove'])('double %s : une seule mutation', async (action) => {
   await open();
+  await edit('Nom', 'Nom saisi');
   const perform = action === 'save' ? button('Enregistrer') : await ask();
   await act(async () => { await Promise.all([perform(), perform()]); });
   expect(backend.update.mock.calls.length + backend.remove.mock.calls.length).toBe(1);
@@ -133,16 +189,18 @@ test.each(['save', 'remove'])('double %s : une seule mutation', async (action) =
 
 test('un échec conserve le brouillon et permet une nouvelle tentative', async () => {
   await open();
+  await edit('Nom', 'Nom saisi');
   backend.update.mockRejectedValueOnce(new Error('Erreur fictive'));
   await act(async () => { await button('Enregistrer')(); });
   expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Erreur fictive');
-  expect(root.root.findByProps({ label: 'Nom' }).props.value).toBe(resto.name);
+  expect(root.root.findByProps({ label: 'Nom' }).props.value).toBe('Nom saisi');
   await act(async () => { await button('Enregistrer')(); });
   expect(backend.update).toHaveBeenCalledTimes(2);
 });
 
 test.each(['success', 'error'])('retour %s d’un ancien backend ignoré', async (outcome) => {
   await open();
+  await edit('Nom', 'Nom saisi');
   let finish!: () => void;
   backend.update.mockImplementationOnce(() => new Promise<void>((resolve, reject) => { finish = () => outcome === 'success' ? resolve() : reject(new Error('Ancienne erreur')); }));
   let pending!: Promise<void>;

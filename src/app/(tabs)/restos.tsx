@@ -27,6 +27,7 @@ import type { Restaurant, RestaurantStatus } from '@/lib/types';
 import { useAsyncAction } from '@/lib/use-async-action';
 import { restaurantMapUrl } from '@/lib/restaurant-map';
 import { RestaurantRating as Hearts } from '@/components/restaurant-rating';
+import { draftPatch, useSharedDraft } from '@/lib/use-shared-draft';
 
 const STATUSES: { value: RestaurantStatus; label: string }[] = [
   { value: 'envie', label: 'À tester' },
@@ -181,6 +182,14 @@ function RestosContent() {
   );
 }
 
+function restaurantFields(resto: Restaurant | undefined, defaultStatus: RestaurantStatus) {
+  return {
+    name: resto?.name ?? '', cuisine: resto?.cuisine ?? '', place: resto?.place ?? '',
+    status: resto?.status ?? defaultStatus, rating: resto?.rating ?? 0, note: resto?.note ?? '',
+    address: resto?.address ?? '', photoUrl: resto?.photoUrl ?? '', mapsUrl: resto?.mapsUrl ?? '',
+  };
+}
+
 function RestoSheet({
   resto,
   defaultStatus,
@@ -192,24 +201,26 @@ function RestoSheet({
 }) {
   const { backend } = useSession();
   const collection = useCollectionState('restaurants');
+  const received = !collection.loading && !collection.error && resto
+    ? collection.items.find((entry) => entry.id === resto.id) : undefined;
+  const { base, values, setValues } = useSharedDraft(
+    restaurantFields(resto, defaultStatus), received ? restaurantFields(received, defaultStatus) : null,
+  );
+  const { name, cuisine, place, status, rating, note } = values;
+  const found = values;
+  const setName = (name: string) => setValues((previous) => ({ ...previous, name }));
+  const setCuisine = (cuisine: string) => setValues((previous) => ({ ...previous, cuisine }));
+  const setPlace = (place: string) => setValues((previous) => ({ ...previous, place }));
+  const setStatus = (status: RestaurantStatus) => setValues((previous) => ({ ...previous, status }));
+  const setRating = (rating: number) => setValues((previous) => ({ ...previous, rating }));
+  const setNote = (note: string) => setValues((previous) => ({ ...previous, note }));
   const context = useMemo(() => ({ backend }), [backend]);
-  const latest = useRef<{ context: typeof context; collection: typeof collection } | null>(null);
+  const latest = useRef<{ context: typeof context; collection: typeof collection; base: typeof base; values: typeof values } | null>(null);
   const closed = useRef(false);
   useEffect(() => {
-    latest.current = { context, collection };
+    latest.current = { context, collection, base, values };
     return () => { latest.current = null; };
-  }, [context, collection]);
-  const [name, setName] = useState(resto?.name ?? '');
-  const [cuisine, setCuisine] = useState(resto?.cuisine ?? '');
-  const [place, setPlace] = useState(resto?.place ?? '');
-  const [status, setStatus] = useState<RestaurantStatus>(resto?.status ?? defaultStatus);
-  const [rating, setRating] = useState(resto?.rating ?? 0);
-  const [note, setNote] = useState(resto?.note ?? '');
-  const [found, setFound] = useState<Pick<Restaurant, 'address' | 'photoUrl' | 'mapsUrl'>>({
-    address: resto?.address,
-    photoUrl: resto?.photoUrl,
-    mapsUrl: resto?.mapsUrl,
-  });
+  }, [context, collection, base, values]);
   const { run, pending } = useAsyncAction((action: () => unknown) => action());
   const isCurrent = () => !closed.current && latest.current?.context === context;
   const containsResto = (state: typeof collection) => !resto || state.items.some((entry) => entry.id === resto.id);
@@ -226,6 +237,8 @@ function RestoSheet({
   });
 
   const save = () => runCurrent(async () => {
+    const current = latest.current!;
+    const { name, cuisine, place, status, rating, note, address, photoUrl, mapsUrl } = current.values;
     if (!name.trim()) return;
     const data = {
       name: name.trim(),
@@ -234,11 +247,12 @@ function RestoSheet({
       status,
       rating,
       note: note.trim(),
-      address: found.address ?? '',
-      photoUrl: found.photoUrl ?? '',
-      mapsUrl: found.mapsUrl ?? '',
+      address, photoUrl, mapsUrl,
     };
-    if (resto) await backend.update('restaurants', resto.id, data);
+    if (resto) {
+      const patch = draftPatch(current.base, data);
+      if (Object.keys(patch).length) await backend.update('restaurants', resto.id, patch);
+    }
     else await backend.add('restaurants', { ...data, createdBy: backend.userId, createdAt: Date.now() });
     close();
   });
@@ -259,7 +273,7 @@ function RestoSheet({
             setName(p.name);
             setCuisine(p.cuisine);
             setPlace(p.address.split(',').slice(-2, -1)[0]?.trim().replace(/^\d{5}\s*/, '') ?? '');
-            setFound({ address: p.address, photoUrl: p.photoUrl ?? undefined, mapsUrl: p.mapsUrl });
+            setValues((previous) => ({ ...previous, address: p.address, photoUrl: p.photoUrl ?? '', mapsUrl: p.mapsUrl }));
           })}
         />
       )}
