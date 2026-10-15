@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { userError } from '@/lib/errors';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { celebrate } from '@/components/celebrate';
@@ -28,6 +27,7 @@ import { useCollectionState, useSession } from '@/lib/couple-context';
 import { success, tap } from '@/lib/haptics';
 import { pickOne } from '@/lib/random';
 import type { Gift, ListItem, ListKind } from '@/lib/types';
+import { useAsyncAction } from '@/lib/use-async-action';
 
 type Tab = ListKind | 'gifts';
 type Entry = (ListItem | (Gift & { list: 'gifts'; media?: undefined })) & { list: Tab };
@@ -71,6 +71,11 @@ const COPY: Record<Tab, { overline: string; empty: [IconName, string, string]; t
 };
 
 export default function Listes() {
+  const { backend } = useSession();
+  return <ListesContent key={`${backend.mode}:${backend.coupleId}:${backend.userId}`} />;
+}
+
+function ListesContent() {
   const t = useTheme();
   const { backend, colorOf, partner } = useSession();
   const items = useCollectionState('items');
@@ -80,6 +85,26 @@ export default function Listes() {
 
   const col = tab === 'gifts' ? 'gifts' : 'items';
   const collection = tab === 'gifts' ? gifts : items;
+  // Un aller-retour vers l’onglet ne doit pas réactiver une ancienne confirmation.
+  const context = useMemo(() => ({ backend, tab }), [backend, tab]);
+  const latest = useRef<{ context: typeof context; collection: typeof collection } | null>(null);
+  useEffect(() => {
+    latest.current = { context, collection };
+    return () => { latest.current = null; };
+  }, [context, collection]);
+  const { run, pending } = useAsyncAction((action: () => Promise<void>) => action());
+  const isCurrent = () => latest.current?.context === context;
+  const currentEntry = (id: string) => {
+    const current = latest.current;
+    if (!isCurrent() || !current || current.collection.loading || current.collection.error) return;
+    return current.collection.items.find((entry) => entry.id === id && (tab === 'gifts'
+      ? entry.createdBy === backend.userId : 'list' in entry && entry.list === tab));
+  };
+  const runCurrent = (action: () => Promise<void>) => run(async () => {
+    if (!isCurrent()) return;
+    try { await action(); }
+    catch (error) { if (isCurrent()) throw error; }
+  });
   const unavailable = collection.loading || collection.error;
   const entries: Entry[] =
     unavailable ? [] : tab === 'gifts'
@@ -90,15 +115,24 @@ export default function Listes() {
   const done = sorted.filter((i) => i.done);
   const copy = COPY[tab];
 
-  const toggle = async (item: Entry) => {
-    try { await backend.update(col, item.id, { done: !item.done }); }
-    catch (error) { showDialog('Modification impossible', userError(error)); return; }
-    if (!item.done) {
+  const toggle = (item: Entry) => runCurrent(async () => {
+    const current = currentEntry(item.id);
+    if (!current) return;
+    await backend.update(col, item.id, { done: !current.done });
+    if (!isCurrent()) return;
+    if (!current.done) {
       if (tab === 'bucket') {
         success();
         celebrate('confetti');
       } else tap();
     }
+  });
+
+  const askRemove = (item: Entry) => {
+    if (pending || !currentEntry(item.id)) return;
+    confirmDelete(item.title, () => runCurrent(async () => {
+      if (currentEntry(item.id)) await backend.remove(col, item.id);
+    }));
   };
 
   const pickMovie = () => {
@@ -110,20 +144,23 @@ export default function Listes() {
     ]);
   };
 
-  const clearBasket = () =>
+  const clearBasket = () => {
+    if (pending || !isCurrent() || tab !== 'shopping' || unavailable || !done.length) return;
+    const selected = done.map((item) => item.id);
     showDialog('Vider le panier ?', `${done.length} article${done.length > 1 ? 's' : ''} coché${done.length > 1 ? 's' : ''} seront retirés.`, [
       { text: 'Annuler', style: 'cancel' },
-      { text: 'Vider', style: 'destructive', onPress: async () => {
-        try { await backend.clearShoppingBasket(done.map((item) => item.id)); }
-        catch (error) { showDialog('Suppression interrompue', userError(error)); }
-      } },
+      { text: 'Vider', style: 'destructive', onPress: () => runCurrent(async () => {
+        const ids = selected.filter((id) => currentEntry(id)?.done === true);
+        if (ids.length) await backend.clearShoppingBasket(ids);
+      }) },
     ]);
+  };
 
   const renderItem = (item: Entry, index: number) => (
     <Pressable
       key={item.id}
       onPress={() => setEditing(item)}
-      onLongPress={() => confirmDelete(item.title, () => backend.remove(col, item.id))}
+      onLongPress={() => askRemove(item)}
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
@@ -136,7 +173,8 @@ export default function Listes() {
       })}>
       <Pressable
         accessibilityRole="checkbox"
-        accessibilityState={{ checked: item.done }}
+        accessibilityState={{ checked: item.done, disabled: pending, busy: pending }}
+        disabled={pending}
         accessibilityLabel={item.done ? 'Marquer comme à faire' : 'Marquer comme fait'}
         hitSlop={10}
         onPress={() => toggle(item)}
@@ -258,7 +296,7 @@ export default function Listes() {
         )}
 
         {tab === 'shopping' && done.length > 0 && (
-          <Button label="Vider les articles cochés" variant="ghost" icon="trash-outline" onPress={clearBasket} />
+          <Button label="Vider les articles cochés" variant="ghost" icon="trash-outline" disabled={pending} onPress={clearBasket} />
         )}
       </Screen>
       {!unavailable && <Fab onPress={() => setEditing('new')} label={copy.add} />}
