@@ -161,12 +161,16 @@ export function Card({
   style,
   onPress,
   onLongPress,
+  accessibilityLabel,
+  accessibilityHint,
   tone = 'default',
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   onLongPress?: () => void;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
   tone?: Tone;
 }) {
   const t = useTheme();
@@ -177,6 +181,9 @@ export function Card({
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
+      accessibilityRole={accessibilityLabel ? 'button' : undefined}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
       style={({ pressed }) => [base, pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }]}>
       {children}
     </Pressable>

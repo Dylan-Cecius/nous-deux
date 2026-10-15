@@ -47,7 +47,12 @@ function SouvenirsContent() {
                 {sorted
                   .filter((m) => m.date.startsWith(year))
                   .map((m) => (
-                    <Pressable key={m.id} onPress={() => setEditing(m)} style={{ width: '48%', flexGrow: 1, gap: 6 }}>
+                    <Pressable
+                      key={m.id} onPress={() => setEditing(m)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Souvenir du ${fromKey(m.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}${m.caption ? ` : ${m.caption}` : ''}`}
+                      accessibilityHint="Ouvre la fiche pour modifier ce souvenir."
+                      style={{ width: '48%', flexGrow: 1, gap: 6 }}>
                       <Image source={{ uri: m.photoUrl }} style={{ width: '100%', aspectRatio: 0.8, borderRadius: 18 }} contentFit="cover" />
                       <T variant="small" numberOfLines={1}>
                         {m.caption || fromKey(m.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}

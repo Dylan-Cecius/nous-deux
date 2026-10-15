@@ -762,3 +762,9 @@ Base 83a1af9f78784a19a59388cb2dbdc1b62bc41a63. Cinq régressions rouges : date/l
 
 Preuves : lint/TypeScript, 47 suites / 861 tests (7,30 s), diff relu et git diff --check. Revue React : ajustement d’état borné aux changements externes, dépendances et invalidation de contexte conservées. La consigne reçue pendant la tâche a été intégrée sans redémarrer le travail : PR ouverte/brouillon et quatre fichiers de reprise relus via GitHub, tête inchangée. Limite : ce patch évite d’écrire les champs intacts mais ne résout pas les éditions simultanées du même champ ni les modifications après la dernière lecture. Aucun essai multi-téléphones réel, build, déploiement, dépense ou donnée réelle.
 
+## 2026-10-15, 17:11 Europe/Brussels — Actions accessibles des souvenirs
+
+Base 8abac2d720941dd9d3641d34840abf9e4b49bd31. Six tests rouges après correction du sélecteur de test Pressable : quatre miniatures sans rôle explicite, ajout sans état accessible, carte nommée ignorant le libellé. Miniatures avec date complète/légende et indication d’action ; ajout expose busy/disabled ; carte anniversaire utilise les nouveaux libellés facultatifs de Card. Les cartes composites non nommées ne reçoivent pas de rôle global afin de ne pas modifier leur navigation imbriquée à l’aveugle.
+
+Documentation officielle RN 0.86 Accessibility relue. Grille react-best-practices appliquée aux trois composants TSX et règle d’état dérivé relue : aucune souscription réseau, effet ou dépendance ajouté pour ces libellés. Preuves : lint/TypeScript, 47 suites / 867 tests (7,84 s), diff et git diff --check propres. Ces tests vérifient les propriétés, pas les annonces natives ou la navigation VoiceOver/TalkBack. Aucun rendu visuel, build, diffusion, dépense ou contenu réel.
+

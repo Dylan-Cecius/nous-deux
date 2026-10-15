@@ -1,4 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { Pressable } from 'react-native';
 import Souvenirs from '@/app/souvenirs';
 import { MemoriesStrip } from '@/components/home/memories-strip';
 import { useCollectionState } from '../couple-context';
@@ -10,6 +11,7 @@ jest.mock('../couple-context', () => {
   return { testBackend: backend, useCollection: () => state().items, useCollectionState: state, useSession: () => ({ backend }) };
 });
 jest.mock('../photos', () => ({ pickPhoto: jest.fn() }));
+jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), { Pressable: { value: 'pressable' } }));
 jest.mock('../haptics', () => ({ success: jest.fn() }));
 jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
 jest.mock('expo-image', () => ({ Image: (props: object) => jest.requireActual('react').createElement('image', props) }));
@@ -88,4 +90,28 @@ test('la légende en cours de modification reste conservée pendant une erreur d
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, error: true });
   await act(async () => { root.update(<Souvenirs />); });
   expect(root.root.findByProps({ label: 'Légende' }).props.value).toBe('Légende en préparation');
+});
+
+describe.each([['album', Souvenirs], ['accueil', MemoriesStrip]] as const)('accessibilité %s', (name, Component) => {
+  test.each(['Souvenir fictif', ''])('la miniature %s annonce son action et sa date complète', async caption => {
+    (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...memory, caption }] });
+    await act(async () => { root = create(<Component />); });
+    const photo = root.root.findAllByType(Pressable).find(node => node.findAllByType('image' as never).length > 0)!;
+    expect(photo.props.accessibilityRole).toBe('button');
+    expect(photo.props.accessibilityLabel).toContain('15 octobre 2025');
+    if (caption) expect(photo.props.accessibilityLabel).toContain(caption);
+    expect(photo.props.accessibilityHint).toBe(name === 'album' ? 'Ouvre la fiche pour modifier ce souvenir.' : 'Ouvre l’album des souvenirs.');
+  });
+});
+
+test('l’ajout de l’accueil annonce son attente puis son retour disponible', async () => {
+  let finish!: (value: unknown) => void;
+  (pickPhoto as jest.Mock).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+  await act(async () => { root = create(<MemoriesStrip />); });
+  const getButton = () => root.root.findByProps({ accessibilityLabel: 'Ajouter un souvenir' });
+  let pending!: Promise<void>;
+  await act(async () => { pending = getButton().props.onPress(); });
+  expect(getButton().props.accessibilityState).toEqual({ busy: true, disabled: true });
+  await act(async () => { finish(null); await pending; });
+  expect(getButton().props.accessibilityState).toEqual({ busy: false, disabled: false });
 });

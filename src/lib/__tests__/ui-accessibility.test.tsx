@@ -1,6 +1,6 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Pressable } from 'react-native';
-import { Chips, ColorPicker, IconButton, SectionTitle, Segmented } from '@/components/ui';
+import { Card, Chips, ColorPicker, IconButton, SectionTitle, Segmented } from '@/components/ui';
 import { tap } from '../haptics';
 
 jest.mock('@expo/vector-icons/Ionicons', () => 'icon');
@@ -17,6 +17,19 @@ jest.mock('react-native', () => Object.create(jest.requireActual('react-native')
 let root: ReactTestRenderer;
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
 const options = [{ value: 'alice', label: 'Alice' }, { value: 'bob', label: 'Bob' }];
+
+test('une carte action explicitement nommée annonce son rôle sans changer les cartes composites', async () => {
+  const onPress = jest.fn();
+  await act(async () => { root = create(<Card onPress={onPress} accessibilityLabel="Souvenir fictif" accessibilityHint="Ouvre l’album.">Photo</Card>); });
+  const button = root.root.findByType(Pressable);
+  expect(button.props.accessibilityRole).toBe('button');
+  expect(button.props.accessibilityLabel).toBe('Souvenir fictif');
+  expect(button.props.accessibilityHint).toBe('Ouvre l’album.');
+  await act(async () => button.props.onPress());
+  expect(onPress).toHaveBeenCalledTimes(1);
+  await act(async () => root.update(<Card onPress={onPress}>Contenu composite</Card>));
+  expect(root.root.findByType(Pressable).props.accessibilityRole).toBeUndefined();
+});
 
 test('un bouton icône peut être désactivé par son formulaire puis réactivé', async () => {
   const onPress = jest.fn();

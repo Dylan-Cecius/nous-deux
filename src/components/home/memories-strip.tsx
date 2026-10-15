@@ -83,7 +83,11 @@ export function MemoriesStrip() {
     <View style={{ gap: 12 }}>
       <SectionTitle title="Souvenirs" action="Tout voir" onAction={() => router.push('/souvenirs')} />
       {onThisDay && (
-        <Card tone="feature" onPress={() => router.push('/souvenirs')} style={{ padding: 0, overflow: 'hidden', gap: 0 }}>
+        <Card
+          tone="feature" onPress={() => router.push('/souvenirs')}
+          accessibilityLabel={`Souvenir du ${fromKey(onThisDay.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}${onThisDay.caption ? ` : ${onThisDay.caption}` : ''}`}
+          accessibilityHint="Ouvre l’album des souvenirs."
+          style={{ padding: 0, overflow: 'hidden', gap: 0 }}>
           <Image source={{ uri: onThisDay.photoUrl }} style={{ width: '100%', height: 180 }} contentFit="cover" />
           <View style={{ padding: 16, gap: 2 }}>
             <T variant="caption" color={t.onFeatureMuted}>
@@ -101,6 +105,7 @@ export function MemoriesStrip() {
           accessibilityLabel="Ajouter un souvenir"
           onPress={add}
           disabled={busy}
+          accessibilityState={{ disabled: busy, busy }}
           style={{
             width: 104,
             height: 132,
@@ -119,7 +124,11 @@ export function MemoriesStrip() {
           </T>
         </Pressable>
         {sorted.slice(0, 8).map((m) => (
-          <Pressable key={m.id} onPress={() => router.push('/souvenirs')} accessibilityLabel={m.caption || 'Souvenir'}>
+          <Pressable
+            key={m.id} onPress={() => router.push('/souvenirs')}
+            accessibilityRole="button"
+            accessibilityLabel={`Souvenir du ${fromKey(m.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}${m.caption ? ` : ${m.caption}` : ''}`}
+            accessibilityHint="Ouvre l’album des souvenirs.">
             <Image source={{ uri: m.photoUrl }} style={{ width: 104, height: 132, borderRadius: 18 }} contentFit="cover" />
           </Pressable>
         ))}
