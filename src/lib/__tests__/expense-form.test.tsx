@@ -120,3 +120,37 @@ test('une panne de lecture du formulaire peut être relancée sans perdre le mon
   expect(ready.retry).toHaveBeenCalledTimes(1);
   expect(field('Montant (€)').props.value).toBe('42,50');
 });
+
+test('un ancien bouton enregistre les champs courants, pas un ancien montant ou payeur', async () => {
+  await mount();
+  const oldSave = save();
+  await act(async () => {
+    field('Quoi ?').props.onChangeText(' Nouvelle dépense fictive ');
+    field('Montant (€)').props.onChangeText('17,239');
+    field('Payé par').props.onChange('bob');
+  });
+  await act(async () => { await oldSave(); });
+  expect(backend.add).toHaveBeenCalledWith('expenses', expect.objectContaining({ title: 'Nouvelle dépense fictive', amount: 17.24, paidBy: 'bob' }));
+});
+
+test.each(['title', 'amount', 'payer'])('un ancien bouton ne contourne pas la validation courante : %s', async kind => {
+  await mount();
+  const oldSave = save();
+  await act(async () => {
+    if (kind === 'title') field('Quoi ?').props.onChangeText('  ');
+    if (kind === 'amount') field('Montant (€)').props.onChangeText('100001');
+    if (kind === 'payer') field('Payé par').props.onChange('stranger');
+  });
+  await act(async () => { await oldSave(); });
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(root.root.findAllByType('sheet' as never)).toHaveLength(1);
+});
+
+test('un bouton obtenu avant la saisie relit les valeurs devenues valides', async () => {
+  await act(async () => { root = create(<Depenses />); });
+  await open();
+  const oldSave = save();
+  await act(async () => { field('Quoi ?').props.onChangeText('Fictif'); field('Montant (€)').props.onChangeText('9,90'); });
+  await act(async () => { await oldSave(); });
+  expect(backend.add).toHaveBeenCalledWith('expenses', expect.objectContaining({ title: 'Fictif', amount: 9.9 }));
+});

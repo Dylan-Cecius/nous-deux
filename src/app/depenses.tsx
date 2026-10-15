@@ -180,15 +180,15 @@ function ExpenseSheet({ onClose }: { onClose: () => void }) {
   const { backend, members } = useSession();
   const collection = useCollectionState('expenses');
   const context = useMemo(() => ({ backend }), [backend]);
-  const latest = useRef<{ context: typeof context; collection: typeof collection; members: typeof members } | null>(null);
-  const closed = useRef(false);
-  useEffect(() => {
-    latest.current = { context, collection, members };
-    return () => { latest.current = null; };
-  }, [context, collection, members]);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState(backend.userId);
+  const latest = useRef<{ context: typeof context; collection: typeof collection; members: typeof members; title: string; amount: string; paidBy: string } | null>(null);
+  const closed = useRef(false);
+  useEffect(() => {
+    latest.current = { context, collection, members, title, amount, paidBy };
+    return () => { latest.current = null; };
+  }, [context, collection, members, title, amount, paidBy]);
   const { run, pending } = useAsyncAction((action: () => unknown) => action());
   const isCurrent = () => !closed.current && latest.current?.context === context;
   const unavailable = collection.loading || collection.error;
@@ -197,12 +197,14 @@ function ExpenseSheet({ onClose }: { onClose: () => void }) {
   const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
   const save = () => run(async () => {
     const current = latest.current;
-    if (!valid || !isCurrent() || !current || current.collection.loading || current.collection.error || !current.members.some((member) => member.id === paidBy)) return;
+    if (!isCurrent() || !current || current.collection.loading || current.collection.error) return;
+    const currentValue = Number(current.amount.replace(',', '.'));
+    if (!current.title.trim() || !Number.isFinite(currentValue) || currentValue < 0.01 || currentValue > 100000 || !current.members.some((member) => member.id === current.paidBy)) return;
     try {
       await backend.add('expenses', {
-        title: title.trim(),
-        amount: Math.round(value * 100) / 100,
-        paidBy,
+        title: current.title.trim(),
+        amount: Math.round(currentValue * 100) / 100,
+        paidBy: current.paidBy,
         kind: 'expense',
         createdAt: Date.now(),
       });

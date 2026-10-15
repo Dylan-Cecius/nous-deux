@@ -858,3 +858,9 @@ Base 24c9afb842f0ea7f482216d84e033381dbbcce77. Quatre tests de contrat relient l
 
 Preuves : compilation fonctions, 67 tests sécurité en 35,33 s, sortie 0 et émulateurs demo-nous-deux-security arrêtés ; lint/TypeScript, git diff --check et diff relu. Dernière suite applicative : 49 suites / 933 tests à 18:10, aucun code applicatif changé. Contrôleur et endpoint toujours non raccordés/non exposés. Pas de transport HTTPS Callable, jeton réel, photo mobile, build native, déploiement ni dépense. Prochaine tâche réalisable repérée dans le code existant : vérifier les anciennes actions de création de dépense qui capturent encore les champs du rendu initial.
 
+## 2026-10-15, 18:17 Europe/Brussels — Création de dépense et brouillon courant
+
+Base 7409d4d1d6c54c4678fdd02b1e392f817de07b3b. Cinq tests rouges : ancienne action envoyant montant/payeur/titre périmés, contournant trois validations devenues invalides, ou restant bloquée après une saisie devenue valide. L’action relit les champs via la référence courante déjà utilisée pour le contexte, puis valide et arrondit le montant courant. Verrou de mutation, fermeture et protection du compte conservés ; aucun nouvel effet ni abonnement, dépendances complètes.
+
+Preuves : lint/TypeScript, 49 suites / 938 tests en 7,94 s, diff relu et git diff --check. Dernière sécurité : 67 tests à 18:14, serveur/règles inchangés. Ces tests saisissent des montants fictifs dans un backend doublé ; aucun paiement, transfert, compte réel ni opération financière. Pas de création ordinaire idempotente après réponse perdue, pas de validation clavier native ou de distribution. Aucun coût ni déploiement.
+
