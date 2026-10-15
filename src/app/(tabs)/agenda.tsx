@@ -26,6 +26,7 @@ import { endMin, freeSlots, fromMin, mondayOf, toMin } from '@/lib/agenda';
 import { addDays, formatLong, fromKey, todayKey, weekdayShort } from '@/lib/dates';
 import { BOTH, type AgendaEvent, type EventKind } from '@/lib/types';
 import { useAsyncAction } from '@/lib/use-async-action';
+import { draftPatch, useSharedDraft } from '@/lib/use-shared-draft';
 
 const KINDS: { value: EventKind; label: string; icon: 'briefcase-outline' | 'person-outline' | 'heart-outline' }[] = [
   { value: 'travail', label: 'Travail', icon: 'briefcase-outline' },
@@ -294,6 +295,14 @@ const REPEATS = [
   { value: '12', label: '12 semaines' },
 ];
 
+function eventFields(event: AgendaEvent | undefined, defaultDate: string, defaultWho: string) {
+  return {
+    title: event?.title ?? '', who: event?.who ?? defaultWho,
+    kind: event?.kind ?? 'travail' as EventKind, date: event?.date ?? defaultDate,
+    start: event?.start ?? '09:00', end: event?.end ?? '17:00',
+  };
+}
+
 function EventSheet({
   event,
   defaultDate,
@@ -308,22 +317,28 @@ function EventSheet({
   const session = useSession();
   const { backend, members } = session;
   const allEvents = useCollectionState('events');
+  const received = !allEvents.loading && !allEvents.error && event
+    ? allEvents.items.find((entry) => entry.id === event.id) : undefined;
+  const { base, values, setValues } = useSharedDraft(
+    eventFields(event, defaultDate, defaultWho), received ? eventFields(received, defaultDate, defaultWho) : null,
+  );
+  const { title, who, kind, date, start, end } = values;
+  const setTitle = (title: string) => setValues((previous) => ({ ...previous, title }));
+  const setWho = (who: string) => setValues((previous) => ({ ...previous, who }));
+  const setKind = (kind: EventKind) => setValues((previous) => ({ ...previous, kind }));
+  const setStart = (start: string) => setValues((previous) => ({ ...previous, start }));
+  const setEnd = (end: string) => setValues((previous) => ({ ...previous, end }));
+  const shiftDate = (days: number) => setValues((previous) => ({ ...previous, date: addDays(previous.date, days) }));
+  const [repeat, setRepeat] = useState('0');
   const unavailable = allEvents.loading || allEvents.error || (!!event && !allEvents.items.some((entry) => entry.id === event.id));
   // A native confirmation may outlive the snapshot, session or sheet that opened it.
   const context = useMemo(() => ({ backend }), [backend]);
-  const latest = useRef<{ context: typeof context; state: typeof allEvents } | null>(null);
+  const latest = useRef<{ context: typeof context; state: typeof allEvents; base: typeof base; values: typeof values; repeat: string } | null>(null);
   const closed = useRef(false);
   useEffect(() => {
-    latest.current = { context, state: allEvents };
+    latest.current = { context, state: allEvents, base, values, repeat };
     return () => { latest.current = null; };
-  }, [context, allEvents]);
-  const [title, setTitle] = useState(event?.title ?? '');
-  const [who, setWho] = useState(event?.who ?? defaultWho);
-  const [kind, setKind] = useState<EventKind>(event?.kind ?? 'travail');
-  const [date, setDate] = useState(event?.date ?? defaultDate);
-  const [start, setStart] = useState(event?.start ?? '09:00');
-  const [end, setEnd] = useState(event?.end ?? '17:00');
-  const [repeat, setRepeat] = useState('0');
+  }, [context, allEvents, base, values, repeat]);
   const { run, pending: busy } = useAsyncAction((action: () => unknown) => action());
   const isCurrent = () => !closed.current && latest.current?.context === context;
   const canWrite = () => {
@@ -340,14 +355,17 @@ function EventSheet({
   const valid = !!title.trim() && start < end;
 
   const save = () => runCurrent(async () => {
-    if (!valid) return;
-    const data = { title: title.trim(), who, kind, date, start, end, createdBy: event?.createdBy ?? backend.userId };
+    const current = latest.current!;
+    const { title, who, kind, date, start, end } = current.values;
+    if (!title.trim() || start >= end) return;
+    const data = { title: title.trim(), who, kind, date, start, end };
     if (event) {
-      await backend.update('events', event.id, data);
+      const patch = draftPatch(current.base, data);
+      if (Object.keys(patch).length) await backend.update('events', event.id, patch);
     } else {
-      const weeks = Number(repeat);
+      const weeks = Number(current.repeat);
       const seriesId = weeks > 0 ? `${Date.now()}` : undefined;
-      await backend.addEvents(Array.from({ length: Math.max(1, weeks) }, (_, i) => ({ ...data, date: addDays(date, i * 7), seriesId })));
+      await backend.addEvents(Array.from({ length: Math.max(1, weeks) }, (_, i) => ({ ...data, date: addDays(date, i * 7), seriesId, createdBy: backend.userId })));
       if (!isCurrent()) return;
       await notifyPartner(session, 'Agenda', `${session.me?.name ?? 'Ta moitié'} a ajouté « ${data.title} ».`);
     }
@@ -399,11 +417,11 @@ function EventSheet({
           Jour
         </T>
         <Card style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 8 }}>
-          <IconButton icon="chevron-back" label="Jour précédent" disabled={busy} onPress={() => run(() => { if (isCurrent()) setDate(addDays(date, -1)); })} size={40} />
+          <IconButton icon="chevron-back" label="Jour précédent" disabled={busy} onPress={() => run(() => { if (isCurrent()) shiftDate(-1); })} size={40} />
           <T variant="bodyBold" style={{ flex: 1, textAlign: 'center', textTransform: 'capitalize' }}>
             {formatLong(date)}
           </T>
-          <IconButton icon="chevron-forward" label="Jour suivant" disabled={busy} onPress={() => run(() => { if (isCurrent()) setDate(addDays(date, 1)); })} size={40} />
+          <IconButton icon="chevron-forward" label="Jour suivant" disabled={busy} onPress={() => run(() => { if (isCurrent()) shiftDate(1); })} size={40} />
         </Card>
       </View>
       <Row style={{ gap: Spacing.three }}>

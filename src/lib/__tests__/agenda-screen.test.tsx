@@ -47,6 +47,68 @@ const openSeries = async () => {
   await act(async () => { root = create(<Agenda />); });
   await act(async () => { root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00' }).find((node) => typeof node.props.onPress === 'function')!.props.onPress(); });
 };
+const formField = (label: string) => root.root.findByProps({ label });
+const changeTitle = async (value = 'Titre saisi') => { await act(async () => formField('Titre').props.onChangeText(value)); };
+const receiveEvent = async (patch: object) => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...seriesEvent, ...patch }] });
+  await act(async () => root.update(<Agenda />));
+};
+
+test('le titre saisi ne réécrit pas les heures, membre ou type reçus', async () => {
+  await openSeries();
+  await changeTitle();
+  await receiveEvent({ start: '10:00', end: '14:00', who: 'bob', kind: 'perso' });
+  for (const [label, value] of [['Début', '10:00'], ['Fin', '14:00'], ['Pour qui ?', 'bob'], ['Type', 'perso']]) {
+    expect(formField(label).props.value).toBe(value);
+  }
+  await act(async () => { await formField('Enregistrer').props.onPress(); });
+  expect(backend.update).toHaveBeenCalledWith('events', event.id, { title: 'Titre saisi' });
+});
+
+test('une fiche agenda intacte ferme sans mutation', async () => {
+  await openSeries();
+  await act(async () => { await formField('Enregistrer').props.onPress(); });
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
+});
+
+test('le bouton agenda ancien utilise le titre et les heures courants', async () => {
+  await openSeries();
+  const save = formField('Enregistrer').props.onPress;
+  await changeTitle();
+  await act(async () => formField('Début').props.onChange('10:00'));
+  await act(async () => { await save(); });
+  expect(backend.update).toHaveBeenCalledWith('events', event.id, { title: 'Titre saisi', start: '10:00' });
+});
+
+test('un ancien bouton refuse un intervalle devenu invalide', async () => {
+  await openSeries();
+  const save = formField('Enregistrer').props.onPress;
+  await act(async () => formField('Début').props.onChange('13:00'));
+  await act(async () => { await save(); });
+  expect(backend.update).not.toHaveBeenCalled();
+});
+
+test('un ancien bouton de création utilise la répétition et le titre courants', async () => {
+  await act(async () => { root = create(<Agenda />); });
+  await act(async () => formField('Ajouter un horaire').props.onPress());
+  const save = formField('Enregistrer').props.onPress;
+  await changeTitle();
+  await act(async () => formField('Répéter chaque semaine').props.onChange('4'));
+  await act(async () => { await save(); });
+  expect(backend.addEvents).toHaveBeenCalledTimes(1);
+  expect(backend.addEvents.mock.calls[0][0]).toHaveLength(4);
+  expect(backend.addEvents.mock.calls[0][0][0].title).toBe('Titre saisi');
+});
+
+test('le changement de jour relit la date reçue et cumule deux appuis', async () => {
+  await openSeries();
+  const next = formField('Jour suivant').props.onPress;
+  await receiveEvent({ date: '2099-01-01' });
+  await act(async () => { await next(); await next(); });
+  await act(async () => { await formField('Enregistrer').props.onPress(); });
+  expect(backend.update).toHaveBeenCalledWith('events', event.id, { date: '2099-01-03' });
+});
 
 const askLongPressDelete = async () => {
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [seriesEvent] });
@@ -145,6 +207,7 @@ test('un refus du lot conserve le formulaire et permet de réessayer', async () 
 
 test('une sauvegarde bloque la suppression et la fermeture du même formulaire', async () => {
   await openSeries();
+  await changeTitle();
   let finish!: () => void;
   backend.update.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
   let pending!: Promise<void>;
@@ -155,7 +218,7 @@ test('une sauvegarde bloque la suppression et la fermeture du même formulaire',
     root.root.findByProps({ title: 'Modifier l’horaire' }).props.onClose();
   });
   expect(confirmDelete).not.toHaveBeenCalled();
-  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe('Titre saisi');
   await act(async () => { finish(); await pending; });
   expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
 });
@@ -170,6 +233,7 @@ test('deux confirmations identiques ne lancent qu’une suppression', async () =
 
 test.each(['Supprimer', 'Supprimer aussi les semaines suivantes'])('une confirmation déjà ouverte (%s) ne contourne pas une sauvegarde en cours', async (label) => {
   await openSeries();
+  await changeTitle();
   await act(async () => { root.root.findByProps({ label }).props.onPress(); });
   const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
   let finish!: () => void;
@@ -223,10 +287,11 @@ test.each(['success', 'failure'])('un ajout terminé en %s après changement de 
 
 test('un échec de sauvegarde reste visible, conserve la saisie et permet une reprise', async () => {
   await openSeries();
+  await changeTitle();
   backend.update.mockRejectedValueOnce(new Error('Échec fictif'));
   await act(async () => { await root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); });
   expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Échec fictif');
-  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe('Titre saisi');
   await act(async () => { await root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); });
   expect(backend.update).toHaveBeenCalledTimes(2);
   expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
@@ -345,6 +410,7 @@ test.each(['loading', 'error'])('création bloquée si la lecture devient %s', a
 
 test('tous les champs du formulaire agenda partagent le verrou de sauvegarde', async () => {
   await openSeries();
+  await changeTitle();
   const title = root.root.findByProps({ label: 'Titre' }).props.onChangeText;
   const who = root.root.findByProps({ label: 'Pour qui ?' }).props.onChange;
   const kind = root.root.findByProps({ label: 'Type' }).props.onChange;
@@ -358,7 +424,7 @@ test('tous les champs du formulaire agenda partagent le verrou de sauvegarde', a
     pending = root.root.findByProps({ label: 'Enregistrer' }).props.onPress();
     await title('Trop tard'); await who('bob'); await kind('perso'); await start('08:00'); await end('20:00'); await day();
   });
-  expect(root.root.findByProps({ label: 'Titre' }).props).toMatchObject({ value: event.title, editable: false });
+  expect(root.root.findByProps({ label: 'Titre' }).props).toMatchObject({ value: 'Titre saisi', editable: false });
   for (const [label, value] of [['Pour qui ?', event.who], ['Type', event.kind], ['Début', event.start], ['Fin', event.end]]) {
     expect(root.root.findByProps({ label }).props).toMatchObject({ value, disabled: true });
   }
@@ -414,6 +480,7 @@ test.each(['removed', 'series', 'date'])('une confirmation de série refuse une 
 
 test.each(['save', 'delete', 'series', 'longpress'])('une ancienne erreur %s n’interrompt pas le backend courant', async (action) => {
   await openSeries();
+  await changeTitle();
   let reject!: (error: Error) => void;
   const method = action === 'save' ? backend.update : action === 'series' ? backend.removeEvents : backend.remove;
   method.mockImplementationOnce(() => new Promise<void>((_, no) => { reject = no; }));
@@ -430,5 +497,5 @@ test.each(['save', 'delete', 'series', 'longpress'])('une ancienne erreur %s n�
   await act(async () => root.update(<Agenda />));
   await act(async () => { reject(new Error('Ancien échec')); await pending; });
   expect(showDialog).not.toHaveBeenCalled();
-  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe('Titre saisi');
 });
