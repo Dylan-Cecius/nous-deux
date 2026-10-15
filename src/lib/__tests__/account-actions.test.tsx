@@ -1,7 +1,8 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { AccountCard } from '@/components/account';
 import { showDialog } from '@/components/dialog';
-import { currentAccount, deleteMyAccount } from '../backend';
+import { currentAccount, deleteMyAccount, secureAccount } from '../backend';
+import { success } from '../haptics';
 import { useCouple, useSession } from '../couple-context';
 
 jest.mock('../backend', () => ({ currentAccount: jest.fn(), deleteMyAccount: jest.fn(), secureAccount: jest.fn() }));
@@ -81,4 +82,61 @@ test('une erreur de suppression reste visible et peut être réessayée', async 
   expect(completeDeletion).not.toHaveBeenCalled();
   await act(async () => { await button('Supprimer définitivement').props.onPress(); });
   expect(completeDeletion).toHaveBeenCalledWith(backend);
+});
+
+async function openSecure() {
+  await act(async () => button('Annuler').props.onPress());
+  await act(async () => button('Sécuriser mon compte').props.onPress());
+  await act(async () => {
+    button('E-mail').props.onChangeText('alice@example.test');
+    button('Mot de passe (6 caractères minimum)').props.onChangeText('fictitious-password');
+    button('Confirme le mot de passe').props.onChangeText('fictitious-password');
+  });
+}
+
+test('la sécurisation partage un verrou avec la fermeture et les autres soumissions', async () => {
+  await openSecure();
+  let finish!: () => void;
+  (secureAccount as jest.Mock).mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+  const submit = button('Sécuriser').props.onPress;
+  const close = root.root.findByProps({ title: 'Sécuriser mon compte' }).props.onClose;
+  let first!: Promise<void>; let second!: Promise<void>;
+  await act(async () => { first = submit(); second = submit(); close(); });
+  const calls = (secureAccount as jest.Mock).mock.calls.length;
+  const open = root.root.findAllByProps({ title: 'Sécuriser mon compte' }).length > 0;
+  await act(async () => { finish(); await Promise.all([first, second]); });
+  expect(calls).toBe(1);
+  expect(open).toBe(true);
+});
+
+test.each(['success', 'failure'])('un retour de sécurisation %s après fermeture ne réouvre pas de dialogue', async (result) => {
+  await openSecure();
+  let finish!: () => void; let reject!: (error: Error) => void;
+  (secureAccount as jest.Mock).mockReturnValue(new Promise<void>((yes, no) => { finish = yes; reject = no; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = button('Sécuriser').props.onPress(); });
+  await act(async () => { root.unmount(); });
+  await act(async () => { if (result === 'success') finish(); else reject(new Error('Ancien formulaire')); await pending; });
+  expect(showDialog).not.toHaveBeenCalled();
+  expect(success).not.toHaveBeenCalled();
+});
+
+test.each([
+  ['E-mail', ''], ['Mot de passe (6 caractères minimum)', 'court'], ['Confirme le mot de passe', 'différent'],
+])('une soumission directe invalide ne lance pas de sécurisation : %s', async (field, value) => {
+  await openSecure();
+  await act(async () => button(field).props.onChangeText(value));
+  await act(async () => { await button('Sécuriser').props.onPress(); });
+  expect(secureAccount).not.toHaveBeenCalled();
+});
+
+test('un refus de sécurisation conserve la saisie et permet une reprise volontaire', async () => {
+  await openSecure();
+  (secureAccount as jest.Mock).mockRejectedValueOnce(new Error('Réseau fictif')).mockResolvedValueOnce(undefined);
+  await act(async () => { await button('Sécuriser').props.onPress(); });
+  expect(button('E-mail').props.value).toBe('alice@example.test');
+  expect(showDialog).toHaveBeenCalledWith('Oups', 'Réseau fictif');
+  await act(async () => { await button('Sécuriser').props.onPress(); });
+  expect(secureAccount).toHaveBeenCalledTimes(2);
+  expect(showDialog).toHaveBeenLastCalledWith('Compte sécurisé', expect.any(String));
 });

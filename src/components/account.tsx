@@ -107,25 +107,29 @@ function SecureSheet({ onClose, onDone }: { onClose: () => void; onDone: () => v
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [busy, setBusy] = useState(false);
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => { active.current = false; };
+  }, []);
+  const { run, pending: busy } = useAsyncAction((action: () => void | Promise<void>) => action());
   const valid = email.includes('@') && password.length >= 6 && password === confirm;
 
-  const submit = async () => {
-    setBusy(true);
+  const submit = () => run(async () => {
+    if (!valid) return;
     try {
       await secureAccount(email, password);
+      if (!active.current) return;
       success();
       showDialog('Compte sécurisé', 'Tu pourras te reconnecter avec cet e-mail sur n’importe quel téléphone.');
       onDone();
     } catch (e) {
-      showDialog('Oups', errorText(e));
-    } finally {
-      setBusy(false);
+      if (active.current) showDialog('Oups', errorText(e));
     }
-  };
+  });
 
   return (
-    <Sheet visible title="Sécuriser mon compte" onClose={onClose}>
+    <Sheet visible title="Sécuriser mon compte" onClose={() => run(onClose)}>
       <Field label="E-mail" value={email} onChangeText={setEmail} placeholder="toi@exemple.fr" keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
       <Field label="Mot de passe (6 caractères minimum)" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
       <Field label="Confirme le mot de passe" value={confirm} onChangeText={setConfirm} secureTextEntry autoComplete="new-password" />
