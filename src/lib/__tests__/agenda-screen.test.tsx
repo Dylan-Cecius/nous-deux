@@ -48,6 +48,39 @@ const openSeries = async () => {
   await act(async () => { root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00' }).find((node) => typeof node.props.onPress === 'function')!.props.onPress(); });
 };
 
+const askLongPressDelete = async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [seriesEvent] });
+  await act(async () => { root = create(<Agenda />); });
+  await act(async () => { root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00' }).find((node) => typeof node.props.onLongPress === 'function')!.props.onLongPress(); });
+  return (confirmDelete as jest.Mock).mock.calls[0][1];
+};
+
+test.each(['unmount', 'backend', 'loading', 'error', 'removed'])('un appui long confirmé après %s ne supprime rien', async (change) => {
+  const confirm = await askLongPressDelete();
+  if (change === 'backend') (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...backend, coupleId: 'new' } });
+  else if (change === 'removed') (useCollectionState as jest.Mock).mockReturnValue(ready);
+  else if (change !== 'unmount') (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [seriesEvent], [change]: true });
+  await act(async () => { if (change === 'unmount') root.unmount(); else root.update(<Agenda />); });
+  await act(async () => { await confirm(); });
+  expect(backend.remove).not.toHaveBeenCalled();
+});
+
+test('la confirmation par appui long reste disponible et ne supprime qu’une fois', async () => {
+  const confirm = await askLongPressDelete();
+  await act(async () => { await Promise.all([confirm(), confirm()]); });
+  expect(backend.remove).toHaveBeenCalledTimes(1);
+  expect(backend.remove).toHaveBeenCalledWith('events', 'event');
+});
+
+test('un refus de suppression par appui long permet une reprise sans masquer l’erreur', async () => {
+  const confirm = await askLongPressDelete();
+  backend.remove.mockRejectedValueOnce(new Error('Suppression fictive refusée'));
+  await act(async () => { await confirm(); });
+  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Suppression fictive refusée');
+  await act(async () => { await confirm(); });
+  expect(backend.remove).toHaveBeenCalledTimes(2);
+});
+
 test.each(['loading', 'error'])('la suppression de série est bloquée en %s sans perdre le formulaire', async (status) => {
   await openSeries();
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [seriesEvent], [status]: true });

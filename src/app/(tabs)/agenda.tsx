@@ -44,6 +44,12 @@ function AgendaContent() {
   const t = useTheme();
   const { backend, members, colorOf } = useSession();
   const eventState = useCollectionState('events');
+  const latest = useRef<{ backend: typeof backend; state: typeof eventState } | null>(null);
+  useEffect(() => {
+    latest.current = { backend, state: eventState };
+    return () => { latest.current = null; };
+  }, [backend, eventState]);
+  const { run: runDelete } = useAsyncAction((action: () => Promise<void>) => action());
   const unavailable = eventState.loading || eventState.error;
   const events = unavailable ? [] : eventState.items;
   const assistant = useAssistant();
@@ -71,6 +77,20 @@ function AgendaContent() {
     const next = addDays(weekStart, delta * 7);
     setWeekStart(next);
     setSelected(next);
+  };
+
+  const askRemove = (event: AgendaEvent) => {
+    if (latest.current?.backend !== backend) return;
+    confirmDelete(event.title, () => runDelete(async () => {
+      const current = latest.current;
+      if (!current || current.backend !== backend) return;
+      if (current.state.loading || current.state.error) {
+        showDialog('Agenda indisponible', 'Recharge les horaires avant de supprimer cet horaire.');
+        return;
+      }
+      if (!current.state.items.some((item) => item.id === event.id)) return;
+      await backend.remove('events', event.id);
+    }));
   };
 
   const monthLabel = fromKey(weekStart).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
@@ -214,7 +234,7 @@ function AgendaContent() {
                     accessibilityRole="button"
                     accessibilityLabel={`${e.title}, ${e.start} à ${e.end}`}
                     onPress={() => setEditing(e)}
-                    onLongPress={() => confirmDelete(e.title, () => backend.remove('events', e.id))}
+                    onLongPress={() => askRemove(e)}
                     style={{
                       position: 'absolute',
                       top: top(s) + 2,
