@@ -26,6 +26,77 @@ const read = async (key: string) => JSON.parse((await storage.getItem(key))!);
 const note = (text: string) => ({ text, from: 'me', createdAt: 1 });
 const event: Omit<AgendaEvent, 'id'> = { title: 'Horaire fictif', who: 'me', date: '2026-10-15', start: '09:00', end: '12:00', kind: 'travail', createdBy: 'me' };
 
+const commitThenReject = () => {
+  const write = (storage.setItem as jest.Mock).getMockImplementation()!;
+  (storage.setItem as jest.Mock).mockImplementationOnce(async (key, value) => {
+    await write(key, value);
+    throw new Error('Confirmation perdue fictive');
+  });
+};
+
+test('un ajout enregistré malgré son rejet est conservé par l’écriture suivante', async () => {
+  await backend.add('notes', note('Initial'));
+  commitThenReject();
+  const results = await Promise.allSettled([backend.add('notes', note('Ambigu')), backend.add('notes', note('Suivant'))]);
+  expect(results.map(r => r.status)).toEqual(['rejected', 'fulfilled']);
+  expect((await read('local:col:notes')).map((x: { text: string }) => x.text)).toEqual(['Initial', 'Ambigu', 'Suivant']);
+});
+
+test('une lecture commencée avant une écriture ambiguë ne repeuple pas le cache ancien', async () => {
+  let finish!: (raw: string | null) => void;
+  (storage.getItem as jest.Mock).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const data = jest.fn(); const error = jest.fn();
+  const stop = backend.subscribe('notes', data, error);
+  commitThenReject();
+  await expect(backend.add('notes', note('Ambigu'))).rejects.toThrow('Confirmation perdue');
+  finish(null);
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  expect(data).not.toHaveBeenCalled();
+  expect(error).toHaveBeenCalledTimes(1);
+  await backend.add('notes', note('Suivant'));
+  expect((await read('local:col:notes')).map((x: { text: string }) => x.text)).toEqual(['Ambigu', 'Suivant']);
+  stop();
+});
+
+test('une écriture ambiguë ne périme pas la lecture d’une autre collection', async () => {
+  let finish!: (raw: string | null) => void;
+  (storage.getItem as jest.Mock).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const data = jest.fn(); const error = jest.fn();
+  const stop = backend.subscribe('events', data, error);
+  commitThenReject();
+  await expect(backend.add('notes', note('Ambigu'))).rejects.toThrow('Confirmation perdue');
+  finish(JSON.stringify([{ ...event, id: 'one' }]));
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  expect(data).toHaveBeenCalledWith([{ ...event, id: 'one' }]);
+  expect(error).not.toHaveBeenCalled();
+  stop();
+});
+
+test('une suppression enregistrée malgré son rejet ne ressuscite pas au prochain ajout', async () => {
+  await backend.add('notes', note('À retirer'));
+  const [entry] = await read('local:col:notes');
+  commitThenReject();
+  await expect(backend.remove('notes', entry.id)).rejects.toThrow('Confirmation perdue');
+  await backend.add('notes', note('Conservé'));
+  expect((await read('local:col:notes')).map((x: { text: string }) => x.text)).toEqual(['Conservé']);
+});
+
+test('un profil enregistré malgré son rejet est conservé lors de la modification du couple', async () => {
+  commitThenReject();
+  await expect(backend.updateMember('me', { name: 'Modifié' })).rejects.toThrow('Confirmation perdue');
+  await backend.updateCouple({ since: '2020-01-01' });
+  expect((await read('local:couple')).members[0].name).toBe('Modifié');
+});
+
+test('une relecture impossible après rejet ne permet pas une écriture fondée sur le cache ancien', async () => {
+  await backend.add('notes', note('Initial'));
+  commitThenReject();
+  await expect(backend.add('notes', note('Ambigu'))).rejects.toThrow('Confirmation perdue');
+  (storage.getItem as jest.Mock).mockRejectedValueOnce(new Error('Relecture impossible fictive'));
+  await expect(backend.add('notes', note('À bloquer'))).rejects.toThrow('Relecture impossible');
+  expect((await read('local:col:notes')).map((x: { text: string }) => x.text)).toEqual(['Initial', 'Ambigu']);
+});
+
 test('vider le panier ne retire que les courses sélectionnées encore cochées en une écriture', async () => {
   const entries = [{ id: 'remove', list: 'shopping', done: true }, { id: 'unchecked', list: 'shopping', done: false }, { id: 'film', list: 'films', done: true }, { id: 'unselected', list: 'shopping', done: true }];
   await storage.setItem('local:col:items', JSON.stringify(entries));

@@ -700,3 +700,11 @@ Preuves finales : lint et TypeScript propres ; dernière suite complète applica
 
 Aucune donnée réelle, paiement, invitation ou message à un tiers. Aucun incident réel ni nouveau blocage immédiat nécessitant l’intervention du propriétaire. Les conditions de mise en service sont explicites : conservation des reçus à décider, serveur/client/règles à coordonner, accès et absence de coût supplémentaire à prouver, essais natifs encore manquants. Reprendre une priorité gratuite du backlog (association d’uploads ou audit ciblé) ; ne pas présenter le code préparé comme distribué, ni la règle locale comme déjà active en production.
 
+## 2026-10-15, 16:38 Europe/Brussels — Relecture après écriture locale ambiguë
+
+Reprise à 16:33:58, PR #3 ouverte/brouillon, base fca6ae711a48782de8895fad4d4f90ea67896d07. Consignes et journal relus via GitHub ; 144 fichiers texte vérifiés par SHA, copie locale propre, sept images absentes non simulées. La règle multi-tâches est déjà cohérente dans AUTONOMY.md ; aucune réécriture nécessaire.
+
+Quatre cas rouges avec stockage doublé qui enregistre puis rejette : perte d’un ajout, résurrection d’une suppression, ancien profil restauré et écriture malgré relecture impossible. Invalidation du cache de la clé après rejet ; version de lecture par clé pour empêcher une lecture antérieure de repeupler ce cache. Deux contrôles supplémentaires couvrent lecture retardée et indépendance des collections. Aucun contenu réel lu ni stockage utilisateur manipulé.
+
+Preuves : lint/TypeScript, 45 suites / 795 tests applicatifs, diff relu et git diff --check propres. Les tests simulent une réponse ambiguë ; ils ne prétendent pas reproduire une panne matérielle sur téléphone. Serveur/règles inchangés. Limites : pas encore de signal d’erreur aux abonnés ayant déjà reçu leur valeur, pas d’idempotence des ajouts répétés, pas de verrou inter-processus. Aucun build/déploiement/distribution/coût. Suite bornée : disponibilité des écrans après rejet d’écriture.
+

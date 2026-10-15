@@ -245,6 +245,7 @@ async function callServer<T>(name: string, data: object): Promise<T> {
 const LOCAL_ME = 'me';
 const LOCAL_PARTNER = 'partner';
 const cache = new Map<string, unknown>();
+const localKeyVersions = new Map<string, number>();
 const listeners = new Map<string, Set<(value: any) => void>>();
 const localWrites = new Map<string, Promise<void>>();
 const localOperations = new Set<Promise<unknown>>();
@@ -266,17 +267,29 @@ function localOperation<T>(epoch: number, action: () => Promise<T>): Promise<T> 
 async function readLocal<T>(key: string, fallback: T): Promise<T> {
   if (cache.has(key)) return cache.get(key) as T;
   const version = localReadVersion;
+  const keyVersion = localKeyVersions.get(key);
   const raw = await AsyncStorage.getItem(key);
   if (version !== localReadVersion) throw localUnavailable();
   // Une écriture ou une autre lecture peut avoir rempli le cache entre-temps.
   if (cache.has(key)) return cache.get(key) as T;
+  if (keyVersion !== localKeyVersions.get(key)) {
+    throw new Error('Le résultat du stockage local est incertain. Recharge ces données avant de réessayer.');
+  }
   const value = raw ? (JSON.parse(raw) as T) : fallback;
   cache.set(key, value);
   return value;
 }
 
 async function writeLocal<T>(key: string, value: T) {
-  await AsyncStorage.setItem(key, JSON.stringify(value));
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    // Un rejet ne prouve pas que le stockage n'a rien enregistré. La prochaine
+    // mutation doit relire le disque, sans réutiliser ni repeupler l'ancien cache.
+    cache.delete(key);
+    localKeyVersions.set(key, (localKeyVersions.get(key) ?? 0) + 1);
+    throw error;
+  }
   cache.set(key, value);
   listeners.get(key)?.forEach((cb) => cb(value));
 }
