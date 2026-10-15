@@ -70,7 +70,9 @@ function CounterForm({ onClose }: { onClose: () => void }) {
 
   return (
     <Sheet visible title="Votre histoire" onClose={() => run(close)}>
-      <DateField label="Date de votre rencontre" value={value} onChange={setValue} maximumDate={new Date()} />
+      <DateField label="Date de votre rencontre" value={value} disabled={busy || !couple} onChange={(next) => run(() => {
+        if (canWrite() && latest.current?.framing === null) setValue(next);
+      })} maximumDate={new Date()} />
       <Button
         label="Enregistrer la date"
         disabled={value > todayKey() || busy || !couple}

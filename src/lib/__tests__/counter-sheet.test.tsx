@@ -37,6 +37,35 @@ const leave = async (kind: string) => {
   }
 };
 
+test('la date reste figée pendant la sauvegarde et modifiable après échec', async () => {
+  const date = () => root.root.findByType('date' as never);
+  const change = date().props.onChange;
+  let reject!: (error: Error) => void;
+  backend.updateCouple.mockReturnValueOnce(new Promise<void>((_, fail) => { reject = fail; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = button('Enregistrer la date')(); await change('2021-02-03'); });
+  expect(date().props.value).toBe(couple.since);
+  expect(date().props.disabled).toBe(true);
+  await act(async () => { reject(new Error('Échec fictif')); await pending; });
+  expect(date().props.disabled).toBe(false);
+  await act(async () => date().props.onChange('2021-02-03'));
+  await act(async () => { await button('Enregistrer la date')(); });
+  expect(backend.updateCouple).toHaveBeenLastCalledWith({ since: '2021-02-03' });
+});
+
+test.each(['closed', 'framing', 'backend', 'unavailable'])('une ancienne saisie de date est ignorée après %s', async (kind) => {
+  const change = root.root.findByType('date' as never).props.onChange;
+  if (kind === 'closed') await act(async () => root.root.findByType('sheet' as never).props.onClose());
+  else if (kind === 'framing') await act(async () => button('Repositionner la photo')());
+  else {
+    (useSession as jest.Mock).mockReturnValue({ ...session, ...(kind === 'backend' ? { backend: { ...backend } } : { couple: null }) });
+    await refresh();
+  }
+  await act(async () => change('2021-02-03'));
+  if (kind === 'framing') await act(async () => root.root.findByType('sheet' as never).props.onClose());
+  expect(root.root.findByType('date' as never).props.value).toBe(couple.since);
+});
+
 test('le cadrage ne change pas pendant la sauvegarde puis reprend après échec', async () => {
   await act(async () => button('Repositionner la photo')());
   const editor = () => root.root.findByType('editor' as never);
