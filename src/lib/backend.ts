@@ -184,6 +184,7 @@ const LOCAL_ME = 'me';
 const LOCAL_PARTNER = 'partner';
 const cache = new Map<string, unknown>();
 const listeners = new Map<string, Set<(value: any) => void>>();
+const localWrites = new Map<string, Promise<void>>();
 
 async function readLocal<T>(key: string, fallback: T): Promise<T> {
   if (cache.has(key)) return cache.get(key) as T;
@@ -197,6 +198,20 @@ async function writeLocal<T>(key: string, value: T) {
   await AsyncStorage.setItem(key, JSON.stringify(value));
   cache.set(key, value);
   listeners.get(key)?.forEach((cb) => cb(value));
+}
+
+/** Sérialise lecture-modification-écriture par clé, sans bloquer les autres collections. */
+function mutateLocal<T>(key: string, fallback: T, change: (current: T) => T): Promise<void> {
+  const task = (localWrites.get(key) ?? Promise.resolve()).then(async () => {
+    const current = await readLocal(key, fallback);
+    const next = change(current);
+    if (next !== current) await writeLocal(key, next);
+  });
+  // Une erreur reste visible à l'appelant, mais ne condamne pas les actions suivantes.
+  const settled = task.then(() => {}, () => {});
+  localWrites.set(key, settled);
+  void settled.then(() => { if (localWrites.get(key) === settled) localWrites.delete(key); });
+  return task;
 }
 
 function watchLocal<T>(key: string, fallback: T, cb: (value: T) => void, onError?: (error: unknown) => void) {
@@ -231,38 +246,26 @@ function localBackend(): Backend {
     coupleId: 'local',
     subscribeCouple: (cb, onError) => watchLocal<Couple | null>('local:couple', null, cb, onError),
     async updateCouple(patch) {
-      const couple = await readLocal<Couple | null>('local:couple', null);
-      if (couple) await writeLocal('local:couple', { ...couple, ...patch });
+      await mutateLocal<Couple | null>('local:couple', null, (couple) => couple ? { ...couple, ...patch } : couple);
     },
     async updateMember(memberId, patch) {
-      const couple = await readLocal<Couple | null>('local:couple', null);
-      if (!couple) return;
-      const members = couple.members.map((m) => (m.id === memberId ? { ...m, ...patch } : m));
-      await writeLocal('local:couple', { ...couple, members });
+      await mutateLocal<Couple | null>('local:couple', null, (couple) => couple ? {
+        ...couple, members: couple.members.map((m) => m.id === memberId ? { ...m, ...patch } : m),
+      } : couple);
     },
     subscribe: (col, cb, onError) => watchLocal(colKey(col), [], cb, onError),
     async add(col, data) {
-      const items = await readLocal<any[]>(colKey(col), []);
-      await writeLocal(colKey(col), [...items, { ...data, id: newId() }]);
+      await mutateLocal<any[]>(colKey(col), [], (items) => [...items, { ...data, id: newId() }]);
     },
     async addEvents(events) {
       if (!events.length || events.length > 52) throw new Error('Choisis entre 1 et 52 horaires.');
-      const items = await readLocal<AgendaEvent[]>(colKey('events'), []);
-      await writeLocal(colKey('events'), [...items, ...events.map((event) => ({ ...event, id: newId() }))]);
+      await mutateLocal<AgendaEvent[]>(colKey('events'), [], (items) => [...items, ...events.map((event) => ({ ...event, id: newId() }))]);
     },
     async update(col, id, patch) {
-      const items = await readLocal<any[]>(colKey(col), []);
-      await writeLocal(
-        colKey(col),
-        items.map((it) => (it.id === id ? { ...it, ...patch } : it)),
-      );
+      await mutateLocal<any[]>(colKey(col), [], (items) => items.map((it) => it.id === id ? { ...it, ...patch } : it));
     },
     async remove(col, id) {
-      const items = await readLocal<any[]>(colKey(col), []);
-      await writeLocal(
-        colKey(col),
-        items.filter((it) => it.id !== id),
-      );
+      await mutateLocal<any[]>(colKey(col), [], (items) => items.filter((it) => it.id !== id));
     },
     async uploadPhoto(localUri) {
       // Une URL blob disparaît au rechargement : conserver le contenu en mode local web.
