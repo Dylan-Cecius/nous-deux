@@ -193,7 +193,7 @@ export function SectionTitle({ title, action, onAction }: { title: string; actio
     <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
       <T variant="h2">{title}</T>
       {action && onAction ? (
-        <Pressable onPress={onAction} hitSlop={10}>
+        <Pressable onPress={onAction} hitSlop={10} accessibilityRole="button" accessibilityLabel={`${action} — ${title}`}>
           <Text style={{ fontFamily: Fonts.bodyMedium, fontSize: 15, color: t.primary }}>{action}</Text>
         </Pressable>
       ) : null}
@@ -456,7 +456,8 @@ export function Chips<V extends string>({
             <Pressable
               key={o.value}
               accessibilityRole="radio"
-              accessibilityState={{ selected: active }}
+              accessibilityLabel={label ? `${label} : ${o.label}` : o.label}
+              accessibilityState={{ checked: active }}
               onPress={() => {
                 tap();
                 onChange(o.value);
@@ -496,7 +497,7 @@ export function ColorPicker({
           key={c}
           accessibilityRole="radio"
           accessibilityLabel={`Couleur ${c}`}
-          accessibilityState={{ selected: value === c }}
+          accessibilityState={{ checked: value === c, disabled: pending, busy: pending }}
           disabled={pending}
           onPress={() => run(c)}
           style={{
