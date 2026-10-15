@@ -16,6 +16,7 @@ import { DialogHost } from '@/components/dialog';
 import { Button, Card, T } from '@/components/ui';
 import { PrefsProvider, useTheme } from '@/constants/theme';
 import { CoupleProvider, useCouple } from '@/lib/couple-context';
+import { getSupportContact } from '@/lib/public-info';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -48,7 +49,8 @@ export default function RootLayout() {
 }
 
 function RootStack() {
-  const { loading, backend, restoreError, retrySession } = useCouple();
+  const { loading, backend, restoreError, retrySession, syncError, retrySync } = useCouple();
+  const support = getSupportContact();
   const t = useTheme();
   const [fontsLoaded, fontError] = useFonts({
     DMSans_400Regular,
@@ -66,12 +68,15 @@ function RootStack() {
 
   if (!ready) return null;
 
-  if (restoreError) return (
+  if (restoreError || syncError) return (
     <View style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: t.background }}>
       <Card>
         <T variant="h2">Retrouvons votre espace</T>
-        <T>La connexion n’a pas abouti. Ton compte est conservé : vérifie ton réseau, puis réessaie.</T>
-        <Button label="Réessayer" onPress={retrySession} />
+        <T>{syncError
+          ? 'Votre espace n’est pas accessible pour le moment. Ton compte est conservé : réessaie ou contacte l’assistance si cela persiste.'
+          : 'La connexion n’a pas abouti. Ton compte est conservé : vérifie ton réseau, puis réessaie.'}</T>
+        <Button label="Réessayer" onPress={restoreError ? retrySession : retrySync} />
+        {support ? <T selectable>Assistance : {support.email}</T> : null}
       </Card>
     </View>
   );

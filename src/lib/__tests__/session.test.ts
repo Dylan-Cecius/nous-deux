@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signOut, signInAnonymously, signInWithEmailAndPassword } from 'firebase/auth';
-import { getDoc } from 'firebase/firestore';
+import { getDoc, onSnapshot } from 'firebase/firestore';
 import { clearSession, loadSession, signInWithEmail, deleteMyAccount, type Backend } from '../backend';
 import { firebase } from '../firebase';
 import { clearReminders } from '../notifications';
@@ -19,7 +19,7 @@ jest.mock('firebase/auth', () => ({
   reauthenticateWithCredential: jest.fn(),
   EmailAuthProvider: { credential: jest.fn() },
 }));
-jest.mock('firebase/firestore', () => ({ getDoc: jest.fn(), doc: jest.fn() }));
+jest.mock('firebase/firestore', () => ({ getDoc: jest.fn(), doc: jest.fn(), onSnapshot: jest.fn(() => jest.fn()) }));
 jest.mock('firebase/functions', () => ({ httpsCallable: jest.fn() }));
 jest.mock('firebase/storage', () => ({}));
 
@@ -75,6 +75,35 @@ test('la déconnexion révoque la session Firebase locale et retire la session d
   expect(signOut).toHaveBeenCalledTimes(1);
   expect(await AsyncStorage.getItem('session')).toBeNull();
   expect(clearReminders).toHaveBeenCalledTimes(1);
+});
+
+test('une erreur d’abonnement est signalée sans prétendre que le couple est vide', async () => {
+  await AsyncStorage.setItem('session', JSON.stringify({ mode: 'cloud', userId: 'alice', coupleId: 'couple' }));
+  const backend = (await loadSession())!;
+  const onData = jest.fn();
+  const onError = jest.fn();
+  backend.subscribeCouple(onData, onError);
+  const error = { code: 'permission-denied' };
+  (onSnapshot as jest.Mock).mock.calls[0][2](error);
+  expect(onError).toHaveBeenCalledWith(error);
+  expect(onData).not.toHaveBeenCalled();
+  expect(signOut).not.toHaveBeenCalled();
+});
+
+test('une lecture locale échouée remonte aussi une erreur récupérable', async () => {
+  await AsyncStorage.setItem('session', JSON.stringify({ mode: 'local' }));
+  const backend = (await loadSession())!;
+  const error = new Error('Stockage temporairement indisponible');
+  (AsyncStorage.getItem as jest.Mock).mockRejectedValueOnce(error);
+  const onData = jest.fn();
+  const onError = jest.fn();
+  const stop = backend.subscribeCouple(onData, onError);
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(onError).toHaveBeenCalledWith(error);
+  expect(onData).not.toHaveBeenCalled();
+  expect(await AsyncStorage.getItem('session')).not.toBeNull();
+  stop();
 });
 
 test('un identifiant local ancien ne crée pas un nouveau compte anonyme', async () => {

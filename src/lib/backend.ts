@@ -47,7 +47,7 @@ export interface Backend {
   mode: 'local' | 'cloud';
   userId: string;
   coupleId: string;
-  subscribeCouple(cb: (couple: Couple | null) => void): () => void;
+  subscribeCouple(cb: (couple: Couple | null) => void, onError?: (error: unknown) => void): () => void;
   updateCouple(patch: { since?: string; photoUrl?: string; photoFrame?: PhotoFrame }): Promise<void>;
   updateMember(memberId: string, patch: Partial<Omit<Member, 'id'>>): Promise<void>;
   subscribe<K extends CollectionName>(col: K, cb: (items: Collections[K][]) => void): () => void;
@@ -199,10 +199,10 @@ async function writeLocal<T>(key: string, value: T) {
   listeners.get(key)?.forEach((cb) => cb(value));
 }
 
-function watchLocal<T>(key: string, fallback: T, cb: (value: T) => void) {
+function watchLocal<T>(key: string, fallback: T, cb: (value: T) => void, onError?: (error: unknown) => void) {
   if (!listeners.has(key)) listeners.set(key, new Set());
   listeners.get(key)!.add(cb);
-  readLocal(key, fallback).then(cb);
+  readLocal(key, fallback).then(cb, onError);
   return () => {
     listeners.get(key)?.delete(cb);
   };
@@ -229,7 +229,7 @@ function localBackend(): Backend {
     mode: 'local',
     userId: LOCAL_ME,
     coupleId: 'local',
-    subscribeCouple: (cb) => watchLocal<Couple | null>('local:couple', null, cb),
+    subscribeCouple: (cb, onError) => watchLocal<Couple | null>('local:couple', null, cb, onError),
     async updateCouple(patch) {
       const couple = await readLocal<Couple | null>('local:couple', null);
       if (couple) await writeLocal('local:couple', { ...couple, ...patch });
@@ -501,7 +501,7 @@ function cloudBackend(coupleId: string, uid: string): Backend {
     mode: 'cloud',
     userId: uid,
     coupleId,
-    subscribeCouple: (cb) =>
+    subscribeCouple: (cb, onError) =>
       onSnapshot(
         coupleRef,
         (snap) => {
@@ -519,7 +519,7 @@ function cloudBackend(coupleId: string, uid: string): Backend {
             })),
           });
         },
-        () => cb(null),
+        (error) => { if (onError) onError(error); else cb(null); },
       ),
     updateCouple: (patch) => updateDoc(coupleRef, clean(patch)),
     async updateMember(memberId, patch) {

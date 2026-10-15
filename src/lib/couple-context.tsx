@@ -8,6 +8,8 @@ type CoupleState = {
   loading: boolean;
   restoreError: boolean;
   retrySession: () => Promise<void>;
+  syncError: boolean;
+  retrySync: () => void;
   backend: Backend | null;
   couple: Couple | null;
   setBackend: (backend: Backend) => void;
@@ -21,6 +23,10 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
   const [backend, setBackend] = useState<Backend | null>(null);
   const [snapshot, setSnapshot] = useState<{ backend: Backend; couple: Couple | null } | null>(null);
   const couple = snapshot?.backend === backend ? snapshot?.couple ?? null : null;
+  // Un résultat absent ou refusé n’est pas un couple vide ni une déconnexion.
+  const syncError = !!backend && snapshot?.backend === backend && snapshot.couple === null;
+  const [subscriptionAttempt, setSubscriptionAttempt] = useState(0);
+  const retrySync = () => setSubscriptionAttempt((attempt) => attempt + 1);
   const [restoreError, setRestoreError] = useState(false);
   const restore = useCallback(() => loadSession()
     .then((restored) => { setBackend(restored); setRestoreError(false); })
@@ -38,9 +44,10 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!backend) return;
     let active = true;
-    const stop = backend.subscribeCouple((couple) => { if (active) setSnapshot({ backend, couple }); });
+    const receive = (couple: Couple | null) => { if (active) setSnapshot({ backend, couple }); };
+    const stop = backend.subscribeCouple(receive, () => receive(null));
     return () => { active = false; stop(); };
-  }, [backend]);
+  }, [backend, subscriptionAttempt]);
 
   const signOut = async () => {
     await clearSession();
@@ -49,7 +56,7 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <CoupleContext.Provider value={{ loading, restoreError, retrySession, backend, couple, setBackend, signOut }}>
+    <CoupleContext.Provider value={{ loading, restoreError, retrySession, syncError, retrySync, backend, couple, setBackend, signOut }}>
       {children}
     </CoupleContext.Provider>
   );
