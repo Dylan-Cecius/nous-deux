@@ -21,7 +21,7 @@ import {
 } from '@/components/ui';
 import { showDialog } from '@/components/dialog';
 import { Fonts, useTheme } from '@/constants/theme';
-import { useCollection, useSession } from '@/lib/couple-context';
+import { useCollectionState, useSession } from '@/lib/couple-context';
 import { pickOne } from '@/lib/random';
 import { features } from '@/lib/features';
 import type { Restaurant, RestaurantStatus } from '@/lib/types';
@@ -69,7 +69,9 @@ function Hearts({ value, onChange, size = 18 }: { value: number; onChange?: (v: 
 export default function Restos() {
   const t = useTheme();
   const { colorOf, nameOf } = useSession();
-  const restaurants = useCollection('restaurants');
+  const restaurantState = useCollectionState('restaurants');
+  const unavailable = restaurantState.loading || restaurantState.error;
+  const restaurants = unavailable ? [] : restaurantState.items;
   const [tab, setTab] = useState<RestaurantStatus>('envie');
   const [editing, setEditing] = useState<Restaurant | 'new' | null>(null);
 
@@ -94,15 +96,15 @@ export default function Restos() {
   return (
     <>
       <Screen
-        overline={`${restaurants.length} adresse${restaurants.length > 1 ? 's' : ''}`}
+        overline={unavailable ? 'Vos adresses à deux' : `${restaurants.length} adresse${restaurants.length > 1 ? 's' : ''}`}
         title="Nos restos">
         <Segmented
-          options={STATUSES.map((s) => ({ value: s.value, label: `${s.label} · ${count(s.value)}` }))}
+          options={STATUSES.map((s) => ({ value: s.value, label: unavailable ? s.label : `${s.label} · ${count(s.value)}` }))}
           value={tab}
           onChange={setTab}
         />
 
-        <Card tone="feature" onPress={pickRandom} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        {!unavailable && <Card tone="feature" onPress={pickRandom} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={{ fontFamily: Fonts.displayMedium, fontSize: 21, color: t.onFeature }}>On mange où ce soir ?</Text>
             <T variant="small" color={t.onFeatureMuted}>
@@ -110,9 +112,14 @@ export default function Restos() {
             </T>
           </View>
           <IconButton icon="dice-outline" label="Tirer un resto au sort" variant="accent" onPress={pickRandom} size={52} />
-        </Card>
+        </Card>}
 
-        {list.length === 0 ? (
+        {unavailable ? (
+          <Card>
+            <T>{restaurantState.loading ? 'Chargement des restos…' : 'Restos indisponibles. Impossible de charger vos adresses pour le moment.'}</T>
+            {restaurantState.error && <Button label="Réessayer les restos" variant="outline" onPress={restaurantState.retry} />}
+          </Card>
+        ) : list.length === 0 ? (
           <Empty
             icon={tab === 'envie' ? 'restaurant-outline' : tab === 'favori' ? 'heart-outline' : 'checkmark-done-outline'}
             title={tab === 'envie' ? 'Vos envies' : tab === 'favori' ? 'Vos adresses préférées' : 'Déjà testés'}
@@ -162,7 +169,7 @@ export default function Restos() {
           })
         )}
       </Screen>
-      <Fab onPress={() => setEditing('new')} label="Ajouter un resto" />
+      {!unavailable && <Fab onPress={() => setEditing('new')} label="Ajouter un resto" />}
       {editing && (
         <RestoSheet resto={editing === 'new' ? undefined : editing} defaultStatus={tab} onClose={() => setEditing(null)} />
       )}

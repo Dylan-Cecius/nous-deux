@@ -24,7 +24,7 @@ import {
 } from '@/components/ui';
 import { showDialog } from '@/components/dialog';
 import { Fonts, useTheme } from '@/constants/theme';
-import { useCollection, useSession } from '@/lib/couple-context';
+import { useCollectionState, useSession } from '@/lib/couple-context';
 import { success, tap } from '@/lib/haptics';
 import { pickOne } from '@/lib/random';
 import type { Gift, ListItem, ListKind } from '@/lib/types';
@@ -73,16 +73,18 @@ const COPY: Record<Tab, { overline: string; empty: [IconName, string, string]; t
 export default function Listes() {
   const t = useTheme();
   const { backend, colorOf, partner } = useSession();
-  const items = useCollection('items');
-  const gifts = useCollection('gifts');
+  const items = useCollectionState('items');
+  const gifts = useCollectionState('gifts');
   const [tab, setTab] = useState<Tab>('bucket');
   const [editing, setEditing] = useState<Entry | 'new' | null>(null);
 
   const col = tab === 'gifts' ? 'gifts' : 'items';
+  const collection = tab === 'gifts' ? gifts : items;
+  const unavailable = collection.loading || collection.error;
   const entries: Entry[] =
-    tab === 'gifts'
-      ? gifts.filter((g) => g.createdBy === backend.userId).map((g) => ({ ...g, list: 'gifts' as const }))
-      : items.filter((i) => i.list === tab);
+    unavailable ? [] : tab === 'gifts'
+      ? gifts.items.filter((g) => g.createdBy === backend.userId).map((g) => ({ ...g, list: 'gifts' as const }))
+      : items.items.filter((i) => i.list === tab);
   const sorted = [...entries].sort((a, b) => b.createdAt - a.createdAt);
   const todo = sorted.filter((i) => !i.done);
   const done = sorted.filter((i) => i.done);
@@ -218,7 +220,12 @@ export default function Listes() {
           </Row>
         )}
 
-        {sorted.length === 0 ? (
+        {unavailable ? (
+          <Card>
+            <T>{collection.loading ? 'Chargement de la liste…' : 'Liste indisponible. Impossible de charger son contenu pour le moment.'}</T>
+            {collection.error && <Button label="Réessayer la liste" variant="outline" onPress={collection.retry} />}
+          </Card>
+        ) : sorted.length === 0 ? (
           <Empty icon={copy.empty[0]} title={copy.empty[1]} text={copy.empty[2]} />
         ) : (
           <Card style={{ padding: 0, gap: 0, overflow: 'hidden' }}>
@@ -254,7 +261,7 @@ export default function Listes() {
           <Button label="Vider les articles cochés" variant="ghost" icon="trash-outline" onPress={clearBasket} />
         )}
       </Screen>
-      <Fab onPress={() => setEditing('new')} label={copy.add} />
+      {!unavailable && <Fab onPress={() => setEditing('new')} label={copy.add} />}
       {editing && <ItemSheet item={editing === 'new' ? undefined : editing} tab={tab} onClose={() => setEditing(null)} />}
     </>
   );
