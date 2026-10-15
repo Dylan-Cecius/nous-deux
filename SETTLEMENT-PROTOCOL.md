@@ -14,7 +14,8 @@ Les reçus sont rangés sous `couples/{coupleId}/private/{uid}/settlementRequest
 
 ## Limites à ne pas masquer
 
-- **Ancien chemin toujours autorisé** : les règles Firestore actuelles acceptent deux ajouts directs `kind=settle`. Un test d’émulateur reproduit expressément cette limite. Le nouveau protocole protège ses propres appels, pas les anciens clients ni un client qui contourne la fonction. Ne pas prétendre à une garantie globale avant la stratégie de migration et le durcissement des écritures directes.
+- **Durcissement préparé, pas activé** : les règles de cette branche refusent la création directe de `kind=settle`, la conversion d’une dépense en marque et toute modification d’une marque existante. Seul le serveur crée les marques. Lecture et retrait restent possibles pour les membres autorisés ; les dépenses ordinaires restent éditables. Le doublon historique a été reproduit avant correction et le test vérifie désormais son refus. Rien ne prouve que ces règles sont déjà en production.
+- Les membres continuent à pouvoir ajouter, modifier et retirer les dépenses partagées : le protocole ne certifie ni la véracité des montants saisis ni un paiement réel. Retirer une marque puis confirmer une nouvelle intention est une action distincte, autorisée ; reprendre l’ancienne intention ne la recrée pas.
 - Les membres historiques anonymisés (`former-member`) ne sont pas attribués arbitrairement au partenaire actuel : le protocole refuse de solder automatiquement un tel relevé.
 - Garde technique : 500 entrées, solde non nul et au plus 100 000 €, 30 tentatives par heure et par utilisateur. Ces bornes ne sont ni une offre payante ni une autorisation d’augmenter le budget. Le quota inclut les reprises.
 - Le serveur et le client calculent séparément le même arrondi symétrique ; leurs tests couvrent les demi-centimes. Garder ce contrat cohérent lors d’une modification future.
@@ -22,4 +23,13 @@ Les reçus sont rangés sous `couples/{coupleId}/private/{uid}/settlementRequest
 
 ## Vérifications de préparation
 
-41 tests de sécurité passent sur émulateurs : concurrence entre membres et même intention, réponse perdue simulée par réexécution, suppression de la marque puis reprise, modification de relevé, droits, identité, quota avant validation, limites, solde nul, centimes et nettoyage privé. La reproduction des anciennes écritures directes est volontairement conservée pour ne pas confondre préparation et fermeture du chemin historique. Les tests ne constituent pas un essai réseau sur deux téléphones.
+Les tests de sécurité couvrent concurrence entre membres et même intention, réponse perdue simulée par réexécution, suppression de la marque puis reprise, modification de relevé, droits, identité, quota avant validation, limites, solde nul, centimes et nettoyage privé. Les tests de règles ajoutent refus des écritures directes/conversions/altérations et maintien des lectures, retraits et dépenses ordinaires. Les résultats datés figurent dans AUTONOMY-LOG.md ; ils ne constituent pas un essai réseau sur deux téléphones.
+
+## Ordre de mise en service à vérifier, sans déploiement automatique
+
+1. Confirmer les accès, l’absence de coût supplémentaire et l’inventaire de confidentialité ; sinon rester en préparation.
+2. Déployer et vérifier le serveur compatible, puis tester le nouveau client en interne. Le nouveau client sans fonction signale une erreur ; il ne contourne pas le protocole.
+3. Préparer le remplacement des anciens clients et tester une session ancienne/nouvelle. L’activation des règles durcies bloque le bouton de marque des versions utilisant l’ajout direct. Ne pas la présenter comme transparente, ni la déclencher sans coordination de version.
+4. Activer les règles uniquement quand cette compatibilité et les essais nécessaires sont validés. Ne pas remettre automatiquement des règles permissives en cas d’erreur : conserver le refus sûr et diagnostiquer le serveur/client.
+
+Pendant une éventuelle transition sans règles durcies, les anciens ajouts restent un chemin de doublon. Aucune garantie globale ni distribution sûre n’est revendiquée avant fermeture vérifiée de ce chemin. Aucun de ces déploiements ou essais natifs n’a été effectué ici.

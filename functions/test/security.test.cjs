@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const { createHash } = require('node:crypto');
 const { initializeApp, deleteApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getAuth } = require('firebase-admin/auth');
 const { getStorage } = require('firebase-admin/storage');
 const { initializeTestEnvironment, assertFails, assertSucceeds } = require('@firebase/rules-unit-testing');
@@ -46,15 +46,57 @@ async function seedExpense() {
   await db.doc(`couples/${cid}/expenses/original`).set({ title: 'Dépense fictive', amount: 40, paidBy: 'alice', createdAt: Date.now() });
 }
 
-test('reproduction historique : deux écritures directes de la même marque sont acceptées par les anciennes règles', async () => {
+test('les anciennes écritures directes de marques sont refusées pour les deux membres', async () => {
   await seedExpense();
   const data = { title: 'Marque fictive', amount: 20, paidBy: 'bob', kind: 'settle', createdAt: serverTimestamp() };
   await Promise.all([
-    assertSucceeds(setDoc(doc(client('alice'), `couples/${cid}/expenses/legacy-a`), data)),
-    assertSucceeds(setDoc(doc(client('bob'), `couples/${cid}/expenses/legacy-b`), data)),
+    assertFails(setDoc(doc(client('alice'), `couples/${cid}/expenses/legacy-a`), data)),
+    assertFails(setDoc(doc(client('bob'), `couples/${cid}/expenses/legacy-b`), data)),
   ]);
-  assert.equal((await db.collection(`couples/${cid}/expenses`).get()).size, 3);
-  // Limite documentée des anciens clients : ces écritures ne passent pas par le protocole transactionnel.
+  assert.equal((await db.collection(`couples/${cid}/expenses`).get()).size, 1);
+});
+
+test('une dépense ordinaire ne peut pas être convertie en marque par mise à jour ou remplacement', async () => {
+  await seedExpense();
+  const ref = doc(client('alice'), `couples/${cid}/expenses/original`);
+  await assertFails(updateDoc(ref, { kind: 'settle' }));
+  await assertFails(setDoc(ref, { title: 'Fictif', amount: 20, paidBy: 'bob', kind: 'settle', createdAt: serverTimestamp() }));
+  assert.equal((await db.doc(`couples/${cid}/expenses/original`).get()).data().kind, undefined);
+});
+
+test('une marque serveur ne peut pas être altérée ni déguisée en dépense ordinaire', async () => {
+  await seedExpense();
+  const { settlementId } = await settlementApi().recordSettlement.run(call('alice', settlementInput()));
+  const ref = doc(client('bob'), `couples/${cid}/expenses/${settlementId}`);
+  await assertFails(updateDoc(ref, { amount: 99 }));
+  await assertFails(updateDoc(ref, { kind: 'expense' }));
+  await assertFails(setDoc(ref, { title: 'Fictif', amount: 20, paidBy: 'bob', createdAt: serverTimestamp() }));
+  assert.equal((await db.doc(`couples/${cid}/expenses/${settlementId}`).get()).data().amount, 20);
+});
+
+test('les marques serveur restent lisibles et retirables par les membres uniquement', async () => {
+  await seedExpense();
+  const { settlementId } = await settlementApi().recordSettlement.run(call('alice', settlementInput()));
+  const path = `couples/${cid}/expenses/${settlementId}`;
+  for (const uid of ['alice', 'bob']) await assertSucceeds(getDoc(doc(client(uid), path)));
+  await assertFails(getDoc(doc(client('mallory'), path)));
+  await assertFails(deleteDoc(doc(client('mallory'), path)));
+  await db.doc(`couples/${cid}`).update({ deletionLock: 'alice' });
+  await assertFails(deleteDoc(doc(client('alice'), path)));
+  await db.doc(`couples/${cid}`).update({ deletionLock: FieldValue.delete() });
+  await assertSucceeds(deleteDoc(doc(client('bob'), path)));
+  assert.equal((await db.doc(path).get()).exists, false);
+});
+
+test('les dépenses ordinaires anciennes et explicites restent modifiables sans pouvoir forger une marque', async () => {
+  await seedExpense();
+  const alice = client('alice');
+  await assertSucceeds(updateDoc(doc(alice, `couples/${cid}/expenses/original`), { amount: 41 }));
+  const ref = doc(alice, `couples/${cid}/expenses/new`);
+  await assertSucceeds(setDoc(ref, { title: 'Fictif', amount: 10, paidBy: 'bob', kind: 'expense', createdAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(ref, { title: 'Autre fictif', amount: 12 }));
+  await assertFails(updateDoc(ref, { kind: 'unknown' }));
+  await assertSucceeds(deleteDoc(ref));
 });
 
 test('une marque transactionnelle calcule le solde côté serveur et conserve un reçu privé minimal', async () => {
