@@ -677,3 +677,26 @@ Base 44f142af52b918157f60ac1d25e643ae095d4117. Amélioration justifiée : le pro
 
 Test existant de dernier départ renforcé avec reçus du dernier membre et d’un ancien membre orphelin : les deux sont réellement supprimés dans l’émulateur. Aucun mécanisme de suppression modifié. Compilation fonctions et 45 tests sécurité réussis en 24,36 s, sortie 0 et émulateurs arrêtés ; lint/TypeScript et git diff --check réussis. Dernière suite applicative complète : 789 tests à 16:10, aucun code applicatif modifié depuis. Diff relu, données exclusivement fictives. Aucune lecture/écriture de production, aucune dépense/build/distribution. Les anciennes observations de rétention cloud du 14 octobre ne sont pas présentées comme relues aujourd’hui.
 
+## 2026-10-15, 16:18 Europe/Brussels — Contrôle final et reprise durable
+
+Durée observée de développement et vérifications : de 15:31:41 à 16:17:06, soit 45 min 25 s avant cette sauvegarde finale. Dix tâches cohérentes avec checkpoints indépendants, sans attente artificielle ; clôture à une frontière vérifiée proche de la cible de 50 minutes. Les travaux restants sur association d’uploads et persistance des intentions exigent un nouveau protocole/reproduction, pas une extension précipitée de ce checkpoint. La relance reçue pendant le travail a été intégrée par relecture des consignes et de la tête GitHub, sans recommencer les tâches sauvegardées.
+
+Checkpoints GitHub de cette session (SHA locaux distincts) :
+
+- 755ad19fb5a68ac2c5ef8d7278a2d214de832b9c : primitive de rappels invalidables, 734 tests applicatifs.
+- b6f21ceb24ff701af99e7bea705064883f83d5ac : consommateurs liés au cycle de vie, 753 tests.
+- e037aa7d16847dec08869269b9c1d26e970b1646 : nettoyages natifs ordonnés, 757 tests.
+- 9ac7a4eabe01a1d777cb3386984085c42d03d17a : tentative et attente des deux nettoyages, 760 tests.
+- 1c293096d1a87a5a44d84e02358f68d41890e87d : résultat de programmation explicite, 766 tests.
+- 2104cf99b8778b854d9cee7a599c87b9ce25c858 : occurrence du 29 février, 776 tests.
+- cc2fbb4277e12c3c7e11771c8e869bcb16e7b969 : protocole serveur des marques, 41 tests sécurité.
+- faec2e5c78e9ef9fa14706fc67d3ee4c20aa7b58 : raccordement cloud, 789 tests applicatifs.
+- 44f142af52b918157f60ac1d25e643ae095d4117 : règles des marques et transition, 45 tests sécurité.
+- cb0894796dce94cb06271a50b3f6c446842e4a43 : inventaire privé et nettoyage du dernier départ, 45 tests sécurité renforcés.
+
+Intégrité : 144 fichiers texte locaux aux SHA identiques à la tête GitHub cb08947, aucun écart ; sept PNG absents de la copie locale, blobs distants inchangés depuis c79365d1126f084566cf465c4c6877d0540be884. Aucun workflow GitHub présent. Arbre local propre avant cette entrée, diff final relu (notifications, dates, client, règles, exports et serveur). PR #3 toujours ouverte en brouillon. Chaque référence a été mise à jour avec expected_sha et force=false ; aucune fusion.
+
+Preuves finales : lint et TypeScript propres ; dernière suite complète applicative 45 suites / 789 tests à 16:10 ; compilation fonctions et 45 tests sécurité à 16:14 (24,36 s, émulateurs arrêtés), puis lint/TypeScript à 16:15. Node 24.19.0 et Java 17.0.20 vérifiés : ce n’est pas une validation du runtime de production Node 22. Aucun export visuel, build signée, téléphone, distribution ni statut Apple relu. publicationStatus=draft et retentionVerified=false vérifiés ; configuration des fonctions payantes inchangée, aucune activation ni appel externe facturable.
+
+Aucune donnée réelle, paiement, invitation ou message à un tiers. Aucun incident réel ni nouveau blocage immédiat nécessitant l’intervention du propriétaire. Les conditions de mise en service sont explicites : conservation des reçus à décider, serveur/client/règles à coordonner, accès et absence de coût supplémentaire à prouver, essais natifs encore manquants. Reprendre une priorité gratuite du backlog (association d’uploads ou audit ciblé) ; ne pas présenter le code préparé comme distribué, ni la règle locale comme déjà active en production.
+
