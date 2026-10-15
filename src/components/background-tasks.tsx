@@ -26,8 +26,10 @@ export function BackgroundTasks() {
   useEffect(() => {
     // Une liste inconnue n'est pas une liste vide : ne pas effacer les rappels existants.
     if (datesLoading || datesError) return;
-    scheduleCountdownReminders(dates).catch(() => {});
-  }, [dates, datesLoading, datesError]);
+    let active = true;
+    scheduleCountdownReminders(dates, () => active).catch(() => {});
+    return () => { active = false; };
+  }, [backend, myId, dates, datesLoading, datesError]);
 
   return <ReceivedHearts key={`${backend.mode}:${backend.coupleId}:${backend.userId}`} />;
 }

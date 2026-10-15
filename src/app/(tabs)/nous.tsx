@@ -106,12 +106,14 @@ function NousContent() {
   const dates = useCollectionState('dates');
   const canEdit = (m: Member) => backend.mode === 'local' || m.id === backend.userId;
   const context = useMemo(() => ({ backend }), [backend]);
-  const latest = useRef<{ context: typeof context; dates: typeof dates; signOut: typeof signOut } | null>(null);
+  const reminderScope = useMemo(() => ({ context, items: dates.items, loading: dates.loading, error: dates.error }),
+    [context, dates.items, dates.loading, dates.error]);
+  const latest = useRef<{ context: typeof context; reminderScope: typeof reminderScope; dates: typeof dates; signOut: typeof signOut } | null>(null);
   const leaving = useRef<typeof context | null>(null);
   useEffect(() => {
-    latest.current = { context, dates, signOut };
+    latest.current = { context, reminderScope, dates, signOut };
     return () => { latest.current = null; };
-  }, [context, dates, signOut]);
+  }, [context, reminderScope, dates, signOut]);
   const { run: runLeave, pending: exitPending } = useAsyncAction((action: () => unknown) => action());
   const { run: runNotifications } = useAsyncAction((action: () => unknown) => action());
   const isCurrent = () => latest.current?.context === context;
@@ -139,8 +141,11 @@ function NousContent() {
       if (!canNotify() || !datesReady()) return;
       let pushRegistered = false;
       if (granted) {
-        await scheduleCountdownReminders(latest.current!.dates.items);
+        const scope = latest.current!.reminderScope;
+        const remindersActive = () => canNotify() && latest.current?.reminderScope === scope;
+        await scheduleCountdownReminders(latest.current!.dates.items, remindersActive);
         if (!canNotify() || !datesReady()) return;
+        if (!remindersActive()) return;
         if (backend.mode === 'cloud') {
           const token = await getPushToken();
           if (!canNotify() || !datesReady()) return;

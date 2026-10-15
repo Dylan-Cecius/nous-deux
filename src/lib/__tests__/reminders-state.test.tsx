@@ -46,14 +46,14 @@ test('un résultat confirmé, y compris vide, renouvelle les rappels mais pas un
   const dates = [{ id: 'test', title: 'Date fictive', date: '2026-12-01' }];
   (useCollectionState as jest.Mock).mockImplementation((name) => name === 'dates' ? { ...ready, items: dates } : ready);
   await act(async () => { root = create(<BackgroundTasks />); });
-  expect(scheduleCountdownReminders).toHaveBeenLastCalledWith(dates);
+  expect(scheduleCountdownReminders).toHaveBeenLastCalledWith(dates, expect.any(Function));
   (useCollectionState as jest.Mock).mockImplementation((name) => name === 'dates' ? { ...ready, error: true } : ready);
   await act(async () => { root.update(<BackgroundTasks />); });
   expect(scheduleCountdownReminders).toHaveBeenCalledTimes(1);
   (useCollectionState as jest.Mock).mockReturnValue(ready);
   await act(async () => { root.update(<BackgroundTasks />); });
   expect(scheduleCountdownReminders).toHaveBeenCalledTimes(2);
-  expect(scheduleCountdownReminders).toHaveBeenLastCalledWith([]);
+  expect(scheduleCountdownReminders).toHaveBeenLastCalledWith([], expect.any(Function));
 });
 
 test.each(['loading', 'error'])('Nous distingue les résumés en %s d’un espace vide', async (status) => {
@@ -89,7 +89,7 @@ test('les dates confirmées permettent encore d’activer les rappels locaux', a
   await act(async () => { root = create(<Nous />); });
   await act(async () => { await root.root.findByProps({ title: 'Notifications' }).props.onPress(); });
   expect(ensurePermission).toHaveBeenCalledTimes(1);
-  expect(scheduleCountdownReminders).toHaveBeenCalledWith([]);
+  expect(scheduleCountdownReminders).toHaveBeenCalledWith([], expect.any(Function));
   expect(showDialog).toHaveBeenCalledWith('Rappels activés', expect.any(String));
 });
 
@@ -118,7 +118,7 @@ test('les dates fraîches sont utilisées après la réponse à la permission', 
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: dates });
   await act(async () => root.update(<Nous />));
   await act(async () => { finish(true); await pending; });
-  expect(scheduleCountdownReminders).toHaveBeenCalledWith(dates);
+  expect(scheduleCountdownReminders).toHaveBeenCalledWith(dates, expect.any(Function));
 });
 
 test.each(['schedule', 'token', 'registration'])('pas d’étape ni de succès tardif après le changement de contexte pendant %s', async (step) => {
@@ -208,4 +208,50 @@ test.each(['current', 'old'])('échec de permission %s : seule l’erreur couran
   await act(async () => { reject(new Error('Permission fictive indisponible')); await pending; });
   if (kind === 'old') expect(showDialog).not.toHaveBeenCalled();
   else expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Permission fictive indisponible');
+});
+
+test.each(['unmount', 'backend', 'loading', 'error', 'dates'])('la tâche de fond invalide sa garde après %s, même si l’état initial revient', async (kind) => {
+  await act(async () => { root = create(<BackgroundTasks />); });
+  const guard = (scheduleCountdownReminders as jest.Mock).mock.calls[0][1];
+  expect(typeof guard).toBe('function');
+  expect(guard()).toBe(true);
+  if (kind === 'backend') (useSession as jest.Mock).mockReturnValue({ backend: { ...backend }, members: [] });
+  if (kind === 'dates') (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [] });
+  if (kind === 'loading' || kind === 'error') (useCollectionState as jest.Mock).mockReturnValue({ ...ready, [kind]: true });
+  await act(async () => { if (kind === 'unmount') root.unmount(); else root.update(<BackgroundTasks />); });
+  expect(guard()).toBe(false);
+  (useSession as jest.Mock).mockReturnValue({ backend, members: [] });
+  (useCollectionState as jest.Mock).mockReturnValue(ready);
+  if (kind !== 'unmount') await act(async () => root.update(<BackgroundTasks />));
+  expect(guard()).toBe(false);
+});
+
+test.each(['unmount', 'backend', 'loading', 'error', 'dates', 'logout'])('l’activation transmet une garde invalidée après %s', async (kind) => {
+  let finish!: () => void;
+  (scheduleCountdownReminders as jest.Mock).mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+  (useSession as jest.Mock).mockReturnValue({ backend, members: [], signOut: jest.fn().mockResolvedValue(undefined) });
+  await act(async () => { root = create(<Nous />); });
+  let pending!: Promise<void>;
+  await act(async () => { pending = root.root.findByProps({ title: 'Notifications' }).props.onPress(); });
+  const guard = (scheduleCountdownReminders as jest.Mock).mock.calls[0][1];
+  expect(typeof guard).toBe('function');
+  expect(guard()).toBe(true);
+  if (kind === 'backend') (useSession as jest.Mock).mockReturnValue({ backend: { ...backend }, members: [] });
+  if (kind === 'dates') (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [] });
+  if (kind === 'loading' || kind === 'error') (useCollectionState as jest.Mock).mockReturnValue({ ...ready, [kind]: true });
+  if (kind === 'logout') {
+    await act(async () => root.root.findByProps({ label: 'Se déconnecter' }).props.onPress());
+    const confirm = (showDialog as jest.Mock).mock.calls[0][2][1].onPress;
+    await act(async () => { await confirm(); });
+    (showDialog as jest.Mock).mockClear();
+  } else await act(async () => { if (kind === 'unmount') root.unmount(); else root.update(<Nous />); });
+  expect(guard()).toBe(false);
+  if (kind !== 'unmount' && kind !== 'logout') {
+    (useSession as jest.Mock).mockReturnValue({ backend, members: [] });
+    (useCollectionState as jest.Mock).mockReturnValue(ready);
+    await act(async () => root.update(<Nous />));
+    expect(guard()).toBe(false);
+  }
+  await act(async () => { finish(); await pending; });
+  expect((showDialog as jest.Mock).mock.calls.some(([title]) => title === 'Rappels activés')).toBe(false);
 });
