@@ -295,7 +295,7 @@ async function writeLocal<T>(key: string, value: T) {
     throw error;
   }
   cache.set(key, value);
-  listeners.get(key)?.forEach((listener) => listener.next(value));
+  [...(listeners.get(key) ?? [])].forEach((listener) => listener.next(value));
 }
 
 /** Sérialise lecture-modification-écriture par clé, sans bloquer les autres collections. */
@@ -330,7 +330,9 @@ function watchLocal<T>(epoch: number, key: string, fallback: T, cb: (value: T) =
   const receive = (value: T) => {
     if (!active || epoch !== localEpoch) return;
     received = true;
-    cb(value);
+    // La persistance a déjà réussi : une panne de consommateur n'est pas un
+    // échec d'écriture et ne doit pas empêcher les autres vues de se mettre à jour.
+    try { cb(value); } catch (error) { fail(error); }
   };
   const listener: LocalListener = { next: receive, error: fail };
   if (!listeners.has(key)) listeners.set(key, new Set());

@@ -714,3 +714,9 @@ Base 5ea881fe0a31bd95670ed1f85a0adb95b9f368ef. Quatre tests rouges : les abonné
 
 Preuves : lint/TypeScript, 45 suites / 800 tests applicatifs, diff relu et git diff --check. Contrôle sécurité réalisé pendant la tâche précédente : compilation fonctions et 45 tests réussis en 26,06 s à 16:37, émulateurs demo-nous-deux-security arrêtés ; aucun serveur/règle changé ici. Tests locaux sur doublures uniquement. Pas de build, diffusion, données réelles ni dépense. Limites : reprise d’ajout toujours non idempotente ; une erreur dans un callback de données doit encore être isolée pour éviter de transformer une écriture réussie en échec apparent.
 
+## 2026-10-15, 16:44 Europe/Brussels — Isolation des abonnés et intégration de reprise
+
+Base ee2fc5624aed2eeaa88cd68cfe578b0b788330df. Le test du callback initial défaillant arrête réellement le processus Jest avec un rejet non géré avant correction. Un callback de données est désormais isolé et son abonnement mis en erreur ; il ne change pas le résultat du stockage déjà confirmé et ne bloque pas les autres abonnés. Trois tests ajoutés sur ces cas, puis trois intégrations utilisant les vrais CoupleProvider/useCollectionState/backend local : écriture ambiguë, refus sans écriture, profil enregistré mais confirmation perdue. Seuls stockage et services natifs/cloud sont doublés ; pas de rendu sur appareil.
+
+Preuves : lint/TypeScript, 46 suites / 806 tests applicatifs, diff relu et git diff --check propres. Dernière preuve sécurité inchangée : 45 tests à 16:37 ; serveur/règles non modifiés. Aucune donnée réelle, dépense, build ou distribution. Une panne d’un consommateur reste signalée à son canal d’erreur ; elle n’est pas transformée en invitation à rejouer l’écriture. L’audit suivant porte sur la disponibilité de l’album pendant un sélecteur/upload en attente.
+

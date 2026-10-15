@@ -34,6 +34,43 @@ const commitThenReject = () => {
   });
 };
 
+test('un callback de données cassé ne transforme pas une écriture confirmée en échec', async () => {
+  const broken = jest.fn(); const error = jest.fn(); const healthy = jest.fn();
+  const stopBroken = backend.subscribe('notes', broken, error);
+  const stopHealthy = backend.subscribe('notes', healthy, jest.fn());
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  broken.mockImplementation(() => { throw new Error('Rendu fictif cassé'); });
+  await expect(backend.add('notes', note('Confirmé'))).resolves.toBeUndefined();
+  expect(error).toHaveBeenCalledWith(expect.objectContaining({ message: 'Rendu fictif cassé' }));
+  expect(healthy).toHaveBeenLastCalledWith([expect.objectContaining({ text: 'Confirmé' })]);
+  expect(await read('local:col:notes')).toHaveLength(1);
+  await backend.add('notes', note('Suivant'));
+  expect(error).toHaveBeenCalledTimes(1);
+  expect(healthy.mock.calls.at(-1)[0]).toHaveLength(2);
+  stopBroken(); stopHealthy();
+});
+
+test('un callback initial cassé devient une erreur d’abonnement sans rejet non géré', async () => {
+  const error = jest.fn();
+  const stop = backend.subscribeCouple(() => { throw new Error('Premier rendu fictif cassé'); }, error);
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  expect(error).toHaveBeenCalledWith(expect.objectContaining({ message: 'Premier rendu fictif cassé' }));
+  await expect(backend.updateCouple({ since: '2020-01-01' })).resolves.toBeUndefined();
+  expect(error).toHaveBeenCalledTimes(1);
+  stop();
+});
+
+test('les callbacks de données et d’erreur cassés ensemble ne bloquent pas les abonnés sains', async () => {
+  const next = jest.fn();
+  const stopBroken = backend.subscribe('notes', next, () => { throw new Error('Erreur secondaire fictive'); });
+  const healthy = jest.fn(); const stopHealthy = backend.subscribe('notes', healthy);
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  next.mockImplementation(() => { throw new Error('Rendu fictif cassé'); });
+  await expect(backend.add('notes', note('Confirmé'))).resolves.toBeUndefined();
+  expect(healthy.mock.calls.at(-1)[0]).toHaveLength(1);
+  stopBroken(); stopHealthy();
+});
+
 test('un abonnement déjà chargé devient indisponible après une écriture ambiguë puis peut être repris', async () => {
   await backend.add('notes', note('Initial'));
   const data = jest.fn(); const error = jest.fn();
