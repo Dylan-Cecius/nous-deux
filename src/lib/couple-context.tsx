@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { clearSession, loadSession, type Backend } from './backend';
 import { BOTH, type CollectionName, type Collections, type Couple, type Member } from './types';
@@ -18,6 +18,8 @@ type CoupleState = {
 
 const CoupleContext = createContext<CoupleState | null>(null);
 
+type SessionWork = { active: boolean; revision: number; restoring: Promise<void> | null };
+
 export function CoupleProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [backend, setBackend] = useState<Backend | null>(null);
@@ -28,17 +30,34 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
   const [subscriptionAttempt, setSubscriptionAttempt] = useState(0);
   const retrySync = () => setSubscriptionAttempt((attempt) => attempt + 1);
   const [restoreError, setRestoreError] = useState(false);
-  const restore = useCallback(() => loadSession()
-    .then((restored) => { setBackend(restored); setRestoreError(false); })
-    .catch(() => setRestoreError(true))
-    .finally(() => setLoading(false)), []);
-  const retrySession = async () => {
+  const work = useRef<SessionWork | null>(null);
+  const restore = useCallback(async () => {
+    const scope = work.current;
+    if (!scope?.active) return;
+    if (scope.restoring) return scope.restoring;
+    const revision = ++scope.revision;
+    const current = () => scope.active && scope.revision === revision;
     setLoading(true);
-    await restore();
+    scope.restoring = loadSession()
+      .then((restored) => { if (current()) { setBackend(restored); setRestoreError(false); } })
+      .catch(() => { if (current()) setRestoreError(true); })
+      .finally(() => { scope.restoring = null; if (current()) setLoading(false); });
+    return scope.restoring;
+  }, []);
+  const chooseBackend = (next: Backend) => {
+    const scope = work.current;
+    if (!scope?.active) return;
+    scope.revision++;
+    setBackend(next);
+    setRestoreError(false);
+    setLoading(false);
   };
 
   useEffect(() => {
+    const scope: SessionWork = { active: true, revision: 0, restoring: null };
+    work.current = scope;
     void restore();
+    return () => { scope.active = false; };
   }, [restore]);
 
   useEffect(() => {
@@ -50,13 +69,20 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
   }, [backend, subscriptionAttempt]);
 
   const signOut = async () => {
+    const scope = work.current;
+    if (!scope?.active) return;
+    const revision = scope.revision;
     await clearSession();
+    if (!scope.active || scope.revision !== revision) return;
+    scope.revision++;
     setBackend(null);
     setSnapshot(null);
+    setRestoreError(false);
+    setLoading(false);
   };
 
   return (
-    <CoupleContext.Provider value={{ loading, restoreError, retrySession, syncError, retrySync, backend, couple, setBackend, signOut }}>
+    <CoupleContext.Provider value={{ loading, restoreError, retrySession: restore, syncError, retrySync, backend, couple, setBackend: chooseBackend, signOut }}>
       {children}
     </CoupleContext.Provider>
   );
