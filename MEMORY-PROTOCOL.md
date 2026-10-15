@@ -27,6 +27,16 @@ Il n’existe pas de purge périodique de ces reçus et aucune durée maximale n
 
 Suite de développement gratuite : préparer une intention client stable et explicite après upload, sa reprise sans sélectionner/envoyer à nouveau la photo, son isolation au changement de compte et l’affichage d’un résultat dont la fiche peut avoir été supprimée. Ne pas modifier le parcours actif avant tests complets, choix de persistance et traitement des réponses ambiguës. Le mode local n’est pas rendu idempotent par ce module serveur.
 
+### Contrôleur client préparé, non raccordé
+
+`src/lib/memory-association.ts` prépare une intention uniquement après un upload réussi, avec une clé fournie par le futur appelant et validée. Sa préparation ne fait aucun appel. `submit()` est explicite : deux appels simultanés partagent la même promesse ; un rejet ou une réponse invalide donne `unconfirmed` et conserve exactement la même clé, photo, légende et date pour la reprise. Aucun upload, création aléatoire, reprise automatique, stockage persistant ni service supplémentaire n’est déclenché par ce contrôleur.
+
+Une réponse valide donne `receipt-confirmed`, jamais « photo créée/présente ». L’interface future doit attendre la lecture courante de l’album et gérer la fiche déjà supprimée. Le résultat confirmé est mémorisé pour ne pas renvoyer inutilement ; cela ne remplace pas une actualisation de l’album.
+
+L’appelant devra fournir des gardes courants `isCurrent` (session/espace/backend/ouverture) et `canSubmit` (lecture de l’album disponible), puis appeler `invalidate()` au changement de session, à la fermeture et au démontage, y compris un aller-retour entre deux comptes. Une perte de contexte observée invalide définitivement l’intention ; une écriture déjà partie ne peut pas être annulée. Ce module seul ne peut pas détecter un changement puis retour entre deux observations sans l’invalidation fournie par l’interface.
+
+La clé n’est pas générée ici : choisir une source d’identifiants unique et compatible Expo lors du raccordement. Aucune intention n’est persistée après fermeture/redémarrage. Tant que le choix de persistance et l’interface de reprise ne sont pas prêts, aucun écran ne doit importer ce module et le parcours actif reste inchangé. Les 29 contrôles unitaires utilisent un transport doublé ; ils ne prouvent pas un parcours complet téléphone/serveur.
+
 Avant activation : protocole client testé, conservation décidée, règle de transition des anciens clients documentée, accès et absence de coût supplémentaire vérifiés ; ensuite seulement exposition volontaire du module, déploiement autorisé et validation séparée avant diffusion du client. Aucun échec ne doit entraîner un repli aveugle sur l’ancienne création aléatoire.
 
 ## Preuves et portée
