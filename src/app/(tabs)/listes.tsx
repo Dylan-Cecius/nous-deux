@@ -136,8 +136,11 @@ function ListesContent() {
   };
 
   const pickMovie = () => {
-    if (todo.length === 0) return showDialog('Liste vide', 'Ajoutez des films ou séries à regarder.');
-    const pick = pickOne(todo);
+    const current = latest.current;
+    if (!isCurrent() || tab !== 'films' || !current || current.collection.loading || current.collection.error) return;
+    const pool = current.collection.items.filter((entry) => 'list' in entry && entry.list === 'films' && !entry.done);
+    if (pool.length === 0) return showDialog('Liste vide', 'Ajoutez des films ou séries à regarder.');
+    const pick = pickOne(pool);
     showDialog('Ce soir on regarde…', pick.title, [
       { text: 'Relancer', onPress: pickMovie },
       { text: 'Go !', style: 'cancel' },

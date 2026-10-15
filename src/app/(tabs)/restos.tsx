@@ -75,12 +75,23 @@ export default function Restos() {
 
 function RestosContent() {
   const t = useTheme();
-  const { colorOf, nameOf } = useSession();
+  const { backend, colorOf, nameOf } = useSession();
   const restaurantState = useCollectionState('restaurants');
   const unavailable = restaurantState.loading || restaurantState.error;
   const restaurants = unavailable ? [] : restaurantState.items;
   const [tab, setTab] = useState<RestaurantStatus>('envie');
   const [editing, setEditing] = useState<Restaurant | 'new' | null>(null);
+  const context = useMemo(() => ({ backend, tab }), [backend, tab]);
+  const latest = useRef<{ context: typeof context; state: typeof restaurantState } | null>(null);
+  useEffect(() => {
+    latest.current = { context, state: restaurantState };
+    return () => { latest.current = null; };
+  }, [context, restaurantState]);
+  const currentRestaurants = () => {
+    const current = latest.current;
+    if (!current || current.context !== context || current.state.loading || current.state.error) return null;
+    return current.state.items;
+  };
 
   const count = (s: RestaurantStatus) => restaurants.filter((r) => r.status === s).length;
   const list = restaurants
@@ -88,7 +99,9 @@ function RestosContent() {
     .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || b.createdAt - a.createdAt);
 
   const pickRandom = () => {
-    const pool = restaurants.filter((r) => r.status !== 'teste');
+    const current = currentRestaurants();
+    if (!current) return;
+    const pool = current.filter((r) => r.status !== 'teste');
     if (pool.length === 0) return showDialog('Aucun resto', 'Ajoutez d’abord quelques envies ou favoris.');
     const r = pickOne(pool);
     showDialog('Ce soir, c’est…', `${r.name}${r.cuisine ? ` (${r.cuisine})` : ''}`, [
@@ -97,7 +110,10 @@ function RestosContent() {
     ]);
   };
 
-  const openMap = (r: Restaurant) => Linking.openURL(restaurantMapUrl(r));
+  const openMap = (r: Restaurant) => {
+    const current = currentRestaurants()?.find((entry) => entry.id === r.id);
+    if (current) return Linking.openURL(restaurantMapUrl(current));
+  };
 
   return (
     <>

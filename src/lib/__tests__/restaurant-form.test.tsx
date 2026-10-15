@@ -148,3 +148,65 @@ test('le bouton carte ne transmet pas un schéma arbitraire au système', async 
     expect(openUrl).toHaveBeenCalledWith('https://www.google.com/maps/search/?api=1&query=Resto%20fictif');
   } finally { openUrl.mockRestore(); }
 });
+
+test.each(['loading', 'error', 'backend', 'unmount', 'roundtrip'])('ancien tirage et ancienne carte ignorés après %s', async (kind) => {
+  const openUrl = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  try {
+    await act(async () => { root = create(<Restos />); });
+    const map = button('Voir Resto fictif sur la carte');
+    await act(async () => button('Tirer un resto au sort')());
+    const reroll = (showDialog as jest.Mock).mock.calls.at(-1)[2][0].onPress;
+    if (kind === 'unmount') await act(async () => root.unmount());
+    else if (kind === 'roundtrip') {
+      await act(async () => root.root.findByType('segmented' as never).props.onChange('favori'));
+      await act(async () => root.root.findByType('segmented' as never).props.onChange('envie'));
+    } else {
+      if (kind === 'backend') (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...backend } });
+      else (useCollectionState as jest.Mock).mockReturnValue({ ...ready, [kind]: true });
+      await refresh();
+    }
+    (showDialog as jest.Mock).mockClear();
+    await act(async () => { reroll(); await map(); });
+    expect(showDialog).not.toHaveBeenCalled();
+    expect(openUrl).not.toHaveBeenCalled();
+  } finally { openUrl.mockRestore(); }
+});
+
+test('le tirage relit les envies/favoris et ignore un restaurant devenu testé', async () => {
+  await act(async () => { root = create(<Restos />); });
+  await act(async () => button('Tirer un resto au sort')());
+  const reroll = (showDialog as jest.Mock).mock.calls.at(-1)[2][0].onPress;
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [
+    { ...resto, status: 'teste' }, { ...resto, id: 'new', name: 'Nouvelle adresse', status: 'favori' },
+  ] });
+  await refresh();
+  await act(async () => reroll());
+  expect(showDialog).toHaveBeenLastCalledWith('Ce soir, c’est…', 'Nouvelle adresse', expect.any(Array));
+});
+
+test('une carte relit la destination actuelle puis ignore une fiche retirée', async () => {
+  const openUrl = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  try {
+    await act(async () => { root = create(<Restos />); });
+    const map = button('Voir Resto fictif sur la carte');
+    (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...resto, mapsUrl: 'https://maps.google.com/?cid=42' }] });
+    await refresh();
+    await act(async () => { await map(); });
+    expect(openUrl).toHaveBeenLastCalledWith('https://maps.google.com/?cid=42');
+    openUrl.mockClear();
+    (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [] });
+    await refresh();
+    await act(async () => { await map(); });
+    expect(openUrl).not.toHaveBeenCalled();
+  } finally { openUrl.mockRestore(); }
+});
+
+test('un tirage sans adresse restante affiche un état vide confirmé', async () => {
+  await act(async () => { root = create(<Restos />); });
+  await act(async () => button('Tirer un resto au sort')());
+  const reroll = (showDialog as jest.Mock).mock.calls.at(-1)[2][0].onPress;
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [] });
+  await refresh();
+  await act(async () => reroll());
+  expect(showDialog).toHaveBeenLastCalledWith('Aucun resto', 'Ajoutez d’abord quelques envies ou favoris.');
+});

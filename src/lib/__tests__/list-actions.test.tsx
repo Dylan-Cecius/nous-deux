@@ -123,3 +123,39 @@ test.each(['success', 'error'])('un retour %s après changement d’onglet ne pr
   expect(tap).not.toHaveBeenCalled();
   expect(showDialog).not.toHaveBeenCalled();
 });
+
+const askMovie = async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, list: 'films', done: false, title: 'Film fictif ancien' }] });
+  await open();
+  await switchTab('films');
+  await act(async () => root.root.findByProps({ label: 'Tirer un film au sort' }).props.onPress());
+  return (showDialog as jest.Mock).mock.calls.at(-1)[2][0].onPress;
+};
+
+test.each(['loading', 'error', 'backend', 'unmount', 'roundtrip'])('un ancien tirage de film ne reprend pas après %s', async (kind) => {
+  const reroll = await askMovie();
+  if (kind === 'roundtrip') { await switchTab('bucket'); await switchTab('films'); }
+  else await change(kind);
+  (showDialog as jest.Mock).mockClear();
+  await act(async () => reroll());
+  expect(showDialog).not.toHaveBeenCalled();
+});
+
+test('relancer un film utilise les titres encore en attente dans la liste actuelle', async () => {
+  const reroll = await askMovie();
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [
+    { ...item, list: 'films', done: true, title: 'Film fictif ancien' },
+    { ...item, id: 'new', list: 'films', done: false, title: 'Film fictif nouveau' },
+  ] });
+  await act(async () => root.update(<Listes />));
+  await act(async () => reroll());
+  expect(showDialog).toHaveBeenLastCalledWith('Ce soir on regarde…', 'Film fictif nouveau', expect.any(Array));
+});
+
+test('un tirage dont le dernier film a été vu affiche la liste vide confirmée', async () => {
+  const reroll = await askMovie();
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [] });
+  await act(async () => root.update(<Listes />));
+  await act(async () => reroll());
+  expect(showDialog).toHaveBeenLastCalledWith('Liste vide', 'Ajoutez des films ou séries à regarder.');
+});
