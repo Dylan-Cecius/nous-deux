@@ -50,16 +50,16 @@ function tileFor(name: string) {
   return TILES[h % TILES.length];
 }
 
-function Hearts({ value, onChange, size = 18 }: { value: number; onChange?: (v: number) => void; size?: number }) {
+function Hearts({ value, onChange, size = 18, disabled = false }: { value: number; onChange?: (v: number) => void; size?: number; disabled?: boolean }) {
   const t = useTheme();
   return (
     <Row style={{ gap: onChange ? 8 : 2 }}>
       {[1, 2, 3, 4, 5].map((i) => (
         <Pressable
           key={i}
-          disabled={!onChange}
+          disabled={!onChange || disabled}
           accessibilityLabel={`${i} cœur${i > 1 ? 's' : ''}`}
-          onPress={() => onChange?.(i === value ? 0 : i)}
+          onPress={() => { if (!disabled) return onChange?.(i === value ? 0 : i); }}
           hitSlop={4}>
           <Ionicons name={i <= value ? 'heart' : 'heart-outline'} size={size} color={i <= value ? t.primary : t.border} />
         </Pressable>
@@ -272,37 +272,38 @@ function RestoSheet({
     <Sheet visible title={resto ? resto.name : 'Nouveau resto'} onClose={() => run(close)}>
       {!resto && backend.mode === 'cloud' && features.places && (
         <PlaceSearch
-          onPick={(p) => {
+          onPick={(p) => run(() => {
+            if (!isCurrent()) return;
             setName(p.name);
             setCuisine(p.cuisine);
             setPlace(p.address.split(',').slice(-2, -1)[0]?.trim().replace(/^\d{5}\s*/, '') ?? '');
             setFound({ address: p.address, photoUrl: p.photoUrl ?? undefined, mapsUrl: p.mapsUrl });
-          }}
+          })}
         />
       )}
       {!!found.photoUrl && (
         <Image source={{ uri: found.photoUrl }} style={{ width: '100%', height: 160, borderRadius: 18 }} contentFit="cover" />
       )}
-      <Field label="Nom" value={name} maxLength={200} onChangeText={setName} placeholder="Chez Mario" />
+      <Field label="Nom" value={name} maxLength={200} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setName(value); })} placeholder="Chez Mario" />
       {!!found.address && (
         <T variant="small" muted>
           {found.address}
         </T>
       )}
       <Row style={{ gap: 12 }}>
-        <Field label="Cuisine" value={cuisine} maxLength={200} onChangeText={setCuisine} placeholder="Italien" grow />
-        <Field label="Ville / quartier" value={place} maxLength={500} onChangeText={setPlace} placeholder="Liège" grow />
+        <Field label="Cuisine" value={cuisine} maxLength={200} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setCuisine(value); })} placeholder="Italien" grow />
+        <Field label="Ville / quartier" value={place} maxLength={500} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setPlace(value); })} placeholder="Liège" grow />
       </Row>
-      <Chips label="Liste" options={STATUSES} value={status} onChange={setStatus} />
+      <Chips label="Liste" options={STATUSES} value={status} disabled={pending} onChange={(value) => run(() => { if (isCurrent()) setStatus(value); })} />
       {status !== 'envie' && (
         <View style={{ gap: 8 }}>
           <T variant="caption" muted>
             Votre note
           </T>
-          <Hearts value={rating} onChange={setRating} size={32} />
+          <Hearts value={rating} disabled={pending} onChange={(value) => run(() => { if (isCurrent()) setRating(value); })} size={32} />
         </View>
       )}
-      <Field label="Notes" value={note} maxLength={4000} onChangeText={setNote} placeholder="Prendre la burrata, réserver le samedi…" multiline />
+      <Field label="Notes" value={note} maxLength={4000} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setNote(value); })} placeholder="Prendre la burrata, réserver le samedi…" multiline />
       {unavailable && <T variant="small" muted>Restos indisponibles ou adresse retirée. Ton brouillon est conservé ; recharge les adresses avant de continuer.</T>}
       {collection.error && <Button label="Recharger les restos du formulaire" variant="outline" onPress={collection.retry} />}
       <Button label="Enregistrer" disabled={!name.trim() || pending || unavailable} onPress={save} />

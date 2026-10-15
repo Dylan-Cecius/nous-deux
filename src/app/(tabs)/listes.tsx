@@ -376,11 +376,12 @@ function ItemSheet({ item, tab, onClose }: { item?: Entry; tab: Tab; onClose: ()
             { value: 'serie', label: 'Série', icon: 'tv-outline' },
           ]}
           value={media}
-          onChange={setMedia}
+          disabled={pending}
+          onChange={(value) => run(() => { if (isCurrent()) setMedia(value); })}
         />
       )}
-      <Field label="Quoi ?" value={title} maxLength={200} onChangeText={setTitle} placeholder={copy.placeholder} />
-      <Field label={copy.detail} value={detail} maxLength={2000} onChangeText={setDetail} placeholder={copy.detailPlaceholder} />
+      <Field label="Quoi ?" value={title} maxLength={200} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setTitle(value); })} placeholder={copy.placeholder} />
+      <Field label={copy.detail} value={detail} maxLength={2000} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setDetail(value); })} placeholder={copy.detailPlaceholder} />
       {unavailable && <T variant="small" muted>Liste indisponible ou article retiré. Ton brouillon est conservé ; recharge la liste avant de continuer.</T>}
       {collection.error && <Button label="Recharger la liste du formulaire" variant="outline" onPress={collection.retry} />}
       <Button label="Enregistrer" disabled={!title.trim() || pending || unavailable} onPress={save} />

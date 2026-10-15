@@ -3,11 +3,14 @@ import Restos from '@/app/(tabs)/restos';
 import { useCollectionState, useSession } from '../couple-context';
 import { confirmDelete } from '@/components/ui';
 import { showDialog } from '@/components/dialog';
-import { Linking } from 'react-native';
+import { Linking, Pressable } from 'react-native';
 
 jest.mock('../couple-context', () => ({ useCollectionState: jest.fn(), useSession: jest.fn() }));
 jest.mock('@/components/dialog', () => ({ showDialog: jest.fn() }));
 jest.mock('@/constants/theme', () => ({ useTheme: () => ({}), Fonts: {} }));
+jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), {
+  Pressable: { value: 'pressable' },
+}));
 jest.mock('expo-image', () => ({ Image: (props: object) => jest.requireActual('react').createElement('image', props) }));
 jest.mock('@/components/ui', () => {
   const React = jest.requireActual('react');
@@ -38,6 +41,46 @@ const ask = async () => {
   return (confirmDelete as jest.Mock).mock.calls.at(-1)[1];
 };
 const refresh = async () => { await act(async () => root.update(<Restos />)); };
+
+test.each(['Nom', 'Cuisine', 'Ville / quartier', 'Notes'])('%s ne change pas pendant une sauvegarde et reprend après échec', async (label) => {
+  await open();
+  const field = () => root.root.findByProps({ label });
+  const previous = field().props.value;
+  const change = field().props.onChangeText;
+  let reject!: (error: Error) => void;
+  backend.update.mockImplementationOnce(() => new Promise<void>((_, fail) => { reject = fail; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = button('Enregistrer')(); await change('Saisie pendant attente'); });
+  expect(field().props.value).toBe(previous);
+  expect(field().props.editable).toBe(false);
+  await act(async () => { reject(new Error('Échec fictif')); await pending; });
+  expect(field().props.editable).toBe(true);
+  await act(async () => field().props.onChangeText('Brouillon repris'));
+  await act(async () => { await button('Enregistrer')(); });
+  const key = { Nom: 'name', Cuisine: 'cuisine', 'Ville / quartier': 'place', Notes: 'note' }[label]!;
+  expect(backend.update).toHaveBeenLastCalledWith('restaurants', resto.id, expect.objectContaining({ [key]: 'Brouillon repris' }));
+});
+
+test('liste et note restent figées pendant la sauvegarde puis redeviennent modifiables', async () => {
+  await open();
+  const chips = () => root.root.findByType('chips' as never);
+  await act(async () => chips().props.onChange('favori'));
+  const heart = () => root.root.findAllByType(Pressable).find((node) => node.props.accessibilityLabel === '4 cœurs')!;
+  const changeStatus = chips().props.onChange;
+  const changeRating = heart().props.onPress;
+  let reject!: (error: Error) => void;
+  backend.update.mockImplementationOnce(() => new Promise<void>((_, fail) => { reject = fail; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = button('Enregistrer')(); await changeStatus('teste'); await changeRating(); });
+  expect(chips().props.value).toBe('favori');
+  expect(chips().props.disabled).toBe(true);
+  expect(heart().props.disabled).toBe(true);
+  await act(async () => { reject(new Error('Échec fictif')); await pending; });
+  expect(chips().props.disabled).toBe(false);
+  expect(heart().props.disabled).toBe(false);
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).toHaveBeenLastCalledWith('restaurants', resto.id, expect.objectContaining({ status: 'favori', rating: 0 }));
+});
 
 test.each(['closed', 'reopened', 'backend', 'member', 'loading', 'error', 'removed'])('confirmation ignorée après %s', async (change) => {
   await open();

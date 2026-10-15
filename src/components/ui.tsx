@@ -438,11 +438,13 @@ export function Chips<V extends string>({
   value,
   onChange,
   label,
+  disabled = false,
 }: {
   options: { value: V; label: string; color?: string; icon?: IconName }[];
   value: V;
   onChange: (v: V) => void;
   label?: string;
+  disabled?: boolean;
 }) {
   const t = useTheme();
   return (
@@ -457,13 +459,16 @@ export function Chips<V extends string>({
               key={o.value}
               accessibilityRole="radio"
               accessibilityLabel={label ? `${label} : ${o.label}` : o.label}
-              accessibilityState={{ checked: active }}
+              disabled={disabled}
+              accessibilityState={{ checked: active, disabled }}
               onPress={() => {
+                if (disabled) return;
                 tap();
                 onChange(o.value);
               }}
               style={[
                 styles.chip,
+                { opacity: disabled ? 0.5 : 1 },
                 { borderColor: active ? accent : t.border, backgroundColor: active ? accent : t.card },
               ]}>
               {o.icon ? <Ionicons name={o.icon} size={16} color={active ? '#fff' : t.textSecondary} /> : null}

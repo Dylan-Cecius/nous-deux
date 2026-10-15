@@ -41,6 +41,41 @@ const ask = async () => {
 };
 const refresh = async () => { await act(async () => root.update(<Listes />)); };
 
+test.each([0, 1])('le champ %s ne change pas pendant une sauvegarde, puis reprend après échec', async (index) => {
+  await open();
+  const fields = () => root.root.findAllByType('field' as never);
+  const previous = fields()[index].props.value;
+  const change = fields()[index].props.onChangeText;
+  let reject!: (error: Error) => void;
+  backend.update.mockImplementationOnce(() => new Promise<void>((_, fail) => { reject = fail; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = button('Enregistrer')(); await change('Saisie pendant attente'); });
+  expect(fields()[index].props.value).toBe(previous);
+  expect(fields().every((field) => field.props.editable === false)).toBe(true);
+  await act(async () => { reject(new Error('Échec fictif')); await pending; });
+  expect(fields().every((field) => field.props.editable === true)).toBe(true);
+  await act(async () => fields()[index].props.onChangeText('Brouillon repris'));
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).toHaveBeenLastCalledWith('items', item.id, expect.objectContaining({ [index ? 'detail' : 'title']: 'Brouillon repris' }));
+});
+
+test('le choix film/série reste figé pendant la sauvegarde', async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, list: 'films' }] });
+  await act(async () => { root = create(<Listes />); });
+  await act(async () => root.root.findByType('segmented' as never).props.onChange('films'));
+  await act(async () => root.root.findAll((node) => typeof node.props.onLongPress === 'function')[0].props.onPress());
+  const chips = () => root.root.findByType('chips' as never);
+  const change = chips().props.onChange;
+  let finish!: () => void;
+  backend.update.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = button('Enregistrer')(); await change('serie'); });
+  expect(chips().props.value).toBe('film');
+  expect(chips().props.disabled).toBe(true);
+  await act(async () => { finish(); await pending; });
+  expect(backend.update).toHaveBeenCalledWith('items', item.id, expect.objectContaining({ media: 'film' }));
+});
+
 test.each(['closed', 'reopened', 'backend', 'loading', 'error', 'removed', 'moved'])('confirmation ignorée après %s', async (change) => {
   await open();
   const confirm = await ask();

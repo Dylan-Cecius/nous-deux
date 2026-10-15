@@ -1,6 +1,7 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Pressable } from 'react-native';
 import { Chips, ColorPicker, SectionTitle, Segmented } from '@/components/ui';
+import { tap } from '../haptics';
 
 jest.mock('@expo/vector-icons/Ionicons', () => 'icon');
 jest.mock('expo-linear-gradient', () => ({ LinearGradient: 'gradient' }));
@@ -16,6 +17,23 @@ jest.mock('react-native', () => Object.create(jest.requireActual('react-native')
 let root: ReactTestRenderer;
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
 const options = [{ value: 'alice', label: 'Alice' }, { value: 'bob', label: 'Bob' }];
+
+test('les choix radio désactivés restent cochés mais ne réagissent pas', async () => {
+  const onChange = jest.fn();
+  await act(async () => { root = create(<Chips options={options} value="alice" onChange={onChange} disabled />); });
+  const buttons = root.root.findAllByType(Pressable);
+  expect(buttons.map((button) => button.props.accessibilityState)).toEqual([
+    { checked: true, disabled: true }, { checked: false, disabled: true },
+  ]);
+  expect(buttons.every((button) => button.props.disabled)).toBe(true);
+  await act(async () => buttons[1].props.onPress());
+  expect(onChange).not.toHaveBeenCalled();
+  expect(tap).not.toHaveBeenCalled();
+  await act(async () => root.update(<Chips options={options} value="alice" onChange={onChange} />));
+  await act(async () => root.root.findAllByType(Pressable)[1].props.onPress());
+  expect(onChange).toHaveBeenCalledWith('bob');
+  expect(tap).toHaveBeenCalledTimes(1);
+});
 
 test('le bouton de rubrique annonce son action et son contexte', async () => {
   const onAction = jest.fn();
