@@ -723,6 +723,7 @@ function cloudBackend(coupleId: string, uid: string): Backend {
   // Une reconnexion réévalue la configuration ; aucun repli ne fuit vers un autre backend.
   let storageAvailable = true;
   const { db } = firebase();
+  const requireIdentity = () => requireCurrentUser(firebase().auth, uid);
   const coupleRef = doc(db, 'couples', coupleId);
   // Les collections privées (idées cadeaux) sont rangées sous le membre : l'autre ne peut pas les lire.
   const path = (name: CollectionName) =>
@@ -760,8 +761,12 @@ function cloudBackend(coupleId: string, uid: string): Backend {
         },
         (error) => { if (onError) onError(error); else cb(null); },
       ),
-    updateCouple: (patch) => updateDoc(coupleRef, clean(patch)),
+    async updateCouple(patch) {
+      requireIdentity();
+      await updateDoc(coupleRef, clean(patch));
+    },
     async updateMember(memberId, patch) {
+      requireIdentity();
       if (memberId !== uid) throw new Error('Tu peux uniquement modifier ton propre profil.');
       const fields = Object.fromEntries(
         Object.entries(clean(patch)).map(([k, v]) => [`profiles.${memberId}.${k}`, v]),
@@ -778,6 +783,7 @@ function cloudBackend(coupleId: string, uid: string): Backend {
       })), (error) => { if (onError) onError(error); else cb([]); });
     },
     async add(name, data) {
+      requireIdentity();
       if (name === 'answers') {
         const answer = data as Omit<Answer, 'id'>;
         await callServer('submitDailyAnswer', { coupleId, date: answer.date, text: answer.text });
@@ -787,12 +793,14 @@ function cloudBackend(coupleId: string, uid: string): Backend {
       await addDoc(col(name), 'createdAt' in payload ? { ...payload, createdAt: serverTimestamp() } : payload);
     },
     async addEvents(events) {
+      requireIdentity();
       if (!events.length || events.length > 52) throw new Error('Choisis entre 1 et 52 horaires.');
       const batch = writeBatch(db);
       for (const event of events) batch.set(doc(col('events')), clean(event));
       await batch.commit();
     },
     async removeEvents(ids) {
+      requireIdentity();
       const selected = eventRemovalIds(ids);
       if (!selected.length) return;
       const batch = writeBatch(db);
@@ -800,10 +808,13 @@ function cloudBackend(coupleId: string, uid: string): Backend {
       await batch.commit();
     },
     async clearShoppingBasket(ids) {
+      requireIdentity();
       const selected = shoppingRemovalIds(ids);
       if (!selected.length) return;
       await runTransaction(db, async (tx) => {
+        requireIdentity();
         const snapshots = await Promise.all(selected.map((id) => tx.get(docRef('items', id))));
+        requireIdentity();
         for (const snap of snapshots) {
           const item = snap.data();
           if (item?.list === 'shopping' && item.done === true) tx.delete(snap.ref);
@@ -811,10 +822,12 @@ function cloudBackend(coupleId: string, uid: string): Backend {
       });
     },
     async update(name, id, patch) {
+      requireIdentity();
       const { id: _ignored, ...rest } = patch as { id?: string };
       await updateDoc(docRef(name, id), clean(rest));
     },
     async remove(name, id) {
+      requireIdentity();
       await deleteDoc(docRef(name, id));
     },
     async uploadPhoto(localUri) {
@@ -848,6 +861,7 @@ function cloudBackend(coupleId: string, uid: string): Backend {
       }
     },
     async call<T>(name: string, data: object) {
+      requireIdentity();
       return callServer<T>(name, { ...data, coupleId });
     },
   };
