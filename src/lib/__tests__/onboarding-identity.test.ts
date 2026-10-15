@@ -78,4 +78,20 @@ describe.each([
     await expect(enter()).rejects.toThrow('compte a changé');
     expect(await AsyncStorage.getItem('session')).toBe(newRaw);
   });
+
+  test.each([null, undefined, {}, [], 'space', { coupleId: null }, { coupleId: '' }, { coupleId: ' ' }, { coupleId: 'a/b' }, { coupleId: 42 }].map((response) => [response]))('une réponse mal formée ne mémorise pas une session invalide : %j', async (response) => {
+    const previous = JSON.stringify({ mode: 'local' });
+    await AsyncStorage.setItem('session', previous);
+    mutation.mockResolvedValueOnce({ data: response });
+    await expect(enter()).rejects.toThrow('réponse du serveur');
+    expect(await AsyncStorage.getItem('session')).toBe(previous);
+  });
+
+  test('après une réponse incomplète, réessayer récupère le rattachement sans rejouer la mutation', async () => {
+    mutation.mockResolvedValueOnce({ data: {} });
+    await expect(enter()).rejects.toThrow('réponse du serveur');
+    (getDoc as jest.Mock).mockResolvedValueOnce({ data: () => ({ coupleId: 'created-space' }) }).mockResolvedValueOnce({ data: () => ({ members: ['alice'] }) });
+    expect((await enter()).coupleId).toBe('created-space');
+    expect(mutation).toHaveBeenCalledTimes(1);
+  });
 });

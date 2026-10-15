@@ -624,8 +624,13 @@ async function finishCloudOnboarding(uid: string, name: 'createCouple' | 'joinCo
   requireCurrentUser(auth, uid);
   try {
     // Le jeton peut changer pendant l’appel : le serveur vérifie aussi cette intention.
-    const { coupleId } = await callServer<{ coupleId: string }>(name, { ...data, expectedUserId: uid });
+    const response = await callServer<unknown>(name, { ...data, expectedUserId: uid });
     requireCurrentUser(auth, uid);
+    const coupleId = response && typeof response === 'object' && !Array.isArray(response)
+      ? (response as { coupleId?: unknown }).coupleId : undefined;
+    if (!validDocumentId(coupleId)) {
+      throw new Error('La réponse du serveur est incomplète. Réessaie pour retrouver ton espace.');
+    }
     await saveCloudSession(coupleId, uid);
     requireCurrentUser(auth, uid);
     return cloudBackend(coupleId, uid);
