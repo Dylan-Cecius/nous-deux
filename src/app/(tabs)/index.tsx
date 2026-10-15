@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Switch, View } from 'react-native';
 
 import { InvitationCard } from '@/components/invitation-card';
@@ -11,13 +11,38 @@ import { Button, Card, confirmDelete, Field, Ionicons, Row, Screen, SectionTitle
 import { cardShadow, useTheme } from '@/constants/theme';
 import { useCollectionState, useSession } from '@/lib/couple-context';
 import { daysBetween, fromKey, nextOccurrence, todayKey } from '@/lib/dates';
+import { useAsyncAction } from '@/lib/use-async-action';
 
 export default function Home() {
+  const { backend } = useSession();
+  return <HomeContent key={`${backend.mode}:${backend.coupleId}:${backend.userId}`} />;
+}
+
+function HomeContent() {
   const t = useTheme();
   const { backend, nameOf, colorOf } = useSession();
   const dates = useCollectionState('dates');
   const events = useCollectionState('events');
   const [dateOpen, setDateOpen] = useState(false);
+  const context = useMemo(() => ({ backend }), [backend]);
+  const latest = useRef<{ context: typeof context; dates: typeof dates } | null>(null);
+  useEffect(() => {
+    latest.current = { context, dates };
+    return () => { latest.current = null; };
+  }, [context, dates]);
+  const { run: runDelete, pending: deleting } = useAsyncAction((action: () => unknown) => action());
+  const isCurrent = () => latest.current?.context === context;
+  const canReadDates = () => isCurrent() && latest.current && !latest.current.dates.loading && !latest.current.dates.error;
+  const canRemove = (id: string) => canReadDates() && latest.current!.dates.items.some((entry) => entry.id === id);
+  const openDate = () => { if (canReadDates()) setDateOpen(true); };
+  const removeDate = (id: string, title: string) => {
+    if (deleting || !canRemove(id)) return;
+    confirmDelete(title, () => runDelete(async () => {
+      if (!canRemove(id)) return;
+      try { await backend.remove('dates', id); }
+      catch (error) { if (isCurrent()) throw error; }
+    }));
+  };
 
   const today = todayKey();
   const todayEvents = events.items.filter((e) => e.date === today).sort((a, b) => a.start.localeCompare(b.start));
@@ -70,14 +95,14 @@ export default function Home() {
       </Card>
 
       {/* Comptes à rebours */}
-      <SectionTitle title="À venir" action={dates.loading || dates.error ? undefined : 'Ajouter'} onAction={() => setDateOpen(true)} />
+      <SectionTitle title="À venir" action={dates.loading || dates.error ? undefined : 'Ajouter'} onAction={openDate} />
       {dates.loading || dates.error ? (
         <Card>
           <T>{dates.loading ? 'Chargement des dates…' : 'Dates indisponibles. Impossible de charger vos comptes à rebours pour le moment.'}</T>
           {dates.error && <Button label="Réessayer les dates" variant="outline" onPress={dates.retry} />}
         </Card>
       ) : upcoming.length === 0 ? (
-        <Card onPress={() => setDateOpen(true)}>
+        <Card onPress={openDate}>
           <Row style={{ gap: 12 }}>
             <Ionicons name="hourglass-outline" size={22} color={t.primary} />
             <T muted style={{ flex: 1 }}>
@@ -90,7 +115,9 @@ export default function Home() {
           {upcoming.map((d, i) => (
             <Pressable
               key={d.id}
-              onLongPress={() => confirmDelete(d.title, () => backend.remove('dates', d.id))}
+              disabled={deleting}
+              accessibilityState={{ disabled: deleting }}
+              onLongPress={() => removeDate(d.id, d.title)}
               style={[
                 { width: '48.5%', flexGrow: 1, backgroundColor: t.card, borderRadius: 20, padding: 16, gap: 4 },
                 cardShadow(t.shadow),
@@ -111,29 +138,42 @@ export default function Home() {
 
       <MemoriesStrip />
 
-      <DateSheet visible={dateOpen} onClose={() => setDateOpen(false)} onSave={(d) => backend.add('dates', d)} />
+      {dateOpen && <DateSheet onClose={() => setDateOpen(false)} />}
     </Screen>
   );
 }
 
-function DateSheet({
-  visible,
-  onClose,
-  onSave,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onSave: (d: { title: string; emoji: string; date: string; yearly: boolean }) => Promise<void>;
-}) {
+function DateSheet({ onClose }: { onClose: () => void }) {
   const t = useTheme();
+  const { backend } = useSession();
+  const collection = useCollectionState('dates');
+  const context = useMemo(() => ({ backend }), [backend]);
+  const latest = useRef<{ context: typeof context; collection: typeof collection } | null>(null);
+  const closed = useRef(false);
+  useEffect(() => {
+    latest.current = { context, collection };
+    return () => { latest.current = null; };
+  }, [context, collection]);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(todayKey());
   const [yearly, setYearly] = useState(false);
+  const { run, pending } = useAsyncAction((action: () => unknown) => action());
+  const isCurrent = () => !closed.current && latest.current?.context === context;
+  const unavailable = collection.loading || collection.error;
+  const canWrite = () => isCurrent() && latest.current && !latest.current.collection.loading && !latest.current.collection.error;
+  const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
+  const save = () => run(async () => {
+    if (!title.trim() || !canWrite()) return;
+    try {
+      await backend.add('dates', { title: title.trim(), emoji: '', date, yearly });
+      close();
+    } catch (error) { if (isCurrent()) throw error; }
+  });
 
   return (
-    <Sheet visible={visible} title="Nouvelle date" onClose={onClose}>
-      <Field label="Quoi ?" value={title} maxLength={200} onChangeText={setTitle} placeholder="Nos vacances en Italie" />
-      <DateField label="Date" value={date} onChange={setDate} />
+    <Sheet visible title="Nouvelle date" onClose={() => run(close)}>
+      <Field label="Quoi ?" value={title} maxLength={200} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setTitle(value); })} placeholder="Nos vacances en Italie" />
+      <DateField label="Date" value={date} disabled={pending} onChange={(value) => run(() => { if (isCurrent()) setDate(value); })} />
       <Row style={{ justifyContent: 'space-between' }}>
         <View style={{ flex: 1 }}>
           <T variant="bodyBold">Revient chaque année</T>
@@ -141,18 +181,14 @@ function DateSheet({
             Anniversaires, date de rencontre…
           </T>
         </View>
-        <Switch value={yearly} onValueChange={setYearly} trackColor={{ true: t.primary }} />
+        <Switch value={yearly} disabled={pending} accessibilityLabel="Revient chaque année" onValueChange={(value) => run(() => { if (isCurrent()) setYearly(value); })} trackColor={{ true: t.primary }} />
       </Row>
+      {unavailable && <T variant="small" muted>Dates indisponibles. Ton brouillon est conservé ; recharge les dates avant de continuer.</T>}
+      {collection.error && <Button label="Recharger les dates du formulaire" variant="outline" onPress={collection.retry} />}
       <Button
         label="Ajouter"
-        disabled={!title.trim()}
-        onPress={async () => {
-          await onSave({ title: title.trim(), emoji: '', date, yearly });
-          setTitle('');
-          setDate(todayKey());
-          setYearly(false);
-          onClose();
-        }}
+        disabled={pending || unavailable || !title.trim()}
+        onPress={save}
       />
     </Sheet>
   );
