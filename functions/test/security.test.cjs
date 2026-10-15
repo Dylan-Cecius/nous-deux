@@ -454,6 +454,32 @@ test('les patches de listes préservent détails, type et statut coché', async 
   }
 });
 
+test('les patches de restaurant préservent note, métadonnées et auteur', async () => {
+  await seed();
+  const path = `couples/${cid}/restaurants/partial`;
+  const original = { name: 'Restaurant fictif', status: 'envie', rating: 0, address: 'Adresse fictive', mapsUrl: 'https://maps.google.com/?cid=1', photoUrl: '', createdBy: 'alice', createdAt: Date.now() };
+  await assertSucceeds(setDoc(doc(client('alice'), path), original));
+  await assertSucceeds(updateDoc(doc(client('bob'), path), { status: 'favori', rating: 5, cuisine: 'Italien' }));
+  await assertSucceeds(updateDoc(doc(client('alice'), path), { name: 'Nouveau nom' }));
+  assert.deepEqual((await getDoc(doc(client('bob'), path))).data(), { ...original, name: 'Nouveau nom', status: 'favori', rating: 5, cuisine: 'Italien' });
+  await assertSucceeds(updateDoc(doc(client('bob'), path), { rating: 0 }));
+  await assertFails(updateDoc(doc(client('mallory'), path), { name: 'Interdit' }));
+  await assertFails(updateDoc(doc(client('bob'), path), { createdBy: 'bob' }));
+});
+
+test('les patches d’agenda préservent les heures reçues et la série', async () => {
+  await seed();
+  const path = `couples/${cid}/events/partial`;
+  const original = { title: 'Horaire fictif', date: '2026-10-15', start: '09:00', end: '12:00', who: 'alice', kind: 'travail', seriesId: 'serie-fictive', createdBy: 'alice' };
+  await assertSucceeds(setDoc(doc(client('alice'), path), original));
+  await assertSucceeds(updateDoc(doc(client('bob'), path), { start: '10:00', end: '14:00', who: 'both' }));
+  await assertSucceeds(updateDoc(doc(client('alice'), path), { title: 'Autre titre' }));
+  assert.deepEqual((await getDoc(doc(client('bob'), path))).data(), { ...original, title: 'Autre titre', start: '10:00', end: '14:00', who: 'both' });
+  await assertFails(updateDoc(doc(client('alice'), path), { start: '15:00' }));
+  await assertFails(updateDoc(doc(client('mallory'), path), { title: 'Interdit' }));
+  await assertFails(updateDoc(doc(client('bob'), path), { createdBy: 'bob' }));
+});
+
 test('les patches privés de cadeaux restent réservés au propriétaire', async () => {
   await seed();
   const path = `couples/${cid}/private/alice/gifts/partial`;

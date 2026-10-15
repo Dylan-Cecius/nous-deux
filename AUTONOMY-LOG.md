@@ -818,3 +818,9 @@ Base 16e48f8419da4581e4ba7570517e8b90ad8cbfed. Six régressions rouges puis vert
 
 Preuves : lint, TypeScript, 48 suites / 894 tests applicatifs (7,44 s), diff relu et git diff --check. Le contrôle des ancres de suppression de série reste inchangé ; aucune suppression réelle. React : dépendances complètes et aucune nouvelle souscription. Serveur/règles inchangés, dernière preuve sécurité 48 tests à 17:19. Aucun service facturable, notification réelle (doublée dans les tests), build, diffusion ou statut Apple relu. Limites : conflit sur un même champ non arbitré ; les valeurs invalides ou membres retirés sont la prochaine piste de validation à reproduire.
 
+## 2026-10-15, 17:46 Europe/Brussels — Compatibilité des patches restaurant et agenda
+
+Base 6abbb3e80cba5347ed5b91663c4264629ab54b7d. Deux tests de compatibilité ajoutés : patches complémentaires par Alice/Bob fictifs, puis lecture complète confirmant les métadonnées, l’auteur, la série et les champs non modifiés. Retrait de note accepté ; tiers, usurpation et intervalle horaire invalide refusés. Aucune modification de règle ni de serveur, aucun défaut serveur prétendu.
+
+Preuves : compilation fonctions et 50 tests sécurité réussis en 28,28 s sur demo-nous-deux-security, sortie 0 et émulateurs arrêtés. Lint/TypeScript et git diff --check propres, diff relu. Dernière suite applicative : 894 tests à 17:44, aucun code applicatif changé depuis. Aucun compte réel, notification, suppression réelle, build, déploiement, distribution ou dépense. Ces tests ne constituent pas un essai multi-téléphones.
+
