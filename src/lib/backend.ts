@@ -189,6 +189,8 @@ const localWrites = new Map<string, Promise<void>>();
 async function readLocal<T>(key: string, fallback: T): Promise<T> {
   if (cache.has(key)) return cache.get(key) as T;
   const raw = await AsyncStorage.getItem(key);
+  // Une écriture ou une autre lecture peut avoir rempli le cache entre-temps.
+  if (cache.has(key)) return cache.get(key) as T;
   const value = raw ? (JSON.parse(raw) as T) : fallback;
   cache.set(key, value);
   return value;
@@ -215,11 +217,22 @@ function mutateLocal<T>(key: string, fallback: T, change: (current: T) => T): Pr
 }
 
 function watchLocal<T>(key: string, fallback: T, cb: (value: T) => void, onError?: (error: unknown) => void) {
+  let active = true;
+  let received = false;
+  const receive = (value: T) => {
+    if (!active) return;
+    received = true;
+    cb(value);
+  };
   if (!listeners.has(key)) listeners.set(key, new Set());
-  listeners.get(key)!.add(cb);
-  readLocal(key, fallback).then(cb, onError);
+  listeners.get(key)!.add(receive);
+  readLocal(key, fallback).then(
+    (value) => { if (!received) receive(value); },
+    (error) => { if (active && !received) onError?.(error); },
+  );
   return () => {
-    listeners.get(key)?.delete(cb);
+    active = false;
+    listeners.get(key)?.delete(receive);
   };
 }
 

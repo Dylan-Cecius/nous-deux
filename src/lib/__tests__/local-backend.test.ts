@@ -75,3 +75,58 @@ test('une collection lente ne bloque pas les écritures des autres collections',
   finish();
   await blocked;
 });
+
+test('une lecture initiale retardée ne remplace pas une écriture plus récente dans le cache', async () => {
+  let finish!: (raw: string | null) => void;
+  (storage.getItem as jest.Mock).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+  const data = jest.fn();
+  const stop = backend.subscribe('notes', data, jest.fn());
+  await backend.add('notes', note('Premier'));
+  finish(null);
+  await Promise.resolve(); await Promise.resolve();
+  expect(data).toHaveBeenCalledTimes(1);
+  expect(data.mock.calls[0][0]).toEqual([expect.objectContaining({ text: 'Premier' })]);
+  await backend.add('notes', note('Second'));
+  expect((await read('local:col:notes')).map((x: { text: string }) => x.text)).toEqual(['Premier', 'Second']);
+  stop();
+});
+
+test.each(['success', 'error'])('une lecture %s ne notifie plus après désabonnement', async (result) => {
+  let resolve!: (raw: string | null) => void;
+  let reject!: (error: Error) => void;
+  (storage.getItem as jest.Mock).mockImplementationOnce(() => new Promise((yes, no) => { resolve = yes; reject = no; }));
+  const data = jest.fn(); const error = jest.fn();
+  const stop = backend.subscribe('notes', data, error);
+  stop();
+  if (result === 'success') resolve(null); else reject(new Error('Lecture fictive'));
+  await Promise.resolve(); await Promise.resolve();
+  expect(data).not.toHaveBeenCalled();
+  expect(error).not.toHaveBeenCalled();
+});
+
+test('une erreur de lecture ancienne ne masque pas un résultat déjà confirmé', async () => {
+  let reject!: (error: Error) => void;
+  (storage.getItem as jest.Mock).mockImplementationOnce(() => new Promise((_yes, no) => { reject = no; }));
+  const data = jest.fn(); const error = jest.fn();
+  const stop = backend.subscribe('notes', data, error);
+  await backend.add('notes', note('Confirmé'));
+  reject(new Error('Ancienne lecture'));
+  await Promise.resolve(); await Promise.resolve();
+  expect(error).not.toHaveBeenCalled();
+  expect(data).toHaveBeenCalledTimes(1);
+  stop();
+});
+
+test('une erreur initiale courante remonte et un nouvel abonnement peut reprendre', async () => {
+  (storage.getItem as jest.Mock).mockRejectedValueOnce(new Error('Lecture fictive'));
+  const data = jest.fn(); const error = jest.fn();
+  const stop = backend.subscribe('notes', data, error);
+  await Promise.resolve(); await Promise.resolve();
+  expect(error).toHaveBeenCalledTimes(1);
+  expect(data).not.toHaveBeenCalled();
+  stop();
+  let retry!: () => void;
+  await new Promise<void>((resolve) => { retry = backend.subscribe('notes', (items) => { data(items); resolve(); }, error); });
+  expect(data).toHaveBeenCalledWith([]);
+  retry();
+});

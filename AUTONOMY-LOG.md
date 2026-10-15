@@ -228,3 +228,11 @@ Correction : file de lecture-modification-écriture par clé locale, partagée p
 Contrôles : sept tests de stockage local réussis, puis 18 suites / 184 tests applicatifs, lint sans nouvel avertissement, TypeScript et diff relu/`git diff --check` réussis. Les imports dynamiques du test avaient échoué dans Jest sans VM modules ; remplacés par les mécanismes `jest.requireMock/requireActual`, sans changement de configuration. La suite de sécurité, relancée car `remove` local est concerné, passe avec 20 tests en 13,00 s, sortie 0, exclusivement sur les trois émulateurs `demo-nous-deux-security`, arrêtés proprement.
 
 Limites : stockage simulé, un seul runtime JavaScript ; aucune garantie entre onglets/processus ni transaction multi-clés. L’audit des lectures retardées et de la fermeture/suppression pendant une écriture suit séparément. Aucun contenu réel supprimé, service facturable, build, distribution ou validation Apple. Les limites du checkpoint précédent restent inchangées.
+
+## 2026-10-15, 10:48 Europe/Brussels — Lectures locales retardées
+
+Base : `539a40378e7ed898b9015860a9bda089d3f66390`, 113 SHA texte et autres blobs vérifiés au checkpoint précédent. Quatre défauts reproduits : résultat initial obsolète après écriture confirmée, callbacks de succès/erreur encore appelés après désabonnement, erreur initiale tardive masquant une écriture déjà reçue. La lecture vérifie à nouveau le cache à son retour ; l’abonnement suit sa durée de vie et ignore son résultat initial dès qu’un résultat plus récent a été reçu.
+
+Contrôles : cinq nouveaux tests (dont reprise après véritable erreur initiale), 12 tests de stockage local et 18 suites / 189 tests au total réussis ; lint, TypeScript, diff relu et `git diff --check` réussis. Le test de reprise attend maintenant son callback réel au lieu de supposer un nombre de microtâches ; son premier échec n’était pas un défaut produit. Aucun changement serveur/règle ni des opérations de suppression dans ce checkpoint, pas de nouvelle exécution des émulateurs revendiquée. Les 20 tests de sécurité du checkpoint précédent restent la dernière preuve.
+
+Limites inchangées : stockage fictif, pas d’essai physique ou multi-processus, ni build/diffusion/dépense. Suite immédiate : coordination d’une suppression locale avec les opérations déjà en cours.
