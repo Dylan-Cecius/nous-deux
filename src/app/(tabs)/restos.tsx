@@ -12,7 +12,6 @@ import {
   Fab,
   Field,
   IconButton,
-  Ionicons,
   Row,
   Screen,
   Segmented,
@@ -27,6 +26,7 @@ import { features } from '@/lib/features';
 import type { Restaurant, RestaurantStatus } from '@/lib/types';
 import { useAsyncAction } from '@/lib/use-async-action';
 import { restaurantMapUrl } from '@/lib/restaurant-map';
+import { RestaurantRating as Hearts } from '@/components/restaurant-rating';
 
 const STATUSES: { value: RestaurantStatus; label: string }[] = [
   { value: 'envie', label: 'À tester' },
@@ -48,24 +48,6 @@ function tileFor(name: string) {
   let h = 0;
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return TILES[h % TILES.length];
-}
-
-function Hearts({ value, onChange, size = 18, disabled = false }: { value: number; onChange?: (v: number) => void; size?: number; disabled?: boolean }) {
-  const t = useTheme();
-  return (
-    <Row style={{ gap: onChange ? 8 : 2 }}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <Pressable
-          key={i}
-          disabled={!onChange || disabled}
-          accessibilityLabel={`${i} cœur${i > 1 ? 's' : ''}`}
-          onPress={() => { if (!disabled) return onChange?.(i === value ? 0 : i); }}
-          hitSlop={4}>
-          <Ionicons name={i <= value ? 'heart' : 'heart-outline'} size={size} color={i <= value ? t.primary : t.border} />
-        </Pressable>
-      ))}
-    </Row>
-  );
 }
 
 export default function Restos() {

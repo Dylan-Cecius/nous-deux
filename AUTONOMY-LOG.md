@@ -466,3 +466,11 @@ Base `bb867b2b63966961bc05fe790f1c565eddacb0bf`, 132 SHA texte vérifiés. Les f
 Champs non éditables, choix Film/Série/Liste et note désactivés pendant la mutation. Les setters passent aussi par le verrou synchrone commun : une ancienne référence de callback ne contourne pas l’attente ; contexte périmé ignoré. Après échec, brouillon intact et saisie réactivée. Chips expose son état désactivé et ne déclenche plus de retour haptique dans cet état. Le callback Places est protégé sans activer cette fonctionnalité.
 
 Preuves : 36 suites / 557 tests applicatifs, lint, TypeScript, diff relu et `git diff --check` réussis. Documentation TextInput React Native 0.86 consultée pour editable, documentation Expo 57/llms et Pressable déjà lue. Revue React : conservation du state local et verrou par ref, pas de nouvel effet réseau. Aucun changement serveur/règle/mécanisme de suppression ; dernier contrôle sécurité : 27 tests à 13:58. Limites : pas de vérification clavier/appareil/lecteur d’écran, autres formulaires non couverts par ce correctif ; aucune build ni distribution.
+
+## 2026-10-15, 14:18 Europe/Brussels — Accessibilité des notes de restaurants
+
+Base `c278f578b7fc88e718d8c0d41ed7ea393a862044`, 132 SHA texte vérifiés. Composant de notation extrait sans changer son comportement initial pour reproduire cinq tests rouges : cinq boutons désactivés même en lecture seule, aucune note globale exposée, sélection/désactivation non annoncées en édition. Nouveau composant hors des routes Expo.
+
+Lecture seule : résumé « note sur cinq » ou absence de note, icônes décoratives masquées aux technologies d’assistance et aucun Pressable. Édition : rôle bouton, sélection et désactivation, indication pour attribuer une note ou retirer celle sélectionnée ; comportement de retrait conservé. Documentation officielle React Native 0.86 accessibility relue ; revue React du composant sans nouvel effet/abonnement.
+
+Preuves : 37 suites / 562 tests applicatifs réussis ; après retrait d’un import devenu inutilisé signalé par lint, lint et TypeScript propres, 38 tests ciblés réussis, diff relu et `git diff --check` réussi. Pas de validation VoiceOver/TalkBack ni de l’ordre réel du focus dans les cartes imbriquées ; ce contrôle nécessite un appareil. Aucun service/API payant, build, déploiement, distribution ou changement de règles.
