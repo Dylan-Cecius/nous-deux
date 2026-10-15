@@ -65,9 +65,12 @@ export async function scheduleCountdownReminders(dates: SpecialDate[]) {
   const generation = ++remindersGeneration;
   if (!supported) return;
   const granted = (await Notifications.getPermissionsAsync()).granted;
-  if (!granted) return;
+  if (!granted || generation !== remindersGeneration) return;
 
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  // Les lectures natives peuvent terminer après une programmation plus récente.
+  // Ne jamais annuler ses rappels à partir d'une demande devenue obsolète.
+  if (generation !== remindersGeneration) return;
   await Promise.all(
     scheduled
       .filter((n) => n.content.data?.kind === 'countdown')
