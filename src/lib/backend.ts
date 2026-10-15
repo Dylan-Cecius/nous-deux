@@ -169,6 +169,12 @@ function withSession<T>(action: () => Promise<T>): Promise<T> {
   return task;
 }
 
+function requireCurrentUser(auth: ReturnType<typeof firebase>['auth'], expectedUid: string) {
+  if (auth.currentUser?.uid !== expectedUid) {
+    throw new Error('Le compte a changé. Rouvre la connexion avant de réessayer.');
+  }
+}
+
 export async function loadSession(): Promise<Backend | null> {
   return withSession(loadSessionNow);
 }
@@ -180,23 +186,28 @@ async function loadSessionNow(): Promise<Backend | null> {
   if (session.mode === 'local') return localBackend();
   const { auth, db } = firebase();
   await auth.authStateReady();
-  if (!auth.currentUser || auth.currentUser.uid !== session.userId) {
+  if (!auth.currentUser) {
     await clearSessionNow();
     return null;
   }
+  requireCurrentUser(auth, session.userId);
   try {
     // L'index serveur est la référence après une migration ou un changement d'appareil.
     // Un ancien identifiant local ne doit pas déconnecter un compte anonyme récupérable.
     const index = await getDoc(doc(db, 'users', session.userId));
+    requireCurrentUser(auth, session.userId);
     const coupleId = serverCoupleId(index.data()?.coupleId) ?? session.coupleId;
     const couple = await getDoc(doc(db, 'couples', coupleId));
+    requireCurrentUser(auth, session.userId);
     if (!hasMember(couple.data(), session.userId)) {
       await clearSessionNow();
       return null;
     }
     if (coupleId !== session.coupleId) await saveCloudSession(coupleId, session.userId);
+    requireCurrentUser(auth, session.userId);
     return cloudBackend(coupleId, session.userId);
   } catch (error) {
+    requireCurrentUser(auth, session.userId);
     if ((error as { code?: string }).code === 'permission-denied') {
       await clearSessionNow();
       return null;
@@ -494,19 +505,24 @@ async function signInWithEmailNow(email: string, password: string): Promise<Back
 
 /** Une réponse perdue ou une panne de stockage ne doit pas rejouer une invitation consommée. */
 async function recoverCloudSession(uid: string): Promise<Backend | null> {
-  const { db } = firebase();
+  const { auth, db } = firebase();
+  requireCurrentUser(auth, uid);
   try {
     const index = await getDoc(doc(db, 'users', uid));
+    requireCurrentUser(auth, uid);
     const coupleId = serverCoupleId(index.data()?.coupleId);
     if (coupleId == null) return null;
     // Un ancien index ne suffit pas : vérifier l’espace avant de quitter la connexion.
     const couple = await getDoc(doc(db, 'couples', coupleId));
+    requireCurrentUser(auth, uid);
     if (!hasMember(couple.data(), uid)) {
       throw new Error('Ton compte n’a plus accès à cet espace. Contacte l’assistance si cela te semble anormal.');
     }
     await saveCloudSession(coupleId, uid);
+    requireCurrentUser(auth, uid);
     return cloudBackend(coupleId, uid);
   } catch (error) {
+    requireCurrentUser(auth, uid);
     const code = (error as { code?: string })?.code;
     if (code === 'permission-denied') {
       throw new Error('Ton compte n’a plus accès à cet espace. Contacte l’assistance si cela te semble anormal.');

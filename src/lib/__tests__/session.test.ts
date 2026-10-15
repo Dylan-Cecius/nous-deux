@@ -331,10 +331,12 @@ test('une lecture locale échouée remonte aussi une erreur récupérable', asyn
 });
 
 test('un identifiant local ancien ne crée pas un nouveau compte anonyme', async () => {
-  await AsyncStorage.setItem('session', JSON.stringify({ mode: 'cloud', userId: 'other', coupleId: 'couple' }));
-  expect(await loadSession()).toBeNull();
+  const raw = JSON.stringify({ mode: 'cloud', userId: 'other', coupleId: 'couple' });
+  await AsyncStorage.setItem('session', raw);
+  await expect(loadSession()).rejects.toThrow('compte a changé');
   expect(signInAnonymously).not.toHaveBeenCalled();
-  expect(await AsyncStorage.getItem('session')).toBeNull();
+  expect(signOut).not.toHaveBeenCalled();
+  expect(await AsyncStorage.getItem('session')).toBe(raw);
 });
 
 test('un refus d’accès efface la session, une panne réseau la conserve pour réessayer', async () => {
