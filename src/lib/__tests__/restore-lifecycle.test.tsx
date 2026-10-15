@@ -50,6 +50,31 @@ test('une restauration retardée ne reconnecte pas après déconnexion', async (
   expect(oldBackend.subscribeCouple).not.toHaveBeenCalled();
 });
 
+test('terminer une suppression oublie l’interface sans effacer une seconde fois la session', async () => {
+  await act(async () => { resolve(oldBackend); });
+  await act(async () => { expect(session.completeDeletion(oldBackend)).toBe(true); });
+  expect(session.backend).toBeNull();
+  expect(session.loading).toBe(false);
+  expect(clearSession).not.toHaveBeenCalled();
+});
+
+test('une ancienne fin de suppression ne ferme pas un nouveau backend', async () => {
+  await act(async () => { resolve(oldBackend); });
+  const finish = session.completeDeletion;
+  await act(async () => { session.setBackend(newBackend); });
+  await act(async () => { expect(finish(oldBackend)).toBe(false); });
+  expect(session.backend).toBe(newBackend);
+  expect(clearSession).not.toHaveBeenCalled();
+});
+
+test('la fin de suppression invalide une restauration plus ancienne encore en attente', async () => {
+  await act(async () => { session.setBackend(oldBackend); });
+  await act(async () => { expect(session.completeDeletion(oldBackend)).toBe(true); });
+  await act(async () => { resolve(oldBackend); });
+  expect(session.backend).toBeNull();
+  expect(clearSession).not.toHaveBeenCalled();
+});
+
 test('les anciens gestionnaires ne lisent ni effacent la session après démontage', async () => {
   const old = session;
   await act(async () => { root.unmount(); });

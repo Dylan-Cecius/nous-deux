@@ -14,11 +14,13 @@ type CoupleState = {
   couple: Couple | null;
   setBackend: (backend: Backend) => void;
   signOut: () => Promise<void>;
+  /** Oublie uniquement l’interface dont la suppression a déjà nettoyé la session. */
+  completeDeletion: (deleted: Backend) => boolean;
 };
 
 const CoupleContext = createContext<CoupleState | null>(null);
 
-type SessionWork = { active: boolean; revision: number; restoring: Promise<void> | null };
+type SessionWork = { active: boolean; revision: number; restoring: Promise<void> | null; backend: Backend | null };
 
 export function CoupleProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,7 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
     const current = () => scope.active && scope.revision === revision;
     setLoading(true);
     scope.restoring = loadSession()
-      .then((restored) => { if (current()) { setBackend(restored); setRestoreError(false); } })
+      .then((restored) => { if (current()) { scope.backend = restored; setBackend(restored); setRestoreError(false); } })
       .catch(() => { if (current()) setRestoreError(true); })
       .finally(() => { scope.restoring = null; if (current()) setLoading(false); });
     return scope.restoring;
@@ -48,13 +50,14 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
     const scope = work.current;
     if (!scope?.active) return;
     scope.revision++;
+    scope.backend = next;
     setBackend(next);
     setRestoreError(false);
     setLoading(false);
   };
 
   useEffect(() => {
-    const scope: SessionWork = { active: true, revision: 0, restoring: null };
+    const scope: SessionWork = { active: true, revision: 0, restoring: null, backend: null };
     work.current = scope;
     void restore();
     return () => { scope.active = false; };
@@ -75,14 +78,27 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
     await clearSession();
     if (!scope.active || scope.revision !== revision) return;
     scope.revision++;
+    scope.backend = null;
     setBackend(null);
     setSnapshot(null);
     setRestoreError(false);
     setLoading(false);
   };
 
+  const completeDeletion = (deleted: Backend) => {
+    const scope = work.current;
+    if (!scope?.active || scope.backend !== deleted) return false;
+    scope.revision++;
+    scope.backend = null;
+    setBackend(null);
+    setSnapshot(null);
+    setRestoreError(false);
+    setLoading(false);
+    return true;
+  };
+
   return (
-    <CoupleContext.Provider value={{ loading, restoreError, retrySession: restore, syncError, retrySync, backend, couple, setBackend: chooseBackend, signOut }}>
+    <CoupleContext.Provider value={{ loading, restoreError, retrySession: restore, syncError, retrySync, backend, couple, setBackend: chooseBackend, signOut, completeDeletion }}>
       {children}
     </CoupleContext.Provider>
   );

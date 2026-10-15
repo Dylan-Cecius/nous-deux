@@ -13,30 +13,39 @@ const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Onglet Nous : état du compte, sécurisation par e-mail, suppression. */
 export function AccountCard() {
+  const { backend } = useSession();
+  return <AccountCardContent key={`${backend.mode}:${backend.coupleId}:${backend.userId}`} />;
+}
+
+function AccountCardContent() {
   const t = useTheme();
   const { backend } = useSession();
-  const { signOut } = useCouple();
+  const { completeDeletion } = useCouple();
   const [securing, setSecuring] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => { active.current = false; };
+  }, []);
+  const { run, pending: busy } = useAsyncAction((action: () => Promise<void>) => action());
   const [deletionError, setDeletionError] = useState<string | null>(null);
   const [, refresh] = useState(0);
   const account = backend.mode === 'cloud' ? currentAccount() : null;
 
-  const executeDelete = async () => {
-    if (busy) return;
-    setBusy(true);
+  const executeDelete = () => run(async () => {
     setDeletionError(null);
     try {
       const status = await deleteMyAccount(backend, password);
+      // Le provider vérifie l’identité du backend, même si cet écran a été fermé.
+      const completed = completeDeletion(backend);
+      if (!active.current) return;
       setPassword('');
       setDeleting(false);
-      await signOut();
-      if (status === 'pending') showDialog('Suppression en cours', 'Ton accès est désactivé. Le nettoyage se poursuivra automatiquement, même si tu fermes l’app.');
-    } catch (error) { setDeletionError(errorText(error)); }
-    finally { setBusy(false); }
-  };
+      if (completed && status === 'pending') showDialog('Suppression en cours', 'Ton accès est désactivé. Le nettoyage se poursuivra automatiquement, même si tu fermes l’app.');
+    } catch (error) { if (active.current) setDeletionError(errorText(error)); }
+  });
   const askDelete = () => { setPassword(''); setDeletionError(null); setDeleting(true); };
 
   return (
