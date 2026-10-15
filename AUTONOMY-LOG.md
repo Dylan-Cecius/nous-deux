@@ -824,3 +824,9 @@ Base 6abbb3e80cba5347ed5b91663c4264629ab54b7d. Deux tests de compatibilité ajou
 
 Preuves : compilation fonctions et 50 tests sécurité réussis en 28,28 s sur demo-nous-deux-security, sortie 0 et émulateurs arrêtés. Lint/TypeScript et git diff --check propres, diff relu. Dernière suite applicative : 894 tests à 17:44, aucun code applicatif changé depuis. Aucun compte réel, notification, suppression réelle, build, déploiement, distribution ou dépense. Ces tests ne constituent pas un essai multi-téléphones.
 
+## 2026-10-15, 17:49 Europe/Brussels — Réattribuer un horaire après départ d’un membre
+
+Base 71497cf7d2c288b7911728f365720535818b40ef. Deux tests rouges reproduisent un bouton actif après retrait du membre sélectionné en création et édition. Le formulaire vérifie désormais les membres courants au rendu et dans l’action, y compris depuis un ancien bouton. Message explicite et saisie conservée ; remplacement par un membre présent permet l’enregistrement. Contrôle supplémentaire du choix Nous deux, toujours accepté conformément aux règles existantes.
+
+Preuves : lint, TypeScript, 48 suites / 897 tests applicatifs (7,41 s), diff relu et git diff --check. Sécurité : 50 tests sur émulateurs à 17:46 ; règles inchangées. Aucun départ réel, accès à du contenu réel, notification réelle, build, déploiement ou dépense. Limite : contrôle client avant envoi, pas d’annulation d’une écriture déjà engagée ni de garantie transactionnelle avec un départ ultérieur.
+

@@ -110,6 +110,39 @@ test('le changement de jour relit la date reçue et cumule deux appuis', async (
   expect(backend.update).toHaveBeenCalledWith('events', event.id, { date: '2099-01-03' });
 });
 
+test.each([false, true])('le membre retiré est refusé puis peut être remplacé (création %s)', async (fresh) => {
+  if (fresh) {
+    await act(async () => { root = create(<Agenda />); });
+    await act(async () => formField('Ajouter un horaire').props.onPress());
+  } else await openSeries();
+  await changeTitle();
+  await act(async () => formField('Pour qui ?').props.onChange('bob'));
+  const save = formField('Enregistrer').props.onPress;
+  (useSession as jest.Mock).mockReturnValue({ ...session, members: [session.members[0]] });
+  await act(async () => root.update(<Agenda />));
+  expect(formField('Enregistrer').props.disabled).toBe(true);
+  await act(async () => { await save(); });
+  expect(backend.addEvents).not.toHaveBeenCalled();
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(notifyPartner).not.toHaveBeenCalled();
+  expect(formField('Titre').props.value).toBe('Titre saisi');
+  await act(async () => formField('Pour qui ?').props.onChange('alice'));
+  expect(formField('Enregistrer').props.disabled).toBe(false);
+  await act(async () => { await save(); });
+  if (fresh) expect(backend.addEvents).toHaveBeenCalledTimes(1);
+  else expect(backend.update).toHaveBeenCalledWith('events', event.id, { title: 'Titre saisi' });
+});
+
+test('Nous deux reste un choix valide avec un seul membre présent', async () => {
+  await openSeries();
+  await act(async () => formField('Pour qui ?').props.onChange('both'));
+  (useSession as jest.Mock).mockReturnValue({ ...session, members: [session.members[0]] });
+  await act(async () => root.update(<Agenda />));
+  expect(formField('Enregistrer').props.disabled).toBe(false);
+  await act(async () => { await formField('Enregistrer').props.onPress(); });
+  expect(backend.update).toHaveBeenCalledWith('events', event.id, { who: 'both' });
+});
+
 const askLongPressDelete = async () => {
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [seriesEvent] });
   await act(async () => { root = create(<Agenda />); });

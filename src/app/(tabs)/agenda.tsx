@@ -333,12 +333,12 @@ function EventSheet({
   const unavailable = allEvents.loading || allEvents.error || (!!event && !allEvents.items.some((entry) => entry.id === event.id));
   // A native confirmation may outlive the snapshot, session or sheet that opened it.
   const context = useMemo(() => ({ backend }), [backend]);
-  const latest = useRef<{ context: typeof context; state: typeof allEvents; base: typeof base; values: typeof values; repeat: string } | null>(null);
+  const latest = useRef<{ context: typeof context; state: typeof allEvents; base: typeof base; values: typeof values; repeat: string; members: typeof members } | null>(null);
   const closed = useRef(false);
   useEffect(() => {
-    latest.current = { context, state: allEvents, base, values, repeat };
+    latest.current = { context, state: allEvents, base, values, repeat, members };
     return () => { latest.current = null; };
-  }, [context, allEvents, base, values, repeat]);
+  }, [context, allEvents, base, values, repeat, members]);
   const { run, pending: busy } = useAsyncAction((action: () => unknown) => action());
   const isCurrent = () => !closed.current && latest.current?.context === context;
   const canWrite = () => {
@@ -352,12 +352,13 @@ function EventSheet({
     catch (error) { if (isCurrent()) throw error; }
   });
 
-  const valid = !!title.trim() && start < end;
+  const validWho = who === BOTH || members.some((member) => member.id === who);
+  const valid = !!title.trim() && start < end && validWho;
 
   const save = () => runCurrent(async () => {
     const current = latest.current!;
     const { title, who, kind, date, start, end } = current.values;
-    if (!title.trim() || start >= end) return;
+    if (!title.trim() || start >= end || (who !== BOTH && !current.members.some((member) => member.id === who))) return;
     const data = { title: title.trim(), who, kind, date, start, end };
     if (event) {
       const patch = draftPatch(current.base, data);
@@ -411,6 +412,7 @@ function EventSheet({
         disabled={busy}
         onChange={(value) => run(() => { if (isCurrent()) setWho(value); })}
       />
+      {!validWho && <T variant="small">Ce membre n’est plus disponible. Choisis à qui attribuer cet horaire ; ta saisie est conservée.</T>}
       <Chips label="Type" options={KINDS} value={kind} disabled={busy} onChange={(value) => run(() => { if (isCurrent()) setKind(value); })} />
       <View style={{ gap: 8 }}>
         <T variant="caption" muted>
