@@ -9,7 +9,7 @@ jest.mock('../couple-context', () => {
   const state = jest.fn();
   return { useCollection: (name: string) => state(name).items, useCollectionState: state, useSession: jest.fn() };
 });
-jest.mock('../notifications', () => ({ ensurePermission: jest.fn(), scheduleCountdownReminders: jest.fn(() => Promise.resolve()), getPushToken: jest.fn(), pushSupported: false }));
+jest.mock('../notifications', () => ({ ensurePermission: jest.fn(), scheduleCountdownReminders: jest.fn(() => Promise.resolve(true)), getPushToken: jest.fn(), pushSupported: false }));
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn() }));
 jest.mock('@/components/celebrate', () => ({ celebrate: jest.fn() }));
 jest.mock('@/components/account', () => ({ AccountCard: () => null }));

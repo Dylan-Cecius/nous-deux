@@ -143,9 +143,13 @@ function NousContent() {
       if (granted) {
         const scope = latest.current!.reminderScope;
         const remindersActive = () => canNotify() && latest.current?.reminderScope === scope;
-        await scheduleCountdownReminders(latest.current!.dates.items, remindersActive);
+        const confirmed = await scheduleCountdownReminders(latest.current!.dates.items, remindersActive);
         if (!canNotify() || !datesReady()) return;
         if (!remindersActive()) return;
+        if (!confirmed) {
+          showDialog('Activation interrompue', 'La programmation des rappels n’a pas pu être confirmée. Vérifie les autorisations du téléphone puis réessaie.');
+          return;
+        }
         if (backend.mode === 'cloud') {
           const token = await getPushToken();
           if (!canNotify() || !datesReady()) return;

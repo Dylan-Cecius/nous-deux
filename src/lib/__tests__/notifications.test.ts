@@ -272,3 +272,19 @@ test('deux échecs de nettoyage restent signalés sans bloquer le nettoyage suiv
   await expect(clearReminders()).resolves.toBeUndefined();
   expect(Notifications.dismissAllNotificationsAsync).toHaveBeenCalledTimes(2);
 });
+
+test.each(['active', 'empty', 'inactive', 'denied'])('le résultat %s indique si la programmation est confirmée', async (kind) => {
+  if (kind === 'denied') (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({ granted: false });
+  const result = await scheduleCountdownReminders(kind === 'empty' ? [] : dates, () => kind !== 'inactive');
+  expect(result).toBe(kind === 'active' || kind === 'empty');
+});
+
+test('une programmation supplantée rapporte un arrêt, pas une réussite', async () => {
+  const permission = deferred<{ granted: boolean }>();
+  (Notifications.getPermissionsAsync as jest.Mock).mockImplementationOnce(() => permission.promise);
+  const old = scheduleCountdownReminders(dates);
+  const current = await scheduleCountdownReminders([]);
+  permission.resolve({ granted: true });
+  expect(await old).toBe(false);
+  expect(current).toBe(true);
+});

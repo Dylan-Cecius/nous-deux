@@ -83,3 +83,12 @@ describe.each(['background', 'settings'])('%s, intégration avec le programmateu
     expect((showDialog as jest.Mock).mock.calls.some(([title]) => title === 'Rappels activés')).toBe(false);
   });
 });
+
+test('une permission révoquée entre activation et programmation ne produit pas un faux succès', async () => {
+  (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({ granted: true }).mockResolvedValueOnce({ granted: false });
+  await act(async () => { root = create(<Nous />); });
+  await act(async () => { await root.root.findByProps({ title: 'Notifications' }).props.onPress(); });
+  expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+  expect(showDialog).toHaveBeenCalledWith('Activation interrompue', expect.any(String));
+  expect((showDialog as jest.Mock).mock.calls.some(([title]) => title === 'Rappels activés')).toBe(false);
+});

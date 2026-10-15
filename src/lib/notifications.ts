@@ -74,21 +74,21 @@ export async function getPushToken(): Promise<string | null> {
   }
 }
 
-/** Reprogramme les rappels locaux « J-1 » et « Jour J » (à 9h) pour les comptes à rebours. */
-export async function scheduleCountdownReminders(dates: SpecialDate[], isActive: () => boolean = () => true) {
+/** Reprogramme les rappels locaux et renvoie true uniquement si cette demande a terminé. */
+export async function scheduleCountdownReminders(dates: SpecialDate[], isActive: () => boolean = () => true): Promise<boolean> {
   // Une ancienne commande ne doit pas invalider la génération du contexte courant.
-  if (!supported || !isActive()) return;
+  if (!supported || !isActive()) return false;
   const generation = ++remindersGeneration;
   const isCurrent = () => generation === remindersGeneration && isActive();
   const granted = (await Notifications.getPermissionsAsync()).granted;
-  if (!granted || !isCurrent()) return;
+  if (!granted || !isCurrent()) return false;
   await remindersCleanup;
-  if (!isCurrent()) return;
+  if (!isCurrent()) return false;
 
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   // Les lectures natives peuvent terminer après une programmation plus récente.
   // Ne jamais annuler ses rappels à partir d'une demande devenue obsolète.
-  if (!isCurrent()) return;
+  if (!isCurrent()) return false;
   await Promise.all(
     scheduled
       .filter((n) => n.content.data?.kind === 'countdown')
@@ -109,15 +109,16 @@ export async function scheduleCountdownReminders(dates: SpecialDate[], isActive:
         const at = fromKey(day);
         at.setHours(9, 0, 0, 0);
         if (at.getTime() <= Date.now()) continue;
-        if (!isCurrent()) return;
+        if (!isCurrent()) return false;
         const identifier = await Notifications.scheduleNotificationAsync({
           content: { title: 'Nous Deux', body, data: { kind: 'countdown' } },
           trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at },
         });
         created.push(identifier);
-        if (!isCurrent()) return;
+        if (!isCurrent()) return false;
       }
     }
+    return isCurrent();
   } finally {
     // Nettoyer uniquement les identifiants confirmés de cette demande, jamais ceux
     // d'une autre génération. Un appel natif déjà lancé n'est pas annulable à la source.
