@@ -93,9 +93,17 @@ function RestosContent() {
     ]);
   };
 
-  const openMap = (r: Restaurant) => {
+  const openMap = async (r: Restaurant) => {
     const current = currentRestaurants()?.find((entry) => entry.id === r.id);
-    if (current) return Linking.openURL(restaurantMapUrl(current));
+    if (!current) return;
+    const url = restaurantMapUrl(current);
+    try { await Linking.openURL(url); }
+    catch {
+      const active = currentRestaurants()?.find((entry) => entry.id === r.id);
+      if (active && restaurantMapUrl(active) === url) {
+        showDialog('Carte indisponible', 'La carte n’a pas pu être ouverte. Tu peux réessayer ou rechercher cette adresse dans ton application de cartes.');
+      }
+    }
   };
 
   return (

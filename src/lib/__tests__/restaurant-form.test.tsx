@@ -250,6 +250,47 @@ test('le bouton carte ne transmet pas un schéma arbitraire au système', async 
   } finally { openUrl.mockRestore(); }
 });
 
+test('un refus du système pour ouvrir la carte reste visible sans rejet non géré', async () => {
+  const openUrl = jest.spyOn(Linking, 'openURL').mockRejectedValue(new Error('Refus système fictif'));
+  try {
+    await act(async () => { root = create(<Restos />); });
+    await act(async () => { await button('Voir Resto fictif sur la carte')(); });
+    expect(showDialog).toHaveBeenCalledWith('Carte indisponible', expect.any(String));
+    expect(backend.update).not.toHaveBeenCalled();
+  } finally { openUrl.mockRestore(); }
+});
+
+test.each(['backend', 'unmount', 'removed', 'error', 'destination'])('un refus de carte tardif après %s ne gêne pas le nouvel écran', async (change) => {
+  let reject!: (error: Error) => void;
+  const openUrl = jest.spyOn(Linking, 'openURL').mockImplementation(() => new Promise((_, no) => { reject = no; }));
+  try {
+    await act(async () => { root = create(<Restos />); });
+    let pending!: Promise<void>;
+    await act(async () => { pending = button('Voir Resto fictif sur la carte')(); });
+    if (change === 'unmount') await act(async () => root.unmount());
+    else {
+      if (change === 'backend') (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...backend } });
+      else (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: change === 'removed' ? [] : [{ ...resto, ...(change === 'destination' ? { mapsUrl: 'https://maps.google.com/?cid=5' } : {}) }], error: change === 'error' });
+      await refresh();
+    }
+    await act(async () => { reject(new Error('Ancien refus')); await pending; });
+    expect(showDialog).not.toHaveBeenCalled();
+  } finally { openUrl.mockRestore(); }
+});
+
+test('une carte peut être réessayée après un refus', async () => {
+  const openUrl = jest.spyOn(Linking, 'openURL').mockRejectedValueOnce(new Error('Refus fictif')).mockResolvedValue(undefined);
+  try {
+    await act(async () => { root = create(<Restos />); });
+    const map = button('Voir Resto fictif sur la carte');
+    await act(async () => { await map(); });
+    (showDialog as jest.Mock).mockClear();
+    await act(async () => { await map(); });
+    expect(openUrl).toHaveBeenCalledTimes(2);
+    expect(showDialog).not.toHaveBeenCalled();
+  } finally { openUrl.mockRestore(); }
+});
+
 test.each(['loading', 'error', 'backend', 'unmount', 'roundtrip'])('ancien tirage et ancienne carte ignorés après %s', async (kind) => {
   const openUrl = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
   try {

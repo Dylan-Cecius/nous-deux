@@ -830,3 +830,9 @@ Base 71497cf7d2c288b7911728f365720535818b40ef. Deux tests rouges reproduisent un
 
 Preuves : lint, TypeScript, 48 suites / 897 tests applicatifs (7,41 s), diff relu et git diff --check. Sécurité : 50 tests sur émulateurs à 17:46 ; règles inchangées. Aucun départ réel, accès à du contenu réel, notification réelle, build, déploiement ou dépense. Limite : contrôle client avant envoi, pas d’annulation d’une écriture déjà engagée ni de garantie transactionnelle avec un départ ultérieur.
 
+## 2026-10-15, 17:53 Europe/Brussels — Ouverture cartographique refusée
+
+Base 1ed0dd608408e81ad537c7e77dcc7b91760df875. Cinq tests rouges reproduisent le rejet de Linking.openURL propagé sans traitement, immédiat et après changement de contexte. Le rejet est maintenant absorbé, avec un message seulement si la fiche et sa destination sont encore courantes. Deux contrôles ajoutés pour destination modifiée et nouvelle tentative réussie. Les URL restent limitées par restaurantMapUrl, aucune ouverture réelle.
+
+Documentation Expo 57, llms.txt et React Native 0.86 Linking relue (https://reactnative.dev/docs/0.86/linking) : rejet possible si annulation ou application indisponible. Inspection Haptics sans changement : l’API installée est déjà async et son rejet est absorbé ; aucun défaut synchrone artificiel ajouté. Preuves : lint/TypeScript, suite complète 48 suites / 902 tests puis 46 tests restaurant couvrant les deux contrôles supplémentaires, git diff --check et diff relu. Serveur/règles inchangés, derniers 50 tests sécurité à 17:46. Aucun service facturable, données réelles, build, déploiement ou distribution.
+
