@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Button, Card, Chips, confirmDelete, Dot, Empty, Fab, Field, Ionicons, Row, Screen, Sheet, T } from '@/components/ui';
@@ -9,6 +9,7 @@ import { formatRelative } from '@/lib/dates';
 import { success } from '@/lib/haptics';
 import type { Backend } from '@/lib/backend';
 import { balanceFor } from '@/lib/expenses';
+import { useAsyncAction } from '@/lib/use-async-action';
 
 const euros = (n: number) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }).replace(/ /g, ' ');
 
@@ -17,6 +18,11 @@ function addSettlement(backend: Backend, amount: number, paidBy: string) {
 }
 
 export default function Depenses() {
+  const { backend } = useSession();
+  return <DepensesContent key={`${backend.mode}:${backend.coupleId}:${backend.userId}`} />;
+}
+
+function DepensesContent() {
   const t = useTheme();
   const { backend, me, partner, nameOf, colorOf } = useSession();
   const { items: expenses, loading, error, retry } = useCollectionState('expenses');
@@ -124,37 +130,59 @@ export default function Depenses() {
 
 function ExpenseSheet({ onClose }: { onClose: () => void }) {
   const { backend, members } = useSession();
+  const collection = useCollectionState('expenses');
+  const context = useMemo(() => ({ backend }), [backend]);
+  const latest = useRef<{ context: typeof context; collection: typeof collection; members: typeof members } | null>(null);
+  const closed = useRef(false);
+  useEffect(() => {
+    latest.current = { context, collection, members };
+    return () => { latest.current = null; };
+  }, [context, collection, members]);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState(backend.userId);
+  const { run, pending } = useAsyncAction((action: () => unknown) => action());
+  const isCurrent = () => !closed.current && latest.current?.context === context;
+  const unavailable = collection.loading || collection.error;
   const value = Number(amount.replace(',', '.'));
-  const valid = title.trim() && Number.isFinite(value) && value >= 0.01 && value <= 100000;
+  const valid = !!title.trim() && Number.isFinite(value) && value >= 0.01 && value <= 100000 && members.some((member) => member.id === paidBy);
+  const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
+  const save = () => run(async () => {
+    const current = latest.current;
+    if (!valid || !isCurrent() || !current || current.collection.loading || current.collection.error || !current.members.some((member) => member.id === paidBy)) return;
+    try {
+      await backend.add('expenses', {
+        title: title.trim(),
+        amount: Math.round(value * 100) / 100,
+        paidBy,
+        kind: 'expense',
+        createdAt: Date.now(),
+      });
+      if (!isCurrent()) return;
+      success();
+      close();
+    } catch (error) { if (isCurrent()) throw error; }
+  });
 
   return (
-    <Sheet visible title="Nouvelle dépense" onClose={onClose}>
-      <Field label="Quoi ?" value={title} maxLength={200} onChangeText={setTitle} placeholder="Courses, resto, billets de train…" />
-      <Field label="Montant (€)" value={amount} onChangeText={setAmount} placeholder="42,50" keyboardType="decimal-pad" />
+    <Sheet visible title="Nouvelle dépense" onClose={() => run(close)}>
+      <Field label="Quoi ?" value={title} maxLength={200} editable={!pending} onChangeText={(next) => run(() => { if (isCurrent()) setTitle(next); })} placeholder="Courses, resto, billets de train…" />
+      <Field label="Montant (€)" value={amount} editable={!pending} onChangeText={(next) => run(() => { if (isCurrent()) setAmount(next); })} placeholder="42,50" keyboardType="decimal-pad" />
       {!!amount && (!Number.isFinite(value) || value < 0.01 || value > 100000) && <T variant="small">Entre un montant entre 0,01 € et 100 000 €.</T>}
       <Chips
         label="Payé par"
         options={members.map((m) => ({ value: m.id, label: m.name, color: m.color }))}
         value={paidBy}
-        onChange={setPaidBy}
+        disabled={pending}
+        onChange={(next) => run(() => { if (isCurrent()) setPaidBy(next); })}
       />
+      {!members.some((member) => member.id === paidBy) && <T variant="small">Choisis un membre actuel pour cette dépense.</T>}
+      {unavailable && <T variant="small" muted>Dépenses indisponibles. Ton brouillon est conservé ; recharge les dépenses avant de continuer.</T>}
+      {collection.error && <Button label="Recharger les dépenses du formulaire" variant="outline" onPress={collection.retry} />}
       <Button
         label="Ajouter"
-        disabled={!valid}
-        onPress={async () => {
-          await backend.add('expenses', {
-            title: title.trim(),
-            amount: Math.round(value * 100) / 100,
-            paidBy,
-            kind: 'expense',
-            createdAt: Date.now(),
-          });
-          success();
-          onClose();
-        }}
+        disabled={!valid || pending || unavailable}
+        onPress={save}
       />
     </Sheet>
   );
