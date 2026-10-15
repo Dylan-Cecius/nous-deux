@@ -19,6 +19,7 @@ const mockAuth: { authStateReady: () => Promise<void>; currentUser: { uid: strin
 let backend: Backend;
 let onRead: (() => void) | undefined;
 let xhr: jest.Mock;
+const closeBlob = jest.fn();
 const originalXhr = Object.getOwnPropertyDescriptor(globalThis, 'XMLHttpRequest');
 const connect = async () => {
   await AsyncStorage.setItem('session', JSON.stringify({ mode: 'cloud', userId: 'alice', coupleId: 'couple' }));
@@ -26,13 +27,14 @@ const connect = async () => {
 };
 beforeEach(async () => {
   jest.clearAllMocks();
+  closeBlob.mockReset();
   mockAuth.currentUser = { uid: 'alice' };
   onRead = undefined;
   (uploadBytes as jest.Mock).mockReset().mockResolvedValue({});
   (getDownloadURL as jest.Mock).mockReset().mockResolvedValue('https://fictitious.invalid/photo');
   (toCompactDataUri as jest.Mock).mockReset().mockResolvedValue('data:image/jpeg;base64,FAKE');
   xhr = jest.fn(() => {
-    const request = { response: { size: 12 }, responseType: '', onload: () => {}, onerror: () => {}, open: jest.fn(), send: () => { onRead?.(); request.onload(); } };
+    const request = { response: { size: 12, close: closeBlob }, responseType: '', onload: () => {}, onerror: () => {}, open: jest.fn(), send: () => { onRead?.(); request.onload(); } };
     return request as unknown as XMLHttpRequest;
   });
   Object.defineProperty(globalThis, 'XMLHttpRequest', { configurable: true, writable: true, value: xhr });
@@ -94,4 +96,46 @@ test.each(['storage/bucket-not-found', 'storage/project-not-found'])('après upl
   (getDownloadURL as jest.Mock).mockRejectedValueOnce({ code });
   await expect(backend.uploadPhoto('fictitious://one')).rejects.toBeInstanceOf(PhotoUploadError);
   expect(toCompactDataUri).not.toHaveBeenCalled();
+});
+
+test('le blob natif est libéré après l’envoi confirmé, jamais pendant son utilisation', async () => {
+  let finish!: () => void;
+  (uploadBytes as jest.Mock).mockReturnValueOnce(new Promise<void>(resolve => { finish = resolve; }));
+  const pending = backend.uploadPhoto('fictitious://one');
+  await Promise.resolve();
+  expect(uploadBytes).toHaveBeenCalledTimes(1);
+  expect(closeBlob).not.toHaveBeenCalled();
+  finish();
+  await expect(pending).resolves.toBe('https://fictitious.invalid/photo');
+  expect(closeBlob).toHaveBeenCalledTimes(1);
+});
+
+test.each(['upload', 'url', 'identity', 'fallback'])('le blob est aussi libéré après %s sans modifier le résultat', async stage => {
+  if (stage === 'upload') (uploadBytes as jest.Mock).mockRejectedValueOnce({ code: 'storage/unknown' });
+  if (stage === 'url') (getDownloadURL as jest.Mock).mockRejectedValueOnce(new Error('URL inconnue'));
+  if (stage === 'identity') onRead = () => { mockAuth.currentUser = null; };
+  if (stage === 'fallback') (uploadBytes as jest.Mock).mockRejectedValueOnce({ code: 'storage/bucket-not-found' });
+  const pending = backend.uploadPhoto('fictitious://one');
+  if (stage === 'fallback') await expect(pending).resolves.toContain('data:image/jpeg');
+  else await expect(pending).rejects.toThrow();
+  expect(closeBlob).toHaveBeenCalledTimes(1);
+});
+
+test('une erreur de libération ne transforme pas l’envoi confirmé en échec apparent', async () => {
+  closeBlob.mockImplementationOnce(() => { throw new Error('Nettoyage fictif'); });
+  await expect(backend.uploadPhoto('fictitious://one')).resolves.toBe('https://fictitious.invalid/photo');
+  expect(closeBlob).toHaveBeenCalledTimes(1);
+});
+
+test('le blob web sans close reste compatible', async () => {
+  onRead = () => { delete (xhr.mock.results[0].value.response as { close?: unknown }).close; };
+  await expect(backend.uploadPhoto('fictitious://one')).resolves.toBe('https://fictitious.invalid/photo');
+  expect(closeBlob).not.toHaveBeenCalled();
+});
+
+test('un nettoyage défaillant ne masque pas le changement de compte', async () => {
+  onRead = () => { mockAuth.currentUser = null; };
+  closeBlob.mockImplementationOnce(() => { throw new Error('Nettoyage fictif'); });
+  await expect(backend.uploadPhoto('fictitious://one')).rejects.toThrow('compte a changé');
+  expect(closeBlob).toHaveBeenCalledTimes(1);
 });

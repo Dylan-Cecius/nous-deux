@@ -35,3 +35,7 @@ Les entrées « à examiner » sont des pistes d’audit, pas des bugs déjà co
 | P2 | Taille des images préparées | À 16:56 : galerie/caméra limitent le grand côté à 1600, avec vérification des dimensions décodées si les métadonnées sont absentes. Repli compact borné à 900/700/500 sur le grand côté, sans agrandir les petits formats ni décoder trois fois la source. Huit régressions supplémentaires rouges puis vertes, 835 tests applicatifs. Contrats natifs doublés : pas d’essai d’image réelle, de qualité visuelle ou de mémoire sur appareil. |
 
 Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcours existants et inscrire uniquement des problèmes étayés. Les fonctions nouvelles doivent répondre à un besoin exprimé ou à un défaut d’usage observé et respecter la limite de coût. Ne pas ajouter de monétisation, abonnement ou service externe payant.
+
+| Priorité | Complément d’audit | État / critère de fin |
+| --- | --- | --- |
+| P2 | Mémoire binaire des uploads | À 16:59 : blob natif libéré en sortie d’envoi, y compris échec, changement d’identité et repli ; nettoyage non bloquant pour le résultat et méthode absente sur web acceptée. Six régressions rouges puis vertes et deux contrôles, 843 tests applicatifs. Pas de mesure mémoire native ; lecture interrompue/expirée à examiner. |

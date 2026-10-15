@@ -870,8 +870,9 @@ function cloudBackend(coupleId: string, uid: string): Backend {
       if (!storageAvailable) return compact();
       const target = ref(storage, `couples/${coupleId}/photos/${uid}/${newId()}.jpg`);
       let uploaded = false;
+      let blob: (Blob & { close?: () => void }) | undefined;
       try {
-        const blob = await readAsBlob(localUri);
+        blob = await readAsBlob(localUri);
         requireCurrentUser(auth, uid);
         await uploadBytes(target, blob, { contentType: 'image/jpeg' });
         uploaded = true;
@@ -886,6 +887,11 @@ function cloudBackend(coupleId: string, uid: string): Backend {
           return compact();
         }
         throw new PhotoUploadError();
+      } finally {
+        // React Native expose close() pour libérer le stockage binaire natif.
+        // Attendre la fin de l’envoi ; un échec de nettoyage ne doit jamais
+        // transformer une écriture confirmée en invitation à la répéter.
+        try { blob?.close?.(); } catch { /* Nettoyage sans changer le résultat. */ }
       }
     },
     async call<T>(name: string, data: object) {

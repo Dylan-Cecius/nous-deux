@@ -744,3 +744,9 @@ Base 91edb13d31c68aabb081ac39caeac35520ee0274. Huit tests rouges puis verts : m�
 
 Types installés et documentation Expo 57 consultés : manipulate accepte une référence d’image, renderAsync expose largeur/hauteur. Preuves : lint/TypeScript, 47 suites / 835 tests applicatifs (7,81 s), diff relu et git diff --check. Tests d’API doublées uniquement : aucune image réelle, mesure de mémoire, qualité visuelle ou exécution native. Serveur/règles inchangés, dernière preuve sécurité 45 tests à 16:37. Aucun build, déploiement, coût ni donnée réelle.
 
+## 2026-10-15, 16:59 Europe/Brussels — Libération des blobs natifs
+
+Base aca5a635f33a1ada4ae26d4b75e3ff717c7f81cb. Six tests rouges : absence de close après succès, erreurs d’envoi/URL, changement de compte, repli et nettoyage défaillant. Un finally libère le blob après utilisation ; close facultatif pour le web, exception de nettoyage isolée pour préserver le résultat de l’opération. Deux contrôles supplémentaires couvrent web et priorité de l’erreur d’identité.
+
+Documentation React Native 0.86 Networking/Blob consultée et source installée Blob.js relue (libération explicite). Preuves : lint/TypeScript, 47 suites / 843 tests (7,18 s), git diff --check et diff relu. Pas de mesure mémoire ou upload réel : le test prouve l’appel au nettoyage, pas une baisse quantifiée de mémoire. Aucun fichier distant supprimé ; aucune règle, fonction serveur, donnée réelle, build ou dépense. Lecture XHR interrompue/expirée à examiner ensuite.
+
