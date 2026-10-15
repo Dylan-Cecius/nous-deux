@@ -237,3 +237,38 @@ test('une erreur de nettoyage est visible et ne bloque pas toutes les reprises s
   await scheduleCountdownReminders(dates);
   expect(scheduled.size).toBe(2);
 });
+
+test('le retrait du centre de notifications est tenté même si l’annulation des rappels échoue', async () => {
+  (Notifications.cancelAllScheduledNotificationsAsync as jest.Mock).mockRejectedValueOnce(new Error('Annulation fictive impossible'));
+  await expect(clearReminders()).rejects.toThrow('Annulation fictive impossible');
+  expect(Notifications.dismissAllNotificationsAsync).toHaveBeenCalledTimes(1);
+});
+
+test('une branche de nettoyage en échec ne libère pas la file pendant que l’autre est en attente', async () => {
+  const entered = deferred<void>();
+  const release = deferred<void>();
+  (Notifications.cancelAllScheduledNotificationsAsync as jest.Mock).mockRejectedValueOnce(new Error('Annulation fictive impossible'));
+  (Notifications.dismissAllNotificationsAsync as jest.Mock).mockImplementationOnce(async () => { entered.resolve(); await release.promise; });
+  let completed = false;
+  const cleanup = clearReminders().catch(() => { completed = true; });
+  for (let i = 0; i < 12; i++) await Promise.resolve();
+  const attemptedDismissal = (Notifications.dismissAllNotificationsAsync as jest.Mock).mock.calls.length;
+  const earlyCompletion = completed;
+  const next = scheduleCountdownReminders(dates);
+  for (let i = 0; i < 12; i++) await Promise.resolve();
+  const earlyCreation = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls.length;
+  release.resolve();
+  await Promise.all([cleanup, next]);
+  expect(attemptedDismissal).toBe(1);
+  expect(earlyCompletion).toBe(false);
+  expect(earlyCreation).toBe(0);
+  expect(scheduled.size).toBe(2);
+});
+
+test('deux échecs de nettoyage restent signalés sans bloquer le nettoyage suivant', async () => {
+  (Notifications.cancelAllScheduledNotificationsAsync as jest.Mock).mockRejectedValueOnce(new Error('Annulation fictive impossible'));
+  (Notifications.dismissAllNotificationsAsync as jest.Mock).mockRejectedValueOnce(new Error('Retrait fictif impossible'));
+  await expect(clearReminders()).rejects.toThrow('Annulation fictive impossible');
+  await expect(clearReminders()).resolves.toBeUndefined();
+  expect(Notifications.dismissAllNotificationsAsync).toHaveBeenCalledTimes(2);
+});

@@ -14,8 +14,15 @@ export async function clearReminders() {
   remindersGeneration++;
   if (supported) {
     const cleanup = remindersCleanup.then(async () => {
-      await Notifications.cancelAllScheduledNotificationsAsync();
-      await Notifications.dismissAllNotificationsAsync();
+      // Les deux nettoyages sont indépendants : tenter le retrait des notifications
+      // déjà affichées même si l'annulation des rappels échoue. Attendre les deux
+      // avant de libérer la file, même quand le premier résultat est un échec.
+      const results = await Promise.allSettled([
+        Notifications.cancelAllScheduledNotificationsAsync(),
+        Notifications.dismissAllNotificationsAsync(),
+      ]);
+      const failure = results.find((result) => result.status === 'rejected');
+      if (failure?.status === 'rejected') throw failure.reason;
     });
     // Une erreur reste transmise à l'appelant, sans empoisonner la file des
     // prochaines tentatives. Les créations attendent la fin du nettoyage natif.
