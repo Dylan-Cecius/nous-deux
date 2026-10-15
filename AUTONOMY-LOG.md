@@ -780,3 +780,29 @@ Base da7396149875eefb20a565ae07765a4c7d2176c9. Amélioration de preuve justifié
 
 Compilation fonctions et 48 tests sécurité réussis en 25,62 s, sortie 0, émulateurs demo-nous-deux-security arrêtés. Lint/TypeScript et git diff --check propres ; dernière suite applicative 47 suites / 877 tests à 17:15, aucun code applicatif changé depuis. Diff relu. Checklist native des photos, pertes de contexte, éditions partagées et accessibilité ajoutée à TESTFLIGHT-REVIEW.md : essais explicitement non réalisés, coût/accès à vérifier avant build. Aucun compte, image ou fichier réel utilisé, aucun envoi externe, déploiement ou dépense.
 
+## 2026-10-15, 17:21 Europe/Brussels — Clôture vérifiée et reprise
+
+Durée observée de travail et contrôles : de 16:33:58 à 17:20:05, soit 46 min 07 s avant cette consignation finale. Treize tâches successives avec checkpoints indépendants ; clôture sur un ensemble vérifié proche de la cible approximative de 50 minutes. Aucune attente destinée à allonger la durée, aucune heure entière revendiquée. La relance reçue pendant le travail a été intégrée en relisant les consignes et la tête distante, sans recommencer les tâches.
+
+Checkpoints GitHub de cette session (distincts des SHA locaux) :
+
+- 5ea881fe0a31bd95670ed1f85a0adb95b9f368ef : cache local après rejet ambigu, 795 tests applicatifs.
+- ee2fc5624aed2eeaa88cd68cfe578b0b788330df : abonnés locaux mis en erreur, 800 tests.
+- 58ad5908cedc9bfaf2d49a4429e48594f1648896 : isolation des observateurs et intégrations React, 806 tests.
+- d68793ddb409ba9b9f4c23fd94227a3b96997e90 : disponibilité de l’album pendant l’ajout, 814 tests.
+- 6594e1388912d4887ff86d8ec89f5c5141791dec : confirmation ambiguë du souvenir, 815 tests.
+- 91edb13d31c68aabb081ac39caeac35520ee0274 : portraits sur leur grand côté, 827 tests.
+- aca5a635f33a1ada4ae26d4b75e3ff717c7f81cb : dimensions décodées et repli compact, 835 tests.
+- cd3f8bd4e56a418061405b881d8749919d3edf20 : libération des blobs natifs, 843 tests.
+- 83a1af9f78784a19a59388cb2dbdc1b62bc41a63 : lecture XHR terminée et contrôlée, 853 tests.
+- 8abac2d720941dd9d3641d34840abf9e4b49bd31 : champs intacts du souvenir, 861 tests.
+- be7aacbc2b138fab4e0b3d05ecbfb1712bfddd3e : accessibilité des actions photo, 867 tests.
+- da7396149875eefb20a565ae07765a4c7d2176c9 : champs intacts des listes, 877 tests.
+- 8352e00c9d4d22fdbdf84c3f14479a7f611150b4 : patches partiels vérifiés, 48 tests sécurité.
+
+Intégrité finale : les SHA des 146 fichiers texte locaux correspondent tous à la tête 8352e00, sans écart ; les sept PNG absents de la copie locale sont inchangés dans GitHub depuis fca6ae711a48782de8895fad4d4f90ea67896d07. Aucun workflow GitHub présent. Arbre local propre avant cette entrée, diff cumulé relu. PR #3 ouverte/brouillon ; toutes les références mises à jour avec expected_sha et force=false. Aucune fusion, aucune écriture d’une autre session écrasée.
+
+Preuves finales : 47 suites / 877 tests applicatifs, lint et TypeScript à 17:15 ; lint/TypeScript puis compilation fonctions et 48 tests sécurité à 17:19, émulateurs arrêtés. Node 24.19.0 et Java 17.0.20 vérifiés ; runtime de production Node 22 non validé ici. Pas d’export visuel, de compilation native signée, d’iPhone/Android réel, de distribution ou de statut Apple relu. publicationStatus=draft et retentionVerified=false confirmés ; configuration des fonctions payantes inchangée, aucune activation ni appel facturable.
+
+Suite prête : audit des champs intacts des formulaires restaurant/agenda, puis protocole d’association idempotente des uploads. Ne pas extrapoler la protection des champs intacts à la résolution serveur de conflits sur un même champ. Les limites d’idempotence, d’orphelins, d’essais natifs et de conservation restent explicites dans le backlog. Aucun incident réel ni nouveau blocage nécessitant l’intervention du propriétaire ; aucune donnée réelle, opération financière, invitation ou message à un tiers.
+
