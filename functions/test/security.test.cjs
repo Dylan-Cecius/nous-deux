@@ -37,6 +37,33 @@ before(async () => {
 beforeEach(async () => { await env.clearFirestore(); });
 after(async () => { await env?.cleanup(); await deleteApp(app); });
 
+test('création et jonction refusent une identité différente avant tout quota ou rattachement', async () => {
+  await seed(['alice']);
+  const { code } = await issueInvitation('alice', cid);
+  for (const name of ['createCouple', 'joinCouple']) {
+    for (const expectedUserId of ['alice', '', null, 42]) {
+      await assert.rejects(security[name].run(call('bob', { profile, code, expectedUserId })), { code: 'failed-precondition' });
+    }
+  }
+  assert.equal((await db.collection('rateLimits').get()).size, 0);
+  assert.equal((await db.doc('users/bob').get()).exists, false);
+  assert.equal((await db.collection('couples').get()).size, 1);
+  assert.deepEqual((await db.doc(`couples/${cid}`).get()).data().members, ['alice']);
+  assert.equal((await db.doc(`invitations/${hash(code)}`).get()).exists, true);
+});
+
+test('création et jonction acceptent l’identité confirmée et restent compatibles avec les anciens clients', async () => {
+  for (const legacy of [false, true]) {
+    const creator = `creator-${legacy}`;
+    const partner = `partner-${legacy}`;
+    const { coupleId } = await security.createCouple.run(call(creator, { profile, ...(legacy ? {} : { expectedUserId: creator }) }));
+    const { code } = await issueInvitation(creator, coupleId);
+    assert.deepEqual(await security.joinCouple.run(call(partner, { code, profile, ...(legacy ? {} : { expectedUserId: partner }) })), { coupleId });
+    assert.deepEqual((await db.doc(`couples/${coupleId}`).get()).data().members, [creator, partner]);
+    assert.equal((await db.doc(`users/${partner}`).get()).data().coupleId, coupleId);
+  }
+});
+
 test('un visiteur et un tiers connecté ne lisent ni les espaces incomplets ni les données privées', async () => {
   await seed(['alice']);
   await assertFails(getDoc(doc(client('mallory'), 'couples', cid)));

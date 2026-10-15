@@ -604,9 +604,7 @@ async function createCloudCoupleNow(me: Omit<Member, 'id'>) {
   const uid = await ensureSignedIn();
   const restored = await recoverCloudSession(uid);
   if (restored) return restored;
-  const { coupleId } = await callServer<{ coupleId: string }>('createCouple', { profile: { name: me.name, color: me.color } });
-  await saveCloudSession(coupleId, uid);
-  return cloudBackend(coupleId, uid);
+  return finishCloudOnboarding(uid, 'createCouple', { profile: { name: me.name, color: me.color } });
 }
 
 export async function joinCloudCouple(rawCode: string, me: Omit<Member, 'id'>) {
@@ -618,9 +616,23 @@ async function joinCloudCoupleNow(rawCode: string, me: Omit<Member, 'id'>) {
   const restored = await recoverCloudSession(uid);
   if (restored) return restored;
   const code = rawCode.replace(/\s|-/g, '').toUpperCase();
-  const { coupleId } = await callServer<{ coupleId: string }>('joinCouple', { code, profile: { name: me.name, color: me.color } });
-  await saveCloudSession(coupleId, uid);
-  return cloudBackend(coupleId, uid);
+  return finishCloudOnboarding(uid, 'joinCouple', { code, profile: { name: me.name, color: me.color } });
+}
+
+async function finishCloudOnboarding(uid: string, name: 'createCouple' | 'joinCouple', data: object) {
+  const { auth } = firebase();
+  requireCurrentUser(auth, uid);
+  try {
+    // Le jeton peut changer pendant l’appel : le serveur vérifie aussi cette intention.
+    const { coupleId } = await callServer<{ coupleId: string }>(name, { ...data, expectedUserId: uid });
+    requireCurrentUser(auth, uid);
+    await saveCloudSession(coupleId, uid);
+    requireCurrentUser(auth, uid);
+    return cloudBackend(coupleId, uid);
+  } catch (error) {
+    requireCurrentUser(auth, uid);
+    throw error;
+  }
 }
 
 export type Invitation = { code: string; expiresAt: number };

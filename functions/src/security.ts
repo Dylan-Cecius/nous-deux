@@ -80,6 +80,7 @@ export async function createSpace(uid: string, input: unknown) {
 
 export const createCouple = onCall(options, async (request) => {
   const uid = await activeUid(request);
+  requireOnboardingIdentity(request, uid);
   await protectInvitation(request, uid, 'create');
   return createSpace(uid, request.data?.profile);
 });
@@ -111,7 +112,7 @@ export const createInvitation = onCall(options, async (request) => {
 });
 
 export async function acceptInvitation(uid: string, input: unknown) {
-  const { code, profile } = parse(z.object({ code: z.string().trim().toUpperCase().regex(/^[A-HJ-NP-Z2-9]{10}$/), profile: profileSchema }).strict(), input);
+  const { code, profile } = parse(z.object({ code: z.string().trim().toUpperCase().regex(/^[A-HJ-NP-Z2-9]{10}$/), profile: profileSchema, expectedUserId: z.literal(uid).optional() }).strict(), input);
   const db = getFirestore();
   const inviteRef = db.doc(`invitations/${hash(code)}`);
   const invalid = () => new HttpsError('failed-precondition', 'Invitation invalide, expirée ou déjà utilisée. Demande un nouveau code à ta moitié.');
@@ -135,9 +136,17 @@ export async function acceptInvitation(uid: string, input: unknown) {
 
 export const joinCouple = onCall(options, async (request) => {
   const uid = await activeUid(request);
+  requireOnboardingIdentity(request, uid);
   await protectInvitation(request, uid, 'join');
   return acceptInvitation(uid, request.data);
 });
+
+function requireOnboardingIdentity(request: CallableRequest, uid: string) {
+  // Facultatif pour les anciens clients ; l’identité effective vient toujours du jeton.
+  if (request.data?.expectedUserId !== undefined && request.data.expectedUserId !== uid) {
+    throw new HttpsError('failed-precondition', 'Le compte a changé. Rouvre la connexion avant de réessayer.');
+  }
+}
 
 export async function submitAnswer(uid: string, input: unknown) {
   const { coupleId, date, text } = parse(z.object({ coupleId: idSchema, date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), text: z.string().trim().min(1).max(4000) }).strict(), input);
