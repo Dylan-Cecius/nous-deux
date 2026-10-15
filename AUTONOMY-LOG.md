@@ -726,3 +726,9 @@ Base 58ad5908cedc9bfaf2d49a4429e48594f1648896. Quatre cas rouges : ancien bouton
 
 Revue React appliquée aux dépendances primitives, refs et nettoyages ; documentation Expo 57/llms.txt et pages ImagePicker/ImageManipulator relues avant le travail photo. Preuves : lint/TypeScript et 46 suites / 814 tests applicatifs, diff relu et git diff --check. Aucun serveur/règle changé ; preuve sécurité précédente 45 tests à 16:37. Aucun sélecteur, upload ou donnée réelle. Limites : une écriture déjà envoyée n’est pas annulée ; fichier déjà envoyé non effacé car son association peut être ambiguë. Aucune build, distribution ou dépense.
 
+## 2026-10-15, 16:50 Europe/Brussels — Message honnête après création de souvenir ambiguë
+
+Base d68793ddb409ba9b9f4c23fd94227a3b96997e90. Un test rouge reproduit « Photo non enregistrée » après rejet d’une création déjà envoyée, sans preuve de son absence. Le message distingue désormais préparation/envoi de fichier et confirmation de la création : « Enregistrement non confirmé », invitation à vérifier l’album actualisé avant de répéter. Ni reprise automatique ni suppression compensatoire ajoutée.
+
+Preuves : lint/TypeScript, 46 suites / 815 tests applicatifs, diff relu et git diff --check. Serveur/règles inchangés, derniers tests sécurité à 16:37. Le message ne résout pas l’idempotence ni les fichiers orphelins et ne prétend pas le faire. Aucun upload, compte, contenu réel, build, déploiement ou coût.
+

@@ -178,3 +178,13 @@ test('un échec courant est visible et le verrou permet de réessayer', async ()
   await act(async () => { await action.add(); });
   expect(backend.add).toHaveBeenCalledTimes(1);
 });
+
+test('un rejet de création ne prétend pas que la photo est absente et invite à vérifier l’album', async () => {
+  backend.add.mockRejectedValueOnce(new Error('Réponse fictive perdue'));
+  await act(async () => { await action.add(); });
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('Vérifie ton album'));
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('Réponse fictive perdue'));
+  expect(success).not.toHaveBeenCalled();
+  expect(backend.uploadPhoto).toHaveBeenCalledTimes(1);
+  expect(backend.add).toHaveBeenCalledTimes(1);
+});

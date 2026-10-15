@@ -27,11 +27,13 @@ export function useAddMemory(available: boolean) {
     if (!scope?.active || scope.context !== context || scope.sending) return;
     scope.sending = true;
     setProgress({ context, busy: true });
+    let saving = false;
     try {
       const picked = await pickPhoto();
       if (!picked || !scope.active) return;
       const photoUrl = await backend.uploadPhoto(picked.uri);
       if (!scope.active) return;
+      saving = true;
       await backend.add('memories', {
         photoUrl,
         caption: '',
@@ -41,7 +43,12 @@ export function useAddMemory(available: boolean) {
       });
       if (scope.active) success();
     } catch (e) {
-      if (scope.active) showDialog('Photo non enregistrée', e instanceof Error ? e.message : String(e));
+      if (scope.active) {
+        const detail = e instanceof Error ? e.message : String(e);
+        showDialog(saving ? 'Enregistrement non confirmé' : 'Photo non enregistrée', saving
+          ? `Vérifie ton album après son actualisation avant de réessayer : la photo peut déjà avoir été enregistrée.\n\n${detail}`
+          : detail);
+      }
     } finally {
       scope.sending = false;
       if (scope.active) setProgress({ context, busy: false });
