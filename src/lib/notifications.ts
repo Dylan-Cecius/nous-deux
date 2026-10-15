@@ -61,40 +61,52 @@ export async function getPushToken(): Promise<string | null> {
 }
 
 /** Reprogramme les rappels locaux « J-1 » et « Jour J » (à 9h) pour les comptes à rebours. */
-export async function scheduleCountdownReminders(dates: SpecialDate[]) {
+export async function scheduleCountdownReminders(dates: SpecialDate[], isActive: () => boolean = () => true) {
+  // Une ancienne commande ne doit pas invalider la génération du contexte courant.
+  if (!supported || !isActive()) return;
   const generation = ++remindersGeneration;
-  if (!supported) return;
+  const isCurrent = () => generation === remindersGeneration && isActive();
   const granted = (await Notifications.getPermissionsAsync()).granted;
-  if (!granted || generation !== remindersGeneration) return;
+  if (!granted || !isCurrent()) return;
 
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   // Les lectures natives peuvent terminer après une programmation plus récente.
   // Ne jamais annuler ses rappels à partir d'une demande devenue obsolète.
-  if (generation !== remindersGeneration) return;
+  if (!isCurrent()) return;
   await Promise.all(
     scheduled
       .filter((n) => n.content.data?.kind === 'countdown')
       .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
   );
 
-  const today = todayKey();
-  for (const d of dates) {
-    const next = nextOccurrence(d.date, d.yearly);
-    if (daysBetween(today, next) < 0) continue;
-    const reminders: [string, string][] = [
-      [addDays(next, -1), `Demain : ${d.title}`],
-      [next, `C’est aujourd’hui : ${d.title} 🎉`],
-    ];
-    for (const [day, body] of reminders) {
-      const at = fromKey(day);
-      at.setHours(9, 0, 0, 0);
-      if (at.getTime() <= Date.now()) continue;
-      if (generation !== remindersGeneration) return;
-      const identifier = await Notifications.scheduleNotificationAsync({
-        content: { title: 'Nous Deux', body, data: { kind: 'countdown' } },
-        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at },
-      });
-      if (generation !== remindersGeneration) await Notifications.cancelScheduledNotificationAsync(identifier);
+  const created: string[] = [];
+  try {
+    const today = todayKey();
+    for (const d of dates) {
+      const next = nextOccurrence(d.date, d.yearly);
+      if (daysBetween(today, next) < 0) continue;
+      const reminders: [string, string][] = [
+        [addDays(next, -1), `Demain : ${d.title}`],
+        [next, `C’est aujourd’hui : ${d.title} 🎉`],
+      ];
+      for (const [day, body] of reminders) {
+        const at = fromKey(day);
+        at.setHours(9, 0, 0, 0);
+        if (at.getTime() <= Date.now()) continue;
+        if (!isCurrent()) return;
+        const identifier = await Notifications.scheduleNotificationAsync({
+          content: { title: 'Nous Deux', body, data: { kind: 'countdown' } },
+          trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at },
+        });
+        created.push(identifier);
+        if (!isCurrent()) return;
+      }
+    }
+  } finally {
+    // Nettoyer uniquement les identifiants confirmés de cette demande, jamais ceux
+    // d'une autre génération. Un appel natif déjà lancé n'est pas annulable à la source.
+    if (!isCurrent()) {
+      await Promise.all(created.map((id) => Notifications.cancelScheduledNotificationAsync(id)));
     }
   }
 }

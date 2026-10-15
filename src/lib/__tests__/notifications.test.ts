@@ -111,3 +111,77 @@ test('une programmation déjà engagée est annulée si la session est nettoyée
   expect(scheduled.size).toBe(0);
   expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('late');
 });
+
+test('une demande déjà périmée ne touche pas au système natif ni à une programmation courante', async () => {
+  const permission = deferred<{ granted: boolean }>();
+  (Notifications.getPermissionsAsync as jest.Mock).mockImplementationOnce(() => permission.promise);
+  const current = scheduleCountdownReminders(dates);
+  await scheduleCountdownReminders([], () => false);
+  expect(Notifications.getPermissionsAsync).toHaveBeenCalledTimes(1);
+  permission.resolve({ granted: true });
+  await current;
+  expect(scheduled.size).toBe(2);
+});
+
+test.each(['permission', 'inventory', 'cancellation'])('une invalidation pendant %s arrête la programmation', async (step) => {
+  let active = true;
+  const entered = deferred<void>();
+  const release = deferred<void>();
+  scheduled.set('old', { identifier: 'old', content: { data: { kind: 'countdown' } } });
+  const method = step === 'permission' ? Notifications.getPermissionsAsync
+    : step === 'inventory' ? Notifications.getAllScheduledNotificationsAsync : Notifications.cancelScheduledNotificationAsync;
+  (method as jest.Mock).mockImplementationOnce(async () => {
+    entered.resolve();
+    await release.promise;
+    if (step === 'permission') return { granted: true };
+    if (step === 'inventory') return [...scheduled.values()];
+    scheduled.delete('old');
+  });
+  const pending = scheduleCountdownReminders(dates, () => active);
+  await entered.promise;
+  active = false;
+  release.resolve();
+  await pending;
+  expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+  if (step !== 'cancellation') {
+    expect(Notifications.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+    expect(scheduled.has('old')).toBe(true);
+  }
+});
+
+test('une réponse native tardive nettoie tous les identifiants créés par sa demande, sans toucher aux autres', async () => {
+  let active = true;
+  const entered = deferred<void>();
+  const release = deferred<void>();
+  const createNotification = (Notifications.scheduleNotificationAsync as jest.Mock).getMockImplementation()!;
+  (Notifications.scheduleNotificationAsync as jest.Mock)
+    .mockImplementationOnce(createNotification)
+    .mockImplementationOnce(async (request) => {
+      entered.resolve();
+      await release.promise;
+      return createNotification(request);
+    });
+  const pending = scheduleCountdownReminders(dates, () => active);
+  await entered.promise;
+  expect(scheduled.size).toBe(1);
+  active = false;
+  scheduled.set('foreign', { identifier: 'foreign', content: { data: { kind: 'countdown' } } });
+  release.resolve();
+  await pending;
+  expect([...scheduled.keys()]).toEqual(['foreign']);
+});
+
+test('un échec natif après invalidation nettoie aussi le premier rappel confirmé', async () => {
+  let active = true;
+  const createNotification = (Notifications.scheduleNotificationAsync as jest.Mock).getMockImplementation()!;
+  (Notifications.scheduleNotificationAsync as jest.Mock)
+    .mockImplementationOnce(createNotification)
+    .mockImplementationOnce(async () => { active = false; throw new Error('Échec natif fictif'); });
+  await expect(scheduleCountdownReminders(dates, () => active)).rejects.toThrow('Échec natif fictif');
+  expect(scheduled.size).toBe(0);
+});
+
+test('un contexte toujours actif conserve les deux rappels', async () => {
+  await scheduleCountdownReminders(dates, () => true);
+  expect(scheduled.size).toBe(2);
+});
