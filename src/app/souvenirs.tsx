@@ -1,16 +1,22 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { useAddMemory } from '@/components/home/memories-strip';
 import { DateField } from '@/components/pickers';
 import { Button, Card, confirmDelete, Empty, Fab, Field, Screen, Sheet, T } from '@/components/ui';
 import { useCollectionState, useSession } from '@/lib/couple-context';
-import { fromKey } from '@/lib/dates';
+import { fromKey, todayKey } from '@/lib/dates';
 import type { Memory } from '@/lib/types';
+import { useAsyncAction } from '@/lib/use-async-action';
 
 export default function Souvenirs() {
+  const { backend } = useSession();
+  return <SouvenirsContent key={`${backend.mode}:${backend.coupleId}:${backend.userId}`} />;
+}
+
+function SouvenirsContent() {
   const memories = useCollectionState('memories');
   const { add, busy } = useAddMemory();
   const [editing, setEditing] = useState<Memory | null>(null);
@@ -54,38 +60,65 @@ export default function Souvenirs() {
         )}
       </Screen>
       {!unavailable && <Fab onPress={add} label={busy ? 'Envoi en cours' : 'Ajouter une photo'} />}
-      {editing && <MemorySheet memory={editing} onClose={() => setEditing(null)} />}
+      {editing && <MemorySheet key={editing.id} memory={editing} onClose={() => setEditing(null)} />}
     </>
   );
 }
 
 function MemorySheet({ memory, onClose }: { memory: Memory; onClose: () => void }) {
   const { backend } = useSession();
+  const collection = useCollectionState('memories');
+  const context = useMemo(() => ({ backend }), [backend]);
+  const latest = useRef<{ context: typeof context; collection: typeof collection } | null>(null);
+  const closed = useRef(false);
+  useEffect(() => {
+    latest.current = { context, collection };
+    return () => { latest.current = null; };
+  }, [context, collection]);
   const [caption, setCaption] = useState(memory.caption ?? '');
   const [date, setDate] = useState(memory.date);
+  const { run, pending } = useAsyncAction((action: () => unknown) => action());
+  const isCurrent = () => !closed.current && latest.current?.context === context;
+  const containsMemory = (state: typeof collection) => state.items.some((entry) => entry.id === memory.id);
+  const unavailable = collection.loading || collection.error || !containsMemory(collection);
+  const canWrite = () => {
+    const state = latest.current?.collection;
+    return isCurrent() && state && !state.loading && !state.error && containsMemory(state);
+  };
+  const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
+  const runCurrent = (action: () => Promise<void>) => run(async () => {
+    if (!canWrite()) return;
+    try { await action(); }
+    catch (error) { if (isCurrent()) throw error; }
+  });
+  const save = () => runCurrent(async () => {
+    if (date > todayKey()) return;
+    await backend.update('memories', memory.id, { caption: caption.trim(), date });
+    close();
+  });
+  const remove = () => {
+    if (pending || !canWrite()) return;
+    confirmDelete(caption || 'ce souvenir', () => runCurrent(async () => {
+      await backend.remove('memories', memory.id);
+      close();
+    }));
+  };
 
   return (
-    <Sheet visible title="Souvenir" onClose={onClose}>
-      <Image source={{ uri: memory.photoUrl }} style={{ width: '100%', aspectRatio: 1, borderRadius: 20 }} contentFit="cover" />
-      <Field label="Légende" value={caption} maxLength={4000} onChangeText={setCaption} placeholder="Notre premier week-end à la mer" />
-      <DateField label="Date" value={date} onChange={setDate} maximumDate={new Date()} />
-      <Button
-        label="Enregistrer"
-        onPress={async () => {
-          await backend.update('memories', memory.id, { caption: caption.trim(), date });
-          onClose();
-        }}
-      />
+    <Sheet visible title="Souvenir" onClose={() => run(close)}>
+      {!unavailable && <Image source={{ uri: memory.photoUrl }} style={{ width: '100%', aspectRatio: 1, borderRadius: 20 }} contentFit="cover" />}
+      <Field label="Légende" value={caption} maxLength={4000} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setCaption(value); })} placeholder="Notre premier week-end à la mer" />
+      <DateField label="Date" value={date} disabled={pending} onChange={(value) => run(() => { if (isCurrent()) setDate(value); })} maximumDate={new Date()} />
+      {date > todayKey() && <T variant="small">La date du souvenir ne peut pas être dans le futur.</T>}
+      {unavailable && <T variant="small" muted>Album indisponible ou souvenir retiré. Ton brouillon est conservé ; recharge l’album avant de continuer.</T>}
+      {collection.error && <Button label="Recharger l’album du formulaire" variant="outline" onPress={collection.retry} />}
+      <Button label="Enregistrer" disabled={pending || unavailable || date > todayKey()} onPress={save} />
       <Button
         label="Supprimer"
         variant="danger"
         icon="trash-outline"
-        onPress={() =>
-          confirmDelete(caption || 'ce souvenir', async () => {
-            await backend.remove('memories', memory.id);
-            onClose();
-          })
-        }
+        disabled={pending || unavailable}
+        onPress={remove}
       />
     </Sheet>
   );
