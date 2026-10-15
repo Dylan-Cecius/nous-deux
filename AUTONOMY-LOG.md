@@ -708,3 +708,9 @@ Quatre cas rouges avec stockage doublé qui enregistre puis rejette : perte d’
 
 Preuves : lint/TypeScript, 45 suites / 795 tests applicatifs, diff relu et git diff --check propres. Les tests simulent une réponse ambiguë ; ils ne prétendent pas reproduire une panne matérielle sur téléphone. Serveur/règles inchangés. Limites : pas encore de signal d’erreur aux abonnés ayant déjà reçu leur valeur, pas d’idempotence des ajouts répétés, pas de verrou inter-processus. Aucun build/déploiement/distribution/coût. Suite bornée : disponibilité des écrans après rejet d’écriture.
 
+## 2026-10-15, 16:41 Europe/Brussels — Vue locale indisponible après rejet
+
+Base 5ea881fe0a31bd95670ed1f85a0adb95b9f368ef. Quatre tests rouges : les abonnés déjà chargés n’étaient pas informés du résultat incertain. Les abonnements locaux ont désormais un canal d’erreur terminal, avec reprise par nouvel abonnement ; les vues existantes utilisent déjà ce contrat pour bloquer leurs actions et proposer Réessayer. Un cinquième contrôle vérifie qu’une reprise créée pendant la notification ne reçoit pas l’erreur ancienne. Notification limitée aux abonnés présents, arrêt après désabonnement, erreur d’un gestionnaire isolée sans masquer celle du stockage.
+
+Preuves : lint/TypeScript, 45 suites / 800 tests applicatifs, diff relu et git diff --check. Contrôle sécurité réalisé pendant la tâche précédente : compilation fonctions et 45 tests réussis en 26,06 s à 16:37, émulateurs demo-nous-deux-security arrêtés ; aucun serveur/règle changé ici. Tests locaux sur doublures uniquement. Pas de build, diffusion, données réelles ni dépense. Limites : reprise d’ajout toujours non idempotente ; une erreur dans un callback de données doit encore être isolée pour éviter de transformer une écriture réussie en échec apparent.
+

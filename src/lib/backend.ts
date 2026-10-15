@@ -246,7 +246,8 @@ const LOCAL_ME = 'me';
 const LOCAL_PARTNER = 'partner';
 const cache = new Map<string, unknown>();
 const localKeyVersions = new Map<string, number>();
-const listeners = new Map<string, Set<(value: any) => void>>();
+type LocalListener = { next: (value: any) => void; error: (error: unknown) => void };
+const listeners = new Map<string, Set<LocalListener>>();
 const localWrites = new Map<string, Promise<void>>();
 const localOperations = new Set<Promise<unknown>>();
 const localBackends = new WeakMap<Backend, number>();
@@ -288,10 +289,13 @@ async function writeLocal<T>(key: string, value: T) {
     // mutation doit relire le disque, sans réutiliser ni repeupler l'ancien cache.
     cache.delete(key);
     localKeyVersions.set(key, (localKeyVersions.get(key) ?? 0) + 1);
+    // Une vue chargée avant ce rejet ne doit plus autoriser des actions sur une
+    // valeur incertaine. Comme un abonnement cloud en erreur, elle doit reprendre.
+    [...(listeners.get(key) ?? [])].forEach((listener) => listener.error(error));
     throw error;
   }
   cache.set(key, value);
-  listeners.get(key)?.forEach((cb) => cb(value));
+  listeners.get(key)?.forEach((listener) => listener.next(value));
 }
 
 /** Sérialise lecture-modification-écriture par clé, sans bloquer les autres collections. */
@@ -315,20 +319,29 @@ function watchLocal<T>(epoch: number, key: string, fallback: T, cb: (value: T) =
   }
   let active = true;
   let received = false;
+  const fail = (error: unknown) => {
+    if (!active || epoch !== localEpoch) return;
+    received = true;
+    active = false;
+    listeners.get(key)?.delete(listener);
+    // Un gestionnaire d'interface ne doit pas masquer l'erreur du stockage.
+    try { onError?.(error); } catch { /* Les autres abonnés doivent être avertis. */ }
+  };
   const receive = (value: T) => {
     if (!active || epoch !== localEpoch) return;
     received = true;
     cb(value);
   };
+  const listener: LocalListener = { next: receive, error: fail };
   if (!listeners.has(key)) listeners.set(key, new Set());
-  listeners.get(key)!.add(receive);
+  listeners.get(key)!.add(listener);
   readLocal(key, fallback).then(
     (value) => { if (!received) receive(value); },
-    (error) => { if (active && epoch === localEpoch && !received) onError?.(error); },
+    (error) => { if (!received) fail(error); },
   );
   return () => {
     active = false;
-    listeners.get(key)?.delete(receive);
+    listeners.get(key)?.delete(listener);
   };
 }
 

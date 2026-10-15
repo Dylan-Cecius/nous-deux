@@ -34,6 +34,73 @@ const commitThenReject = () => {
   });
 };
 
+test('un abonnement déjà chargé devient indisponible après une écriture ambiguë puis peut être repris', async () => {
+  await backend.add('notes', note('Initial'));
+  const data = jest.fn(); const error = jest.fn();
+  const stop = backend.subscribe('notes', data, error);
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  expect(data).toHaveBeenCalledTimes(1);
+  commitThenReject();
+  await expect(backend.add('notes', note('Ambigu'))).rejects.toThrow('Confirmation perdue');
+  expect(error).toHaveBeenCalledTimes(1);
+  await backend.add('notes', note('Suivant'));
+  expect(data).toHaveBeenCalledTimes(1); // Abonnement en erreur : reprise explicite.
+  const retry = jest.fn();
+  const retryStop = backend.subscribe('notes', retry, jest.fn());
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  expect(retry.mock.calls[0][0].map((x: { text: string }) => x.text)).toEqual(['Initial', 'Ambigu', 'Suivant']);
+  stop(); retryStop();
+});
+
+test('un refus certain invalide aussi la vue sans supposer le résultat du stockage', async () => {
+  const data = jest.fn(); const error = jest.fn();
+  const stop = backend.subscribeCouple(data, error);
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  (storage.setItem as jest.Mock).mockRejectedValueOnce(new Error('Disque fictif plein'));
+  await expect(backend.updateMember('me', { name: 'Modifié' })).rejects.toThrow('Disque fictif plein');
+  expect(error).toHaveBeenCalledTimes(1);
+  expect(data).toHaveBeenCalledTimes(1);
+  stop();
+});
+
+test('les abonnements retirés ou d’une autre collection ne reçoivent pas l’erreur d’écriture', async () => {
+  const stoppedError = jest.fn(); const otherError = jest.fn(); const activeError = jest.fn();
+  const stop = backend.subscribe('notes', jest.fn(), stoppedError);
+  const otherStop = backend.subscribe('events', jest.fn(), otherError);
+  const activeStop = backend.subscribe('notes', jest.fn(), activeError);
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  stop();
+  commitThenReject();
+  await expect(backend.add('notes', note('Ambigu'))).rejects.toThrow();
+  expect(activeError).toHaveBeenCalledTimes(1);
+  expect(stoppedError).not.toHaveBeenCalled(); expect(otherError).not.toHaveBeenCalled();
+  otherStop(); activeStop();
+});
+
+test('une erreur dans un gestionnaire d’erreur ne masque pas celle du stockage ni les autres abonnés', async () => {
+  const broken = backend.subscribe('notes', jest.fn(), () => { throw new Error('Gestionnaire fictif cassé'); });
+  const error = jest.fn(); const stop = backend.subscribe('notes', jest.fn(), error);
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  commitThenReject();
+  await expect(backend.add('notes', note('Ambigu'))).rejects.toThrow('Confirmation perdue');
+  expect(error).toHaveBeenCalledTimes(1);
+  broken(); stop();
+});
+
+test('une reprise créée dans le gestionnaire d’erreur ne reçoit pas le rejet précédent', async () => {
+  const retryData = jest.fn(); const retryError = jest.fn(); let retryStop = () => {};
+  const stop = backend.subscribe('notes', jest.fn(), () => {
+    retryStop = backend.subscribe('notes', retryData, retryError);
+  });
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  commitThenReject();
+  await expect(backend.add('notes', note('Ambigu'))).rejects.toThrow('Confirmation perdue');
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  expect(retryError).not.toHaveBeenCalled();
+  expect(retryData).toHaveBeenCalledWith([expect.objectContaining({ text: 'Ambigu' })]);
+  stop(); retryStop();
+});
+
 test('un ajout enregistré malgré son rejet est conservé par l’écriture suivante', async () => {
   await backend.add('notes', note('Initial'));
   commitThenReject();
