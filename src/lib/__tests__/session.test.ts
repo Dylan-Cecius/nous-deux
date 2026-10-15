@@ -34,6 +34,38 @@ beforeEach(async () => {
 
 const profile = { name: 'Alice fictive', color: '#abcdef' };
 
+test.each(['', ' ', 'a/b', 42, {}, ['couple']].map((coupleId) => [coupleId]))('la restauration refuse un index mal formé sans nettoyer la session : %j', async (coupleId) => {
+  const raw = JSON.stringify({ mode: 'cloud', userId: 'alice', coupleId: 'old' });
+  await AsyncStorage.setItem('session', raw);
+  (getDoc as jest.Mock).mockResolvedValueOnce({ data: () => ({ coupleId }) });
+  await expect(loadSession()).rejects.toThrow('rattachement');
+  expect(getDoc).toHaveBeenCalledTimes(1);
+  expect(signOut).not.toHaveBeenCalled();
+  expect(await AsyncStorage.getItem('session')).toBe(raw);
+});
+
+test.each(['alice', 'malice', {}, null, undefined, ['alice', 42]].map((members) => [members]))('une liste de membres mal formée ne valide ni n’efface la session : %j', async (members) => {
+  const raw = JSON.stringify({ mode: 'cloud', userId: 'alice', coupleId: 'old' });
+  await AsyncStorage.setItem('session', raw);
+  (getDoc as jest.Mock).mockResolvedValueOnce({ data: () => ({ coupleId: 'new' }) }).mockResolvedValueOnce({ data: () => ({ members }) });
+  await expect(loadSession()).rejects.toThrow('membres');
+  expect(signOut).not.toHaveBeenCalled();
+  expect(await AsyncStorage.getItem('session')).toBe(raw);
+});
+
+test.each([' ', 'a/b'])('la reconnexion refuse un identifiant d’espace invalide avant sa lecture : %s', async (coupleId) => {
+  (getDoc as jest.Mock).mockResolvedValueOnce({ data: () => ({ coupleId }) });
+  await expect(signInWithEmail('alice@example.test', 'fictitious-password')).rejects.toThrow('rattachement');
+  expect(getDoc).toHaveBeenCalledTimes(1);
+  expect(await AsyncStorage.getItem('session')).toBeNull();
+});
+
+test('la reconnexion refuse une liste contenant un membre non textuel', async () => {
+  (getDoc as jest.Mock).mockResolvedValueOnce({ data: () => ({ coupleId: 'new' }) }).mockResolvedValueOnce({ data: () => ({ members: ['alice', 42] }) });
+  await expect(signInWithEmail('alice@example.test', 'fictitious-password')).rejects.toThrow('membres');
+  expect(await AsyncStorage.getItem('session')).toBeNull();
+});
+
 test.each([
   '{broken', 'null', '[]', '{}', '"local"',
   JSON.stringify({ mode: 'unknown', userId: 'alice', coupleId: 'couple' }),

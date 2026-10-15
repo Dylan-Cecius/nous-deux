@@ -132,6 +132,23 @@ type Session = { mode: 'local' } | { mode: 'cloud'; coupleId: string; userId: st
 
 const SESSION_KEY = 'session';
 
+const validDocumentId = (id: unknown): id is string => typeof id === 'string' && id.trim().length > 0 && !id.includes('/');
+
+function serverCoupleId(value: unknown): string | undefined {
+  if (value == null) return undefined;
+  if (!validDocumentId(value)) throw new Error('Le rattachement de ce compte est illisible. Réessaie ou contacte l’assistance.');
+  return value;
+}
+
+function hasMember(data: unknown, userId: string): boolean {
+  if (data == null) return false;
+  const members = typeof data === 'object' ? (data as { members?: unknown }).members : undefined;
+  if (!Array.isArray(members) || !members.every(validDocumentId)) {
+    throw new Error('La liste des membres de cet espace est illisible. Réessaie ou contacte l’assistance.');
+  }
+  return members.includes(userId);
+}
+
 function parseSession(raw: string): Session {
   const invalid = () => new Error('La session enregistrée est illisible. Réessaie ou contacte l’assistance avant de la réinitialiser.');
   let value: unknown;
@@ -139,8 +156,7 @@ function parseSession(raw: string): Session {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw invalid();
   const saved = value as Record<string, unknown>;
   if (saved.mode === 'local') return { mode: 'local' };
-  const validId = (id: unknown): id is string => typeof id === 'string' && id.trim().length > 0 && !id.includes('/');
-  if (saved.mode !== 'cloud' || !validId(saved.userId) || !validId(saved.coupleId)) throw invalid();
+  if (saved.mode !== 'cloud' || !validDocumentId(saved.userId) || !validDocumentId(saved.coupleId)) throw invalid();
   return { mode: 'cloud', userId: saved.userId, coupleId: saved.coupleId };
 }
 
@@ -172,9 +188,9 @@ async function loadSessionNow(): Promise<Backend | null> {
     // L'index serveur est la référence après une migration ou un changement d'appareil.
     // Un ancien identifiant local ne doit pas déconnecter un compte anonyme récupérable.
     const index = await getDoc(doc(db, 'users', session.userId));
-    const coupleId = (index.data()?.coupleId as string | undefined) ?? session.coupleId;
+    const coupleId = serverCoupleId(index.data()?.coupleId) ?? session.coupleId;
     const couple = await getDoc(doc(db, 'couples', coupleId));
-    if (!couple.data()?.members?.includes(session.userId)) {
+    if (!hasMember(couple.data(), session.userId)) {
       await clearSessionNow();
       return null;
     }
@@ -481,13 +497,11 @@ async function recoverCloudSession(uid: string): Promise<Backend | null> {
   const { db } = firebase();
   try {
     const index = await getDoc(doc(db, 'users', uid));
-    const coupleId = index.data()?.coupleId;
+    const coupleId = serverCoupleId(index.data()?.coupleId);
     if (coupleId == null) return null;
-    if (typeof coupleId !== 'string' || !coupleId) throw new Error('Ce compte n’est relié à aucun espace de couple.');
     // Un ancien index ne suffit pas : vérifier l’espace avant de quitter la connexion.
     const couple = await getDoc(doc(db, 'couples', coupleId));
-    const members = couple.data()?.members;
-    if (!Array.isArray(members) || !members.includes(uid)) {
+    if (!hasMember(couple.data(), uid)) {
       throw new Error('Ton compte n’a plus accès à cet espace. Contacte l’assistance si cela te semble anormal.');
     }
     await saveCloudSession(coupleId, uid);
