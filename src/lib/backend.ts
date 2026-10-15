@@ -15,6 +15,7 @@ import {
   doc,
   getDoc,
   onSnapshot,
+  runTransaction,
   serverTimestamp,
   Timestamp,
   updateDoc,
@@ -36,6 +37,7 @@ import {
   type Couple,
   type Member,
   type PhotoFrame,
+  type ListItem,
 } from './types';
 
 /**
@@ -56,6 +58,8 @@ export interface Backend {
   addEvents(events: Omit<AgendaEvent, 'id'>[]): Promise<void>;
   /** Supprime au plus 52 horaires dans une seule écriture, sans lot partiel. */
   removeEvents(ids: string[]): Promise<void>;
+  /** Retire atomiquement au plus 100 courses sélectionnées, uniquement si encore cochées. */
+  clearShoppingBasket(ids: string[]): Promise<void>;
   update<K extends CollectionName>(col: K, id: string, patch: Partial<Collections[K]>): Promise<void>;
   remove(col: CollectionName, id: string): Promise<void>;
   /** Enregistre une photo (Firebase Storage, ou dossier de l'app en mode local) et renvoie son adresse. */
@@ -327,6 +331,15 @@ function eventRemovalIds(ids: string[]): string[] {
   return unique;
 }
 
+function shoppingRemovalIds(ids: string[]): string[] {
+  if (!Array.isArray(ids) || ids.some((id) => !validDocumentId(id))) {
+    throw new Error('La sélection de courses est invalide. Recharge la liste avant de réessayer.');
+  }
+  const unique = [...new Set(ids)];
+  if (unique.length > 100) throw new Error('Ce panier dépasse 100 articles. Aucune suppression effectuée. Retire quelques articles individuellement avant de réessayer.');
+  return unique;
+}
+
 export async function createLocalCouple(me: Omit<Member, 'id'>, partner: Omit<Member, 'id'>) {
   if (deletingLocal) throw localUnavailable();
   return withSession(() => createLocalCoupleNow(me, partner));
@@ -376,6 +389,12 @@ function localBackend(): Backend {
       const selected = new Set(eventRemovalIds(ids));
       if (!selected.size) return;
       await operate(() => mutateLocal<AgendaEvent[]>(colKey('events'), [], (items) => items.filter((event) => !selected.has(event.id))));
+    },
+    async clearShoppingBasket(ids) {
+      const selected = new Set(shoppingRemovalIds(ids));
+      if (!selected.size) return;
+      await operate(() => mutateLocal<ListItem[]>(colKey('items'), [], (items) => items.filter((item) =>
+        !selected.has(item.id) || item.list !== 'shopping' || item.done !== true)));
     },
     async update(col, id, patch) {
       await operate(() => mutateLocal<any[]>(colKey(col), [], (items) => items.map((it) => it.id === id ? { ...it, ...patch } : it)));
@@ -778,6 +797,17 @@ function cloudBackend(coupleId: string, uid: string): Backend {
       const batch = writeBatch(db);
       for (const id of selected) batch.delete(docRef('events', id));
       await batch.commit();
+    },
+    async clearShoppingBasket(ids) {
+      const selected = shoppingRemovalIds(ids);
+      if (!selected.length) return;
+      await runTransaction(db, async (tx) => {
+        const snapshots = await Promise.all(selected.map((id) => tx.get(docRef('items', id))));
+        for (const snap of snapshots) {
+          const item = snap.data();
+          if (item?.list === 'shopping' && item.done === true) tx.delete(snap.ref);
+        }
+      });
     },
     async update(name, id, patch) {
       const { id: _ignored, ...rest } = patch as { id?: string };

@@ -7,7 +7,7 @@ const { getFirestore } = require('firebase-admin/firestore');
 const { getAuth } = require('firebase-admin/auth');
 const { getStorage } = require('firebase-admin/storage');
 const { initializeTestEnvironment, assertFails, assertSucceeds } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, serverTimestamp, Timestamp, writeBatch } = require('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, serverTimestamp, Timestamp, writeBatch, runTransaction } = require('firebase/firestore');
 const { ref, uploadBytes, getBytes } = require('firebase/storage');
 
 const projectId = 'demo-nous-deux-security';
@@ -143,6 +143,49 @@ test('la suppression groupée de 52 horaires est atomique et refuse tout accès 
   const remaining = await db.collection(`couples/${cid}/events`).get();
   assert.deepEqual(remaining.docs.map((item) => item.id), ['keep']);
   assert.equal((await db.doc(foreign).get()).exists, true);
+});
+
+test('un panier transactionnel de 100 articles est autorisé, un accès tiers ne supprime rien', async () => {
+  await seed();
+  await db.doc('couples/foreign').set({ members: ['mallory'], profiles: { mallory: profile }, securityVersion: 2 });
+  const row = { list: 'shopping', title: 'Article fictif', done: true, createdBy: 'alice', createdAt: Date.now() };
+  const paths = Array.from({ length: 100 }, (_, i) => `couples/${cid}/items/${i}`);
+  const foreign = 'couples/foreign/items/one';
+  const setup = db.batch();
+  for (const path of [...paths, foreign]) setup.set(db.doc(path), row);
+  await setup.commit();
+  const alice = client('alice');
+  await assertFails(runTransaction(alice, async (tx) => {
+    const snapshots = await Promise.all([paths[0], foreign].map((path) => tx.get(doc(alice, path))));
+    snapshots.forEach((snap) => tx.delete(snap.ref));
+  }));
+  assert.equal((await db.doc(paths[0]).get()).exists, true);
+  await assertSucceeds(runTransaction(alice, async (tx) => {
+    const snapshots = await Promise.all(paths.map((path) => tx.get(doc(alice, path))));
+    snapshots.forEach((snap) => tx.delete(snap.ref));
+  }));
+  assert.equal((await db.collection(`couples/${cid}/items`).get()).size, 0);
+  assert.equal((await db.doc(foreign).get()).exists, true);
+});
+
+test('une course décochée pendant la transaction reste présente après réévaluation', async () => {
+  await seed();
+  const row = { list: 'shopping', title: 'Article fictif', done: true, createdBy: 'alice', createdAt: Date.now() };
+  const paths = ['keep', 'remove'].map((id) => `couples/${cid}/items/${id}`);
+  await Promise.all(paths.map((path) => db.doc(path).set(row)));
+  const alice = client('alice');
+  let attempts = 0;
+  await assertSucceeds(runTransaction(alice, async (tx) => {
+    const snapshots = await Promise.all(paths.map((path) => tx.get(doc(alice, path))));
+    if (++attempts === 1) await db.doc(paths[0]).update({ done: false });
+    for (const snap of snapshots) {
+      const item = snap.data();
+      if (item?.list === 'shopping' && item.done === true) tx.delete(snap.ref);
+    }
+  }));
+  assert.ok(attempts >= 2);
+  assert.equal((await db.doc(paths[0]).get()).data().done, false);
+  assert.equal((await db.doc(paths[1]).get()).exists, false);
 });
 
 test('l’heure serveur permet les écritures malgré une horloge client en avance, sans accepter les dates futures', async () => {

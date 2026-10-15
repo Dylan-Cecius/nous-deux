@@ -114,7 +114,7 @@ export default function Listes() {
     showDialog('Vider le panier ?', `${done.length} article${done.length > 1 ? 's' : ''} coché${done.length > 1 ? 's' : ''} seront retirés.`, [
       { text: 'Annuler', style: 'cancel' },
       { text: 'Vider', style: 'destructive', onPress: async () => {
-        try { for (const item of done) await backend.remove('items', item.id); }
+        try { await backend.clearShoppingBasket(done.map((item) => item.id)); }
         catch (error) { showDialog('Suppression interrompue', userError(error)); }
       } },
     ]);

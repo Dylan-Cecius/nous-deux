@@ -26,6 +26,38 @@ const read = async (key: string) => JSON.parse((await storage.getItem(key))!);
 const note = (text: string) => ({ text, from: 'me', createdAt: 1 });
 const event: Omit<AgendaEvent, 'id'> = { title: 'Horaire fictif', who: 'me', date: '2026-10-15', start: '09:00', end: '12:00', kind: 'travail', createdBy: 'me' };
 
+test('vider le panier ne retire que les courses sélectionnées encore cochées en une écriture', async () => {
+  const entries = [{ id: 'remove', list: 'shopping', done: true }, { id: 'unchecked', list: 'shopping', done: false }, { id: 'film', list: 'films', done: true }, { id: 'unselected', list: 'shopping', done: true }];
+  await storage.setItem('local:col:items', JSON.stringify(entries));
+  (storage.setItem as jest.Mock).mockClear();
+  await backend.clearShoppingBasket(['remove', 'remove', 'unchecked', 'film', 'missing']);
+  expect(await read('local:col:items')).toEqual(entries.slice(1));
+  expect(storage.setItem).toHaveBeenCalledTimes(1);
+});
+
+test('un panier ne peut pas être supprimé partiellement si le stockage refuse l’écriture', async () => {
+  const entries = [{ id: 'one', list: 'shopping', done: true }, { id: 'two', list: 'shopping', done: true }];
+  await storage.setItem('local:col:items', JSON.stringify(entries));
+  (storage.setItem as jest.Mock).mockRejectedValueOnce(new Error('Disque fictif plein'));
+  await expect(backend.clearShoppingBasket(['one', 'two'])).rejects.toThrow('Disque fictif plein');
+  expect(await read('local:col:items')).toEqual(entries);
+  await backend.clearShoppingBasket(['one']);
+  expect(await read('local:col:items')).toEqual([entries[1]]);
+});
+
+test('vider le panier relit un article décoché par une opération locale déjà engagée', async () => {
+  await storage.setItem('local:col:items', JSON.stringify([{ id: 'one', list: 'shopping', done: true }]));
+  await Promise.all([backend.update('items', 'one', { done: false }), backend.clearShoppingBasket(['one'])]);
+  expect(await read('local:col:items')).toEqual([{ id: 'one', list: 'shopping', done: false }]);
+});
+
+test('un panier trop grand ou vide ne touche pas au stockage', async () => {
+  (storage.setItem as jest.Mock).mockClear();
+  await expect(backend.clearShoppingBasket(Array.from({ length: 101 }, (_, i) => `${i}`))).rejects.toThrow('100');
+  await backend.clearShoppingBasket([]);
+  expect(storage.setItem).not.toHaveBeenCalled();
+});
+
 test('un refus de suppression groupée conserve tous les horaires et le cache', async () => {
   await backend.addEvents([event, event, event]);
   const original = await read('local:col:events');

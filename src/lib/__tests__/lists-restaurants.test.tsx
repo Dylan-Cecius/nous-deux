@@ -2,6 +2,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import Listes from '@/app/(tabs)/listes';
 import Restos from '@/app/(tabs)/restos';
 import { useCollectionState, useSession } from '../couple-context';
+import { showDialog } from '@/components/dialog';
 
 jest.mock('../couple-context', () => {
   const state = jest.fn();
@@ -21,7 +22,7 @@ jest.mock('@/components/ui', () => {
 
 let root: ReactTestRenderer;
 const ready = { items: [], loading: false, error: false, retry: jest.fn() };
-const backend = { userId: 'alice', mode: 'cloud', add: jest.fn(), remove: jest.fn(), update: jest.fn(), call: jest.fn() };
+const backend = { userId: 'alice', mode: 'cloud', add: jest.fn(), remove: jest.fn(), clearShoppingBasket: jest.fn(), update: jest.fn(), call: jest.fn() };
 beforeEach(() => {
   (useCollectionState as jest.Mock).mockReturnValue(ready);
   (useSession as jest.Mock).mockReturnValue({ backend, partner: { name: 'Bob' }, colorOf: () => '#000', nameOf: () => 'Alice' });
@@ -29,6 +30,18 @@ beforeEach(() => {
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
 const text = () => JSON.stringify(root.toJSON());
 const switchTab = async (value: string) => { await act(async () => { root.root.findByType('segmented' as never).props.onChange(value); }); };
+
+test('vider le panier utilise une seule opération, sans suppressions individuelles partielles', async () => {
+  const item = { list: 'shopping', title: 'Article fictif', createdBy: 'alice', done: true, createdAt: 1 };
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, id: 'one' }, { ...item, id: 'two' }] });
+  await act(async () => { root = create(<Listes />); });
+  await switchTab('shopping');
+  await act(async () => { root.root.findByProps({ label: 'Vider les articles cochés' }).props.onPress(); });
+  const confirm = (showDialog as jest.Mock).mock.calls[0][2].find((button: { text: string }) => button.text === 'Vider').onPress;
+  await act(async () => { await confirm(); });
+  expect(backend.clearShoppingBasket).toHaveBeenCalledWith(['one', 'two']);
+  expect(backend.remove).not.toHaveBeenCalled();
+});
 
 describe.each(['bucket', 'films', 'shopping', 'gifts'])('liste %s', (tab) => {
   test.each(['loading', 'error'])('une lecture en %s n’est pas présentée comme une liste vide', async (status) => {
