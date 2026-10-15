@@ -5,6 +5,7 @@ import { useCollectionState, useSession } from '../couple-context';
 import { confirmDelete } from '@/components/ui';
 import { showDialog } from '@/components/dialog';
 import { todayKey } from '../dates';
+import { notifyPartner } from '../assistant';
 
 jest.mock('../couple-context', () => {
   const state = jest.fn();
@@ -33,7 +34,7 @@ jest.mock('@/components/ui', () => {
 let root: ReactTestRenderer;
 const ready = { items: [], loading: false, error: false, retry: jest.fn() };
 const event = { id: 'event', title: 'Horaire fictif', date: todayKey(), who: 'alice', start: '09:00', end: '12:00', kind: 'travail' };
-const backend = { userId: 'alice', remove: jest.fn().mockResolvedValue(undefined), removeEvents: jest.fn().mockResolvedValue(undefined) };
+const backend = { mode: 'cloud', coupleId: 'couple', userId: 'alice', addEvents: jest.fn().mockResolvedValue(undefined), update: jest.fn().mockResolvedValue(undefined), remove: jest.fn().mockResolvedValue(undefined), removeEvents: jest.fn().mockResolvedValue(undefined) };
 const session = { backend, members: [{ id: 'alice', name: 'Alice' }, { id: 'bob', name: 'Bob' }], colorOf: () => '#000', nameOf: () => 'Alice' };
 beforeEach(() => { (useCollectionState as jest.Mock).mockReturnValue(ready); (useSession as jest.Mock).mockReturnValue(session); });
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
@@ -100,11 +101,101 @@ test('un refus du lot conserve le formulaire et permet de réessayer', async () 
   await act(async () => { seriesButton().props.onPress(); });
   const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
   backend.removeEvents.mockRejectedValueOnce(new Error('Lot fictif refusé'));
-  await act(async () => { await expect(confirm()).rejects.toThrow('Lot fictif refusé'); });
+  await act(async () => { await confirm(); });
+  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Lot fictif refusé');
   expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
   await act(async () => { await confirm(); });
   expect(backend.removeEvents).toHaveBeenCalledTimes(2);
   expect(backend.remove).not.toHaveBeenCalled();
+  expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
+});
+
+test('une sauvegarde bloque la suppression et la fermeture du même formulaire', async () => {
+  await openSeries();
+  let finish!: () => void;
+  backend.update.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); });
+  await act(async () => {
+    root.root.findByProps({ label: 'Supprimer' }).props.onPress();
+    seriesButton().props.onPress();
+    root.root.findByProps({ title: 'Modifier l’horaire' }).props.onClose();
+  });
+  expect(confirmDelete).not.toHaveBeenCalled();
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
+  await act(async () => { finish(); await pending; });
+  expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
+});
+
+test('deux confirmations identiques ne lancent qu’une suppression', async () => {
+  await openSeries();
+  await act(async () => { root.root.findByProps({ label: 'Supprimer' }).props.onPress(); });
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  await act(async () => { await Promise.all([confirm(), confirm()]); });
+  expect(backend.remove).toHaveBeenCalledTimes(1);
+});
+
+test.each(['Supprimer', 'Supprimer aussi les semaines suivantes'])('une confirmation déjà ouverte (%s) ne contourne pas une sauvegarde en cours', async (label) => {
+  await openSeries();
+  await act(async () => { root.root.findByProps({ label }).props.onPress(); });
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  let finish!: () => void;
+  backend.update.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); });
+  await act(async () => { await confirm(); });
+  expect(backend.remove).not.toHaveBeenCalled();
+  expect(backend.removeEvents).not.toHaveBeenCalled();
+  await act(async () => { finish(); await pending; });
+});
+
+test('les anciens gestionnaires de formulaire ne rouvrent pas de confirmation après fermeture', async () => {
+  await openSeries();
+  const removeOne = root.root.findByProps({ label: 'Supprimer' }).props.onPress;
+  const removeSeries = seriesButton().props.onPress;
+  const save = root.root.findByProps({ label: 'Enregistrer' }).props.onPress;
+  await act(async () => { root.root.findByProps({ title: 'Modifier l’horaire' }).props.onClose(); });
+  await act(async () => { removeOne(); removeSeries(); await save(); });
+  expect(confirmDelete).not.toHaveBeenCalled();
+  expect(backend.update).not.toHaveBeenCalled();
+});
+
+test('une confirmation individuelle après fermeture ne supprime rien', async () => {
+  await openSeries();
+  await act(async () => { root.root.findByProps({ label: 'Supprimer' }).props.onPress(); });
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  await act(async () => { root.root.findByProps({ title: 'Modifier l’horaire' }).props.onClose(); });
+  await act(async () => { await confirm(); });
+  expect(backend.remove).not.toHaveBeenCalled();
+});
+
+test.each(['success', 'failure'])('un ajout terminé en %s après changement de compte laisse le nouveau brouillon intact', async (result) => {
+  await act(async () => { root = create(<Agenda />); });
+  await act(async () => { root.root.findByProps({ label: 'Ajouter un horaire' }).props.onPress(); });
+  await act(async () => { root.root.findByProps({ label: 'Titre' }).props.onChangeText('Ancien brouillon'); });
+  let finish!: () => void; let fail!: (error: Error) => void;
+  backend.addEvents.mockImplementationOnce(() => new Promise<void>((yes, no) => { finish = yes; fail = no; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); pending.catch(() => {}); });
+  (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...backend, coupleId: 'new-couple', userId: 'bob' } });
+  await act(async () => { root.update(<Agenda />); });
+  expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
+  await act(async () => { root.root.findByProps({ label: 'Ajouter un horaire' }).props.onPress(); });
+  await act(async () => { root.root.findByProps({ label: 'Titre' }).props.onChangeText('Nouveau brouillon'); });
+  await act(async () => { if (result === 'success') finish(); else fail(new Error('Ancien échec')); await pending; });
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe('Nouveau brouillon');
+  expect(notifyPartner).not.toHaveBeenCalled();
+  expect(showDialog).not.toHaveBeenCalled();
+});
+
+test('un échec de sauvegarde reste visible, conserve la saisie et permet une reprise', async () => {
+  await openSeries();
+  backend.update.mockRejectedValueOnce(new Error('Échec fictif'));
+  await act(async () => { await root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); });
+  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Échec fictif');
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
+  await act(async () => { await root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); });
+  expect(backend.update).toHaveBeenCalledTimes(2);
   expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
 });
 

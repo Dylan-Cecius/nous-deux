@@ -25,6 +25,7 @@ import { useCollectionState, useSession } from '@/lib/couple-context';
 import { endMin, freeSlots, fromMin, mondayOf, toMin } from '@/lib/agenda';
 import { addDays, formatLong, fromKey, todayKey, weekdayShort } from '@/lib/dates';
 import { BOTH, type AgendaEvent, type EventKind } from '@/lib/types';
+import { useAsyncAction } from '@/lib/use-async-action';
 
 const KINDS: { value: EventKind; label: string; icon: 'briefcase-outline' | 'person-outline' | 'heart-outline' }[] = [
   { value: 'travail', label: 'Travail', icon: 'briefcase-outline' },
@@ -35,6 +36,11 @@ const KINDS: { value: EventKind; label: string; icon: 'briefcase-outline' | 'per
 const HOUR_H = 40;
 
 export default function Agenda() {
+  const { backend } = useSession();
+  return <AgendaContent key={`${backend.mode}:${backend.coupleId}:${backend.userId}`} />;
+}
+
+function AgendaContent() {
   const t = useTheme();
   const { backend, members, colorOf } = useSession();
   const eventState = useCollectionState('events');
@@ -248,6 +254,7 @@ export default function Agenda() {
 
       {editing && (
         <EventSheet
+          key={editing === 'new' ? 'new' : editing.id}
           event={editing === 'new' ? undefined : editing}
           defaultDate={selected}
           defaultWho={backend.userId}
@@ -293,11 +300,13 @@ function EventSheet({
   const [start, setStart] = useState(event?.start ?? '09:00');
   const [end, setEnd] = useState(event?.end ?? '17:00');
   const [repeat, setRepeat] = useState('0');
+  const { run, pending: busy } = useAsyncAction((action: () => unknown) => action());
+  const isCurrent = () => latest.current?.backend === backend;
 
   const valid = !!title.trim() && start < end;
 
-  const save = async () => {
-    if (!valid) return;
+  const save = () => run(async () => {
+    if (!valid || !isCurrent()) return;
     const data = { title: title.trim(), who, kind, date, start, end, createdBy: event?.createdBy ?? backend.userId };
     if (event) {
       await backend.update('events', event.id, data);
@@ -305,14 +314,24 @@ function EventSheet({
       const weeks = Number(repeat);
       const seriesId = weeks > 0 ? `${Date.now()}` : undefined;
       await backend.addEvents(Array.from({ length: Math.max(1, weeks) }, (_, i) => ({ ...data, date: addDays(date, i * 7), seriesId })));
+      if (!isCurrent()) return;
       await notifyPartner(session, 'Agenda', `${session.me?.name ?? 'Ta moitié'} a ajouté « ${data.title} ».`);
     }
-    onClose();
+    if (isCurrent()) onClose();
+  });
+
+  const removeOne = () => {
+    if (!event || busy || !isCurrent()) return;
+    confirmDelete(event.title, () => run(async () => {
+      if (!isCurrent()) return;
+      await backend.remove('events', event.id);
+      if (isCurrent()) onClose();
+    }));
   };
 
   const removeSeries = () => {
-    if (!event?.seriesId || seriesUnavailable) return;
-    confirmDelete(`${event.title} (toutes les semaines à venir)`, async () => {
+    if (!event?.seriesId || seriesUnavailable || busy || !isCurrent()) return;
+    confirmDelete(`${event.title} (toutes les semaines à venir)`, () => run(async () => {
       const current = latest.current;
       if (!current) return;
       if (current.backend !== backend || current.state.loading || current.state.error) {
@@ -321,12 +340,12 @@ function EventSheet({
       }
       const toRemove = current.state.items.filter((x) => x.seriesId === event.seriesId && x.date >= event.date);
       await backend.removeEvents(toRemove.map((x) => x.id));
-      onClose();
-    });
+      if (isCurrent()) onClose();
+    }));
   };
 
   return (
-    <Sheet visible title={event ? 'Modifier l’horaire' : 'Nouvel horaire'} onClose={onClose}>
+    <Sheet visible title={event ? 'Modifier l’horaire' : 'Nouvel horaire'} onClose={() => run(onClose)}>
       <Field label="Titre" value={title} maxLength={200} onChangeText={setTitle} placeholder="Boulot, sport, resto…" />
       <Chips
         label="Pour qui ?"
@@ -356,18 +375,14 @@ function EventSheet({
       </Row>
       {start >= end && <T variant="small">L’heure de fin doit être après l’heure de début. Pour une nuit, ajoute un horaire sur chaque journée.</T>}
       {!event && <Chips label="Répéter chaque semaine" options={REPEATS} value={repeat} onChange={setRepeat} />}
-      <Button label="Enregistrer" disabled={!valid} onPress={save} />
+      <Button label="Enregistrer" disabled={!valid || busy} onPress={save} />
       {event && (
         <Button
           label="Supprimer"
           variant="danger"
           icon="trash-outline"
-          onPress={() =>
-            confirmDelete(event.title, async () => {
-              await backend.remove('events', event.id);
-              onClose();
-            })
-          }
+          disabled={busy}
+          onPress={removeOne}
         />
       )}
       {!!event?.seriesId && (
@@ -379,7 +394,7 @@ function EventSheet({
               <Button label="Réessayer la série" variant="outline" onPress={allEvents.retry} />
             </>
           )}
-          <Button label="Supprimer aussi les semaines suivantes" variant="danger" disabled={seriesUnavailable} onPress={removeSeries} />
+          <Button label="Supprimer aussi les semaines suivantes" variant="danger" disabled={seriesUnavailable || busy} onPress={removeSeries} />
         </>
       )}
     </Sheet>
