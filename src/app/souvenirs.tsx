@@ -69,14 +69,22 @@ function MemorySheet({ memory, onClose }: { memory: Memory; onClose: () => void 
   const { backend } = useSession();
   const collection = useCollectionState('memories');
   const context = useMemo(() => ({ backend }), [backend]);
-  const latest = useRef<{ context: typeof context; collection: typeof collection } | null>(null);
+  const [draft, setDraft] = useState({ baseCaption: memory.caption ?? '', baseDate: memory.date, caption: memory.caption ?? '', date: memory.date });
+  const received = !collection.loading && !collection.error ? collection.items.find((entry) => entry.id === memory.id) : undefined;
+  const baseCaption = received?.caption ?? draft.baseCaption;
+  const baseDate = received?.date ?? draft.baseDate;
+  const caption = draft.baseCaption !== baseCaption && draft.caption.trim() === draft.baseCaption ? baseCaption : draft.caption;
+  const date = draft.date === draft.baseDate ? baseDate : draft.date;
+  // Ajustement borné aux nouvelles valeurs reçues : conserver chaque champ saisi.
+  if (draft.baseCaption !== baseCaption || draft.baseDate !== baseDate) {
+    setDraft({ baseCaption, baseDate, caption, date });
+  }
+  const latest = useRef<{ context: typeof context; collection: typeof collection; draft: typeof draft } | null>(null);
   const closed = useRef(false);
   useEffect(() => {
-    latest.current = { context, collection };
+    latest.current = { context, collection, draft };
     return () => { latest.current = null; };
-  }, [context, collection]);
-  const [caption, setCaption] = useState(memory.caption ?? '');
-  const [date, setDate] = useState(memory.date);
+  }, [context, collection, draft]);
   const { run, pending } = useAsyncAction((action: () => unknown) => action());
   const isCurrent = () => !closed.current && latest.current?.context === context;
   const containsMemory = (state: typeof collection) => state.items.some((entry) => entry.id === memory.id);
@@ -92,8 +100,12 @@ function MemorySheet({ memory, onClose }: { memory: Memory; onClose: () => void 
     catch (error) { if (isCurrent()) throw error; }
   });
   const save = () => runCurrent(async () => {
-    if (date > todayKey()) return;
-    await backend.update('memories', memory.id, { caption: caption.trim(), date });
+    const current = latest.current!.draft;
+    if (current.date > todayKey()) return;
+    const patch: { caption?: string; date?: string } = {};
+    if (current.caption.trim() !== current.baseCaption) patch.caption = current.caption.trim();
+    if (current.date !== current.baseDate) patch.date = current.date;
+    if (Object.keys(patch).length) await backend.update('memories', memory.id, patch);
     close();
   });
   const remove = () => {
@@ -107,8 +119,8 @@ function MemorySheet({ memory, onClose }: { memory: Memory; onClose: () => void 
   return (
     <Sheet visible title="Souvenir" onClose={() => run(close)}>
       {!unavailable && <Image source={{ uri: memory.photoUrl }} style={{ width: '100%', aspectRatio: 1, borderRadius: 20 }} contentFit="cover" />}
-      <Field label="Légende" value={caption} maxLength={4000} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setCaption(value); })} placeholder="Notre premier week-end à la mer" />
-      <DateField label="Date" value={date} disabled={pending} onChange={(value) => run(() => { if (isCurrent()) setDate(value); })} maximumDate={new Date()} />
+      <Field label="Légende" value={caption} maxLength={4000} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setDraft((current) => ({ ...current, caption: value })); })} placeholder="Notre premier week-end à la mer" />
+      <DateField label="Date" value={date} disabled={pending} onChange={(value) => run(() => { if (isCurrent()) setDraft((current) => ({ ...current, date: value })); })} maximumDate={new Date()} />
       {date > todayKey() && <T variant="small">La date du souvenir ne peut pas être dans le futur.</T>}
       {unavailable && <T variant="small" muted>Album indisponible ou souvenir retiré. Ton brouillon est conservé ; recharge l’album avant de continuer.</T>}
       {collection.error && <Button label="Recharger l’album du formulaire" variant="outline" onPress={collection.retry} />}

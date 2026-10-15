@@ -33,6 +33,7 @@ const open = async () => {
   await act(async () => root.root.findAllByType(Pressable)[0].props.onPress());
 };
 const refresh = async () => { await act(async () => root.update(<Souvenirs />)); };
+const changeCaption = async (value: string) => { await act(async () => root.root.findByProps({ label: 'Légende' }).props.onChangeText(value)); };
 const ask = async () => {
   await act(async () => button('Supprimer')());
   return (confirmDelete as jest.Mock).mock.calls.at(-1)[1];
@@ -67,6 +68,7 @@ test.each(['loading', 'error', 'removed'])('sauvegarde refusée après %s sans p
 
 test('sauvegarde, suppression, saisie et fermeture partagent le verrou immédiat', async () => {
   await open();
+  await act(async () => root.root.findByProps({ label: 'Légende' }).props.onChangeText('Brouillon à enregistrer'));
   const confirm = await ask();
   const changeCaption = root.root.findByProps({ label: 'Légende' }).props.onChangeText;
   const changeDate = root.root.findByType('date' as never).props.onChange;
@@ -77,7 +79,7 @@ test('sauvegarde, suppression, saisie et fermeture partagent le verrou immédiat
   await act(async () => { pending = save(); await save(); await confirm(); await changeCaption('Trop tard'); await changeDate('2021-02-03'); sheet().props.onClose(); });
   expect(backend.update).toHaveBeenCalledTimes(1);
   expect(backend.remove).not.toHaveBeenCalled();
-  expect(root.root.findByProps({ label: 'Légende' }).props).toMatchObject({ value: memory.caption, editable: false });
+  expect(root.root.findByProps({ label: 'Légende' }).props).toMatchObject({ value: 'Brouillon à enregistrer', editable: false });
   expect(root.root.findByType('date' as never).props).toMatchObject({ value: memory.date, disabled: true });
   await act(async () => { finish(); await pending; });
   expect(root.root.findAllByType('sheet' as never)).toHaveLength(0);
@@ -85,6 +87,7 @@ test('sauvegarde, suppression, saisie et fermeture partagent le verrou immédiat
 
 test('un échec conserve le brouillon et permet une nouvelle tentative', async () => {
   await open();
+  await changeCaption('Brouillon à enregistrer');
   backend.update.mockRejectedValueOnce(new Error('Échec fictif'));
   await act(async () => { await button('Enregistrer')(); });
   expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Échec fictif');
@@ -95,6 +98,7 @@ test('un échec conserve le brouillon et permet une nouvelle tentative', async (
 
 test.each(['success', 'error'])('un retour %s d’un ancien backend ne ferme pas la fiche courante', async (outcome) => {
   await open();
+  await changeCaption('Brouillon à enregistrer');
   let finish!: () => void;
   backend.update.mockImplementationOnce(() => new Promise<void>((resolve, reject) => { finish = () => outcome === 'success' ? resolve() : reject(new Error('Ancien échec')); }));
   let pending!: Promise<void>;
@@ -143,4 +147,84 @@ test('un échec de suppression garde la fiche et permet de confirmer à nouveau'
   const retry = await ask();
   await act(async () => { await retry(); });
   expect(backend.remove).toHaveBeenCalledTimes(2);
+});
+
+test('une date reçue du partenaire actualise le champ intact sans remplacer la légende saisie', async () => {
+  await open();
+  await changeCaption('Mon brouillon');
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...memory, date: '2022-03-04', caption: 'Légende du partenaire' }] });
+  await refresh();
+  expect(root.root.findByType('date' as never).props.value).toBe('2022-03-04');
+  expect(root.root.findByProps({ label: 'Légende' }).props.value).toBe('Mon brouillon');
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).toHaveBeenCalledWith('memories', memory.id, { caption: 'Mon brouillon' });
+});
+
+test('modifier uniquement la date ne renvoie pas une légende périmée', async () => {
+  await open();
+  await act(async () => root.root.findByType('date' as never).props.onChange('2021-05-06'));
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...memory, caption: 'Légende du partenaire' }] });
+  await refresh();
+  expect(root.root.findByProps({ label: 'Légende' }).props.value).toBe('Légende du partenaire');
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).toHaveBeenCalledWith('memories', memory.id, { date: '2021-05-06' });
+});
+
+test('une fiche intacte se ferme sans écriture, même après actualisation distante', async () => {
+  await open();
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...memory, caption: 'Autre légende' }] });
+  await refresh();
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(root.root.findAllByType('sheet' as never)).toHaveLength(0);
+});
+
+test('un ancien bouton enregistre le brouillon courant et pas la saisie précédente', async () => {
+  await open();
+  const oldSave = button('Enregistrer');
+  await changeCaption('Brouillon courant');
+  await act(async () => { await oldSave(); });
+  expect(backend.update).toHaveBeenCalledWith('memories', memory.id, { caption: 'Brouillon courant' });
+});
+
+test('le dernier contenu reçu reste affiché lors d’une erreur de lecture', async () => {
+  await open();
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...memory, caption: 'Actualisé', date: '2022-02-02' }] });
+  await refresh();
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [], error: true });
+  await refresh();
+  expect(root.root.findByProps({ label: 'Légende' }).props.value).toBe('Actualisé');
+  expect(root.root.findByType('date' as never).props.value).toBe('2022-02-02');
+});
+
+test('les espaces de saisie sont conservés à l’écran sans déclencher une écriture identique', async () => {
+  await open();
+  await changeCaption(`${memory.caption} `);
+  expect(root.root.findByProps({ label: 'Légende' }).props.value).toBe(`${memory.caption} `);
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).not.toHaveBeenCalled();
+});
+
+test('les deux champs saisis survivent à une actualisation puis sont seuls envoyés', async () => {
+  await open();
+  await changeCaption('  Mon brouillon  ');
+  await act(async () => root.root.findByType('date' as never).props.onChange('2021-01-01'));
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...memory, caption: 'Autre légende', date: '2023-01-01' }] });
+  await refresh();
+  expect(root.root.findByProps({ label: 'Légende' }).props.value).toBe('  Mon brouillon  ');
+  expect(root.root.findByType('date' as never).props.value).toBe('2021-01-01');
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).toHaveBeenCalledWith('memories', memory.id, { caption: 'Mon brouillon', date: '2021-01-01' });
+});
+
+test('une valeur déjà confirmée par la lecture n’est pas renvoyée après échec ambigu', async () => {
+  await open();
+  await changeCaption('Mon brouillon');
+  backend.update.mockRejectedValueOnce(new Error('Confirmation perdue'));
+  await act(async () => { await button('Enregistrer')(); });
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...memory, caption: 'Mon brouillon' }] });
+  await refresh();
+  await act(async () => { await button('Enregistrer')(); });
+  expect(backend.update).toHaveBeenCalledTimes(1);
+  expect(root.root.findAllByType('sheet' as never)).toHaveLength(0);
 });

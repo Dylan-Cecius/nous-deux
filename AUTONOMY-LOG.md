@@ -756,3 +756,9 @@ Base cd3f8bd4e56a418061405b881d8749919d3edf20. Huit cas rouges : annulation/expi
 
 Documentation RN 0.86 Networking/XMLHttpRequest et source installée vérifiées : timeout par défaut à zéro, événements timeout et abort distincts de error. Preuves : lint/TypeScript, 47 suites / 853 tests (7,20 s), diff relu et git diff --check. Les événements sont simulés, aucun délai réel ou transfert natif mesuré. Ce délai concerne seulement la lecture avant upload : aucune annulation ou compensation d’écriture distante prétendue. Serveur/règles inchangés, aucun service facturable, donnée réelle ou diffusion.
 
+## 2026-10-15, 17:07 Europe/Brussels — Brouillon souvenir et champs reçus
+
+Base 83a1af9f78784a19a59388cb2dbdc1b62bc41a63. Cinq régressions rouges : date/légende du partenaire ignorées, écriture d’une fiche intacte écrasant les valeurs reçues, ancien bouton envoyant l’ancien brouillon et dernier contenu reçu perdu à l’affichage après erreur. Synchronisation par champ intact, conservation de chaque saisie, patch limité aux champs modifiés et action relisant le brouillon courant. Ajustement de quatre scénarios existants pour saisir avant de vérifier une mutation, puisque la fiche intacte n’écrit plus. Trois contrôles supplémentaires : espaces pendant la frappe, deux champs saisis, confirmation tardive après rejet ambigu.
+
+Preuves : lint/TypeScript, 47 suites / 861 tests (7,30 s), diff relu et git diff --check. Revue React : ajustement d’état borné aux changements externes, dépendances et invalidation de contexte conservées. La consigne reçue pendant la tâche a été intégrée sans redémarrer le travail : PR ouverte/brouillon et quatre fichiers de reprise relus via GitHub, tête inchangée. Limite : ce patch évite d’écrire les champs intacts mais ne résout pas les éditions simultanées du même champ ni les modifications après la dernière lecture. Aucun essai multi-téléphones réel, build, déploiement, dépense ou donnée réelle.
+
