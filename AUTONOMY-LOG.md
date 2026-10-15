@@ -589,3 +589,25 @@ Base `97c0eead334b28385c5022322c3e49a04f065dfb`. Treize tests rouges initiaux su
 Profil revalidé sur contexte, membre actuel et droit d’édition ; prénom/couleur/saisie coordonnés, erreur courante visible, ancienne erreur ignorée. Refus des valeurs vides, inchangées ou couleurs hors palette. ColorPicker accepte disabled sans perdre sa sélection ni son verrou interne. Un prénom reçu de l’extérieur synchronise le champ intact mais conserve une saisie modifiée ; ajustement borné du state, sans effet de synchronisation. Revue React refs/state/cleanup, diff et documentation RN 0.86 Pressable/TextInput relus.
 
 Preuves : lint/TypeScript, 44 suites / 727 tests applicatifs, git diff --check réussis. Node 24.19.0 et Java 17.0.20 confirmés ; ce n’est pas un essai du runtime de production Node 22. Aucun serveur/règle/suppression modifié depuis les 27 tests sécurité de 15:15, aucune identité ou donnée réelle utilisée. Pas de contrôle tactile, clavier natif, lecteur d’écran, build, diffusion ou dépense. Prochaine priorité documentée : idempotence multi-clients des marques et invalidation des programmations natives déjà engagées, à reproduire avant changement.
+
+## 2026-10-15, 15:21 Europe/Brussels — Checkpoint final et reprise
+
+Travail continu observé depuis 14:32:39 jusqu’au contrôle de 15:20:45 : 48 min 06 s, hors cette dernière sauvegarde documentaire. Onze tâches cohérentes avec checkpoints indépendants ; aucune attente artificielle pour atteindre une heure. Clôture à une frontière de tâche proche de l’objectif de 50 minutes, contrôles finaux effectués ; les protocoles multi-clients restants méritent une nouvelle reproduction et leurs tests d’émulateurs plutôt qu’un correctif partiel. La relance reçue pendant le travail a été intégrée par une relecture de GitHub, sans réexécuter les tâches déjà sauvegardées.
+
+Checkpoints GitHub (distincts des commits locaux de la copie texte) :
+
+- `00e7d563e20deee0de889f1d51e42f09842b885d` : verrou DateField/rencontre, 579 tests.
+- `4ec4f02a33bae835cade536177b20210edcde68c` : ouverture Android consommée une fois, 585 tests.
+- `16047d541f52d998fe339d4b72e194d602c98561` : saisie date/heure web, 590 tests.
+- `a73fb5c569dc55b239f462ef4bf12917126e848f` : formulaire souvenir, 608 tests.
+- `00fb8e6554142b17ce06a869b3c474a784992bcc` : comptes à rebours, 628 tests.
+- `4029cc350c58f9146ee8ade292e17d4a491e0e54` : formulaire agenda, 646 tests.
+- `238183ff3519a32bcb8cf0f39581e9ecd2181ff2` : formulaire dépense, 665 tests.
+- `6e6f3769892d636d37323a0345530bf4ea99f76a` : actions des dépenses, 687 tests.
+- `b03e77684f50da488755bb773688ba7174b82cb2` : cohérence des centimes, 697 tests.
+- `97c0eead334b28385c5022322c3e49a04f065dfb` : réglages et déconnexion, 712 tests.
+- `ff0f8abd06d7e0aa23cd30327ced8dc66bb73d50` : prénom et couleur, 727 tests.
+
+Contrôle final : 141 fichiers texte aux SHA identiques à GitHub, arbre local propre avant cette entrée, sept PNG toujours absents localement mais leurs blobs distants intacts depuis la base `b3cf004486b365a1c793778499a2b1d4d7e6d9e7`. Aucun workflow GitHub dans l’arbre. Seuls code client, fonction pure de calcul, tests et documentation ont changé ; serveur/règles/configuration publique inchangés. Chaque sauvegarde utilise expected_sha et force=false, aucune fusion. publicationStatus=draft et retentionVerified=false revérifiés ; fonctionnalités payantes non activées.
+
+Résultats réels : lint et TypeScript propres, 44 suites / 727 tests applicatifs ; dernière compilation fonctions et 27 tests sécurité à 15:15, émulateurs arrêtés. Pas d’export visuel, build signée, essai natif, distribution ni nouveau statut Apple constaté. Aucune dépense, invitation, message, compte ou contenu réel touché. Aucun nouveau blocage nécessitant l’intervention du propriétaire ni incident sur des données réelles observé. Reprendre les priorités explicitement ouvertes du backlog ; ne pas confondre les protections client avec l’idempotence serveur ou la préparation effective de TestFlight.
