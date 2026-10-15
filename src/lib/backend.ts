@@ -130,7 +130,20 @@ type Session = { mode: 'local' } | { mode: 'cloud'; coupleId: string; userId: st
 
 const SESSION_KEY = 'session';
 
+// Auth et la clé de session sont partagés par tous les écrans. Une ancienne
+// restauration/déconnexion doit terminer avant qu’une nouvelle session soit créée.
+let sessionWork: Promise<void> = Promise.resolve();
+function withSession<T>(action: () => Promise<T>): Promise<T> {
+  const task = sessionWork.then(action);
+  sessionWork = task.then(() => {}, () => {});
+  return task;
+}
+
 export async function loadSession(): Promise<Backend | null> {
+  return withSession(loadSessionNow);
+}
+
+async function loadSessionNow(): Promise<Backend | null> {
   const raw = await AsyncStorage.getItem(SESSION_KEY);
   if (!raw) return null;
   const session = JSON.parse(raw) as Session;
@@ -138,7 +151,7 @@ export async function loadSession(): Promise<Backend | null> {
   const { auth, db } = firebase();
   await auth.authStateReady();
   if (!auth.currentUser || auth.currentUser.uid !== session.userId) {
-    await clearSession();
+    await clearSessionNow();
     return null;
   }
   try {
@@ -148,14 +161,14 @@ export async function loadSession(): Promise<Backend | null> {
     const coupleId = (index.data()?.coupleId as string | undefined) ?? session.coupleId;
     const couple = await getDoc(doc(db, 'couples', coupleId));
     if (!couple.data()?.members?.includes(session.userId)) {
-      await clearSession();
+      await clearSessionNow();
       return null;
     }
     if (coupleId !== session.coupleId) await saveCloudSession(coupleId, session.userId);
     return cloudBackend(coupleId, session.userId);
   } catch (error) {
     if ((error as { code?: string }).code === 'permission-denied') {
-      await clearSession();
+      await clearSessionNow();
       return null;
     }
     throw error;
@@ -163,6 +176,11 @@ export async function loadSession(): Promise<Backend | null> {
 }
 
 export async function clearSession() {
+  return withSession(clearSessionNow);
+}
+
+// Réservé aux opérations qui détiennent déjà le passage de session (pas de verrou imbriqué).
+async function clearSessionNow() {
   if (isFirebaseConfigured) await firebaseSignOut(firebase().auth);
   await AsyncStorage.removeItem(SESSION_KEY);
   await clearReminders().catch(() => {});
@@ -260,6 +278,11 @@ function watchLocal<T>(epoch: number, key: string, fallback: T, cb: (value: T) =
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
 export async function createLocalCouple(me: Omit<Member, 'id'>, partner: Omit<Member, 'id'>) {
+  if (deletingLocal) throw localUnavailable();
+  return withSession(() => createLocalCoupleNow(me, partner));
+}
+
+async function createLocalCoupleNow(me: Omit<Member, 'id'>, partner: Omit<Member, 'id'>) {
   const couple: Couple = {
     id: 'local',
     members: [
@@ -391,9 +414,15 @@ function authMessage(e: unknown): string {
  * identifiant : toutes les données restent attachées, et on pourra se reconnecter ailleurs.
  */
 export async function secureAccount(email: string, password: string) {
+  const userId = firebase().auth.currentUser?.uid;
+  return withSession(() => secureAccountNow(email, password, userId));
+}
+
+async function secureAccountNow(email: string, password: string, expectedUserId: string | undefined) {
   const { auth } = firebase();
   const user = auth.currentUser;
   if (!user) throw new Error('Aucun compte sur ce téléphone.');
+  if (user.uid !== expectedUserId) throw new Error('Le compte a changé. Rouvre le formulaire avant de réessayer.');
   try {
     await linkWithCredential(user, EmailAuthProvider.credential(email.trim(), password));
   } catch (e) {
@@ -403,6 +432,10 @@ export async function secureAccount(email: string, password: string) {
 
 /** Se reconnecter (nouveau téléphone, réinstallation) et retrouver son espace. */
 export async function signInWithEmail(email: string, password: string): Promise<Backend> {
+  return withSession(() => signInWithEmailNow(email, password));
+}
+
+async function signInWithEmailNow(email: string, password: string): Promise<Backend> {
   const { auth } = firebase();
   let uid: string;
   try {
@@ -453,6 +486,11 @@ export async function resetPassword(email: string) {
 
 /** Supprime côté serveur ; le nettoyage continue automatiquement après une panne. */
 export async function deleteMyAccount(backend: Backend, password?: string): Promise<'complete' | 'pending'> {
+  if (backend.mode === 'local' && (deletingLocal || localBackends.get(backend) !== localEpoch)) throw localUnavailable();
+  return withSession(() => deleteMyAccountNow(backend, password));
+}
+
+async function deleteMyAccountNow(backend: Backend, password?: string): Promise<'complete' | 'pending'> {
   if (backend.mode === 'local') {
     if (deletingLocal || localBackends.get(backend) !== localEpoch) throw localUnavailable();
     deletingLocal = true;
@@ -468,7 +506,7 @@ export async function deleteMyAccount(backend: Backend, password?: string): Prom
       }
       const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith('local:'));
       await AsyncStorage.multiRemove(keys);
-      await clearSession();
+      await clearSessionNow();
       localEpoch++;
       listeners.clear();
       return 'complete';
@@ -490,11 +528,15 @@ export async function deleteMyAccount(backend: Backend, password?: string): Prom
     }
   }
   const result = await callServer<{ status: 'complete' | 'pending' }>('deleteAccount', { coupleId: backend.coupleId });
-  await clearSession();
+  await clearSessionNow();
   return result.status;
 }
 
 export async function createCloudCouple(me: Omit<Member, 'id'>) {
+  return withSession(() => createCloudCoupleNow(me));
+}
+
+async function createCloudCoupleNow(me: Omit<Member, 'id'>) {
   const uid = await ensureSignedIn();
   const restored = await recoverCloudSession(uid);
   if (restored) return restored;
@@ -504,6 +546,10 @@ export async function createCloudCouple(me: Omit<Member, 'id'>) {
 }
 
 export async function joinCloudCouple(rawCode: string, me: Omit<Member, 'id'>) {
+  return withSession(() => joinCloudCoupleNow(rawCode, me));
+}
+
+async function joinCloudCoupleNow(rawCode: string, me: Omit<Member, 'id'>) {
   const uid = await ensureSignedIn();
   const restored = await recoverCloudSession(uid);
   if (restored) return restored;

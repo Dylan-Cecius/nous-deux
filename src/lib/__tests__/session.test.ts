@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { signOut, signInAnonymously, signInWithEmailAndPassword } from 'firebase/auth';
+import { signOut, signInAnonymously, signInWithEmailAndPassword, linkWithCredential } from 'firebase/auth';
 import { getDoc, onSnapshot } from 'firebase/firestore';
-import { clearSession, loadSession, signInWithEmail, deleteMyAccount, createCloudCouple, joinCloudCouple, type Backend } from '../backend';
+import { clearSession, loadSession, signInWithEmail, deleteMyAccount, createCloudCouple, joinCloudCouple, secureAccount, type Backend } from '../backend';
 import { httpsCallable } from 'firebase/functions';
 import { firebase } from '../firebase';
 import { clearReminders } from '../notifications';
@@ -18,6 +18,7 @@ jest.mock('firebase/auth', () => ({
   signInAnonymously: jest.fn(),
   signInWithEmailAndPassword: jest.fn(),
   reauthenticateWithCredential: jest.fn(),
+  linkWithCredential: jest.fn(),
   EmailAuthProvider: { credential: jest.fn() },
 }));
 jest.mock('firebase/firestore', () => ({ getDoc: jest.fn(), doc: jest.fn(), collection: jest.fn(), onSnapshot: jest.fn(() => jest.fn()) }));
@@ -32,12 +33,48 @@ beforeEach(async () => {
 });
 
 const profile = { name: 'Alice fictive', color: '#abcdef' };
+
+test('une sécurisation en attente ne lie pas l’e-mail à un autre compte', async () => {
+  const auth = { authStateReady: jest.fn(), currentUser: { uid: 'alice' } };
+  const original = (firebase as jest.Mock).getMockImplementation();
+  (firebase as jest.Mock).mockReturnValue({ auth, db: {} });
+  let release!: () => void; let started!: () => void;
+  const entered = new Promise<void>((resolve) => { started = resolve; });
+  (signInWithEmailAndPassword as jest.Mock).mockImplementationOnce(() => new Promise((resolve) => {
+    release = () => { auth.currentUser = { uid: 'bob' }; resolve({ user: auth.currentUser }); }; started();
+  }));
+  (getDoc as jest.Mock).mockResolvedValue({ data: () => ({ coupleId: 'other', members: ['bob'] }) });
+  try {
+    const entering = signInWithEmail('bob@example.test', 'fictitious-password');
+    await entered;
+    const securing = secureAccount('alice@example.test', 'fictitious-password');
+    const result = Promise.allSettled([entering, securing]);
+    release();
+    expect((await result).map((r) => r.status)).toEqual(['fulfilled', 'rejected']);
+    expect(linkWithCredential).not.toHaveBeenCalled();
+  } finally { (firebase as jest.Mock).mockImplementation(original); }
+});
 const onboard = [
   ['création', () => createCloudCouple(profile)],
   ['invitation', () => joinCloudCouple('ABCD234567', profile)],
 ] as const;
 
 describe.each(onboard)('récupération après %s', (_name, enter) => {
+  test('deux demandes concurrentes ne créent ou ne consomment qu’une fois', async () => {
+    let created = false;
+    (getDoc as jest.Mock).mockImplementation(() => Promise.resolve({ data: () => created ? { coupleId: 'recovered', members: ['alice'] } : undefined }));
+    const call = jest.fn(async () => {
+      if (created) throw { code: 'functions/failed-precondition', message: 'Déjà utilisé' };
+      created = true;
+      return { data: { coupleId: 'recovered' } };
+    });
+    (httpsCallable as jest.Mock).mockReturnValue(call);
+    const results = await Promise.all([enter(), enter()]);
+    expect(results.map((backend) => backend.coupleId)).toEqual(['recovered', 'recovered']);
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(signInAnonymously).not.toHaveBeenCalled();
+  });
+
   test.each(['stockage', 'réponse'])('une panne de %s après succès serveur ne relance pas l’opération', async (failure) => {
     let created = false;
     (getDoc as jest.Mock).mockImplementation(() => Promise.resolve({ data: () => created ? { coupleId: 'recovered', members: ['alice', 'bob'] } : undefined }));
