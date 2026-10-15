@@ -1,7 +1,8 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Platform, Pressable } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { DateField } from '@/components/pickers';
+import { DateField, TimeField } from '@/components/pickers';
+import { useState } from 'react';
 
 jest.mock('@react-native-community/datetimepicker', () => ({ __esModule: true, default: 'picker', DateTimePickerAndroid: { open: jest.fn() } }));
 jest.mock('@/constants/theme', () => ({ useTheme: () => ({}), Fonts: {} }));
@@ -110,4 +111,46 @@ test('un changement du callback sans changement de valeur utilise le gestionnair
   await act(async () => currentSelect({}, new Date(2021, 1, 3)));
   expect(onChange).not.toHaveBeenCalled();
   expect(nextChange).toHaveBeenCalledWith('2021-02-03');
+});
+
+test('web affiche la valeur externe courante sans ressusciter un ancien brouillon', async () => {
+  await render('web');
+  const field = () => root.root.findByType('field' as never);
+  await act(async () => field().props.onChangeText('12/'));
+  expect(field().props.value).toBe('12/');
+  await act(async () => root.update(<DateField {...props} label="Libellé modifié" />));
+  expect(field().props.value).toBe('12/');
+  await act(async () => root.update(<DateField {...props} value="2024-06-07" />));
+  expect(field().props.value).toBe('07/06/2024');
+  await act(async () => root.update(<DateField {...props} />));
+  expect(field().props.value).toBe('02/01/2020');
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+test('web conserve le format tapé pendant une saisie d’heure contrôlée', async () => {
+  Object.defineProperty(Platform, 'OS', { value: 'web' });
+  function Form() { const [value, setValue] = useState('09:00'); return <TimeField label="Heure" value={value} onChange={(next) => { onChange(next); setValue(next); }} />; }
+  await act(async () => { root = create(<Form />); });
+  const field = () => root.root.findByType('field' as never);
+  for (const text of ['1', '12', '123', '1230']) {
+    await act(async () => field().props.onChangeText(text));
+    expect(field().props.value).toBe(text);
+  }
+  expect(onChange).toHaveBeenLastCalledWith('12:30');
+  await act(async () => field().props.onBlur());
+  expect(field().props.value).toBe('12:30');
+});
+
+test.each(['disabled', 'value', 'roundtrip'])('web ignore un ancien callback après %s', async (kind) => {
+  await render('web');
+  const field = () => root.root.findByType('field' as never);
+  const oldChange = field().props.onChangeText;
+  if (kind === 'value') await act(async () => root.update(<DateField {...props} value="2024-06-07" />));
+  else {
+    await act(async () => root.update(<DateField {...props} disabled />));
+    if (kind === 'roundtrip') await act(async () => root.update(<DateField {...props} />));
+  }
+  await act(async () => oldChange('12/'));
+  expect(field().props.value).toBe(kind === 'value' ? '07/06/2024' : '02/01/2020');
+  expect(onChange).not.toHaveBeenCalled();
 });

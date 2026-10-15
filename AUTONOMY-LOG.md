@@ -519,3 +519,9 @@ Base `00e7d563e20deee0de889f1d51e42f09842b885d`, 136 SHA texte vérifiés et aut
 Jeton de requête par ouverture, consommé avant notification du parent, invalidation sur onDismiss et contexte de valeur. Aucun appel global dismiss ajouté : ne pas fermer le sélecteur d’un autre champ. Revue React : jeton en ref, valeur de formulaire conservée dans le state du parent, gestionnaire courant relu. Docs du paquet 9.1.0 lues pour onDismiss.
 
 Preuves : lint, TypeScript, 39 suites / 585 tests applicatifs et `git diff --check` réussis ; diff relu. Aucune modification serveur/suppression, aucun contrôle natif ni nouveau test sécurité ; aucun coût, build ou distribution. Suite : synchronisation de la saisie web, qui conserve encore son texte initial lors d’un remplacement de la valeur du parent.
+
+## 2026-10-15, 14:41 Europe/Brussels — Brouillon date/heure web synchronisé
+
+Base `4ec4f02a33bae835cade536177b20210edcde68c`. Quatre cas rouges et un contrôle nominal : texte affiché différent de la valeur externe et ancien callback capable de changer l’affichage après désactivation/changement de valeur. Le brouillon garde désormais la valeur à laquelle il correspond ; remplacement externe réinitialisé sans effet de synchronisation ni remontage du champ. Saisie partielle et format tapé conservés pendant les mises à jour normales du parent, format canonique au blur. Les anciens callbacks sont gardés par le contexte du sélecteur.
+
+Preuves : lint/TypeScript, 39 suites / 590 tests applicatifs, diff relu et `git diff --check` réussis. Revue React et documentation officielle https://react.dev/learn/you-might-not-need-an-effect consultées pour l’ajustement conditionnel du state du même composant ; garde explicite contre une boucle. Tests de frappe contrôlée 1 → 12 → 123 → 1230 et de remplacement aller-retour. Aucun clavier/focus navigateur réel validé, aucun service, build, déploiement, opération financière ou modification serveur/suppression.

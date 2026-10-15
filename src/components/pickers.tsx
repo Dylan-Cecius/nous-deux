@@ -52,7 +52,7 @@ function PickerField({
   const isCurrent = () => !disabled && latest.current?.context === context;
   const change = (next: string) => { if (isCurrent()) latest.current?.onChange(next); };
 
-  if (Platform.OS === 'web') return <WebField mode={mode} label={label} value={value} onChange={change} grow={grow} disabled={disabled} />;
+  if (Platform.OS === 'web') return <WebField mode={mode} label={label} value={value} onChange={change} grow={grow} disabled={disabled} canChange={isCurrent} />;
 
   const display = mode === 'date' ? formatLong(value) : value;
 
@@ -127,6 +127,7 @@ function WebField({
   onChange,
   grow,
   disabled,
+  canChange,
 }: {
   mode: Mode;
   label: string;
@@ -134,23 +135,28 @@ function WebField({
   onChange: (value: string) => void;
   grow?: boolean;
   disabled: boolean;
+  canChange: () => boolean;
 }) {
-  const [text, setText] = useState(mode === 'date' ? toFrenchDate(value) : value);
+  const formatted = mode === 'date' ? toFrenchDate(value) : value;
+  const [draft, setDraft] = useState({ value, text: formatted });
+  // Preserve partial typing, but reset it when the controlled value is replaced.
+  // A key on value would remount the input on every accepted keystroke.
+  if (draft.value !== value) setDraft({ value, text: formatted });
   const parse = mode === 'date' ? parseFrenchDate : parseTime;
   return (
     <Field
       label={label}
-      value={text}
+      value={draft.value === value ? draft.text : formatted}
       grow={grow}
       editable={!disabled}
       placeholder={mode === 'date' ? 'JJ/MM/AAAA' : '09:00'}
       onChangeText={(v) => {
-        if (disabled) return;
-        setText(v);
+        if (disabled || !canChange()) return;
         const parsed = parse(v);
+        setDraft({ value: parsed ?? value, text: v });
         if (parsed) onChange(parsed);
       }}
-      onBlur={() => setText(mode === 'date' ? toFrenchDate(value) : value)}
+      onBlur={() => { if (canChange()) setDraft({ value, text: formatted }); }}
     />
   );
 }
