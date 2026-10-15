@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { showDialog } from './dialog';
@@ -7,6 +7,7 @@ import { useTheme } from '@/constants/theme';
 import { currentAccount, deleteMyAccount, resetPassword, secureAccount, signInWithEmail, type Backend } from '@/lib/backend';
 import { useCouple, useSession } from '@/lib/couple-context';
 import { success } from '@/lib/haptics';
+import { useAsyncAction } from '@/lib/use-async-action';
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -137,36 +138,40 @@ export function SignInForm({
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => { active.current = false; };
+  }, []);
+  const { run, pending: busy } = useAsyncAction((action: () => void | Promise<void>) => action());
 
-  const submit = async () => {
-    setBusy(true);
+  const submit = () => run(async () => {
+    if (!email.trim() || !password) return;
     try {
-      onSignedIn(await signInWithEmail(email, password));
+      const backend = await signInWithEmail(email, password);
+      if (active.current) onSignedIn(backend);
     } catch (e) {
-      showDialog('Connexion impossible', errorText(e));
-    } finally {
-      setBusy(false);
+      if (active.current) showDialog('Connexion impossible', errorText(e));
     }
-  };
+  });
 
-  const forgot = async () => {
+  const forgot = () => run(async () => {
     if (!email.includes('@')) return showDialog('Mot de passe oublié', 'Entre d’abord ton adresse e-mail.');
     try {
       await resetPassword(email);
-      showDialog('E-mail envoyé', 'Regarde ta boîte mail pour choisir un nouveau mot de passe.');
+      if (active.current) showDialog('E-mail envoyé', 'Regarde ta boîte mail pour choisir un nouveau mot de passe.');
     } catch (e) {
-      showDialog('Oups', errorText(e));
+      if (active.current) showDialog('Oups', errorText(e));
     }
-  };
+  });
 
   return (
     <View style={{ gap: 16 }}>
       <Field dark={dark} label="E-mail" value={email} onChangeText={setEmail} placeholder="toi@exemple.fr" keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
       <Field dark={dark} label="Mot de passe" value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" />
       <Button label="Me connecter" variant={dark ? 'sunset' : 'primary'} disabled={busy || !email || !password} onPress={submit} />
-      <Button label="Mot de passe oublié ?" variant={dark ? 'glass' : 'ghost'} small onPress={forgot} />
-      <Button label="Retour" variant={dark ? 'glass' : 'ghost'} onPress={onBack} />
+      <Button label="Mot de passe oublié ?" variant={dark ? 'glass' : 'ghost'} small disabled={busy} onPress={forgot} />
+      <Button label="Retour" variant={dark ? 'glass' : 'ghost'} disabled={busy} onPress={() => run(onBack)} />
     </View>
   );
 }

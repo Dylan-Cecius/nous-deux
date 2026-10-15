@@ -84,6 +84,29 @@ test('un refus serveur est visible et autorise une nouvelle tentative', async ()
   expect(write).toHaveBeenCalledTimes(2);
 });
 
+test('une erreur asynchrone ne rouvre pas de dialogue après démontage', async () => {
+  let reject!: (error: Error) => void;
+  const write = jest.fn(() => new Promise<void>((_resolve, no) => { reject = no; }));
+  let action!: ReturnType<typeof useAsyncAction>;
+  function Form() { action = useAsyncAction(write); return null; }
+  await act(async () => { root = create(<Form />); });
+  let pending!: Promise<void>;
+  await act(async () => { pending = action.run(); });
+  await act(async () => { root.unmount(); });
+  await act(async () => { reject(new Error('Ancienne action')); await pending; });
+  expect(showDialog).not.toHaveBeenCalled();
+});
+
+test('un ancien gestionnaire ne déclenche pas une nouvelle écriture après démontage', async () => {
+  const write = jest.fn();
+  let action!: ReturnType<typeof useAsyncAction>;
+  function Form() { action = useAsyncAction(write); return null; }
+  await act(async () => { root = create(<Form />); });
+  await act(async () => { root.unmount(); });
+  await act(async () => { await action.run(); });
+  expect(write).not.toHaveBeenCalled();
+});
+
 test('une panne de restauration ne renvoie pas silencieusement vers la création de compte', async () => {
   const backend = { coupleId: 'existing', subscribeCouple: jest.fn(() => () => {}) } as unknown as Backend;
   (loadSession as jest.Mock).mockRejectedValueOnce({ code: 'unavailable' }).mockResolvedValueOnce(backend);

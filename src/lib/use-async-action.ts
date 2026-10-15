@@ -14,7 +14,7 @@ export function useAsyncAction<Args extends unknown[]>(action: (...args: Args) =
   }, []);
 
   const run = async (...args: Args) => {
-    if (locked.current) return;
+    if (!mounted.current || locked.current) return;
     locked.current = true;
     try {
       const result = action(...args);
@@ -23,7 +23,7 @@ export function useAsyncAction<Args extends unknown[]>(action: (...args: Args) =
         await result;
       }
     } catch (error) {
-      showDialog('Action impossible', userError(error));
+      if (mounted.current) showDialog('Action impossible', userError(error));
     } finally {
       locked.current = false;
       if (mounted.current) setPending(false);
