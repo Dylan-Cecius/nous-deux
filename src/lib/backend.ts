@@ -574,18 +574,24 @@ async function deleteMyAccountNow(backend: Backend, password?: string): Promise<
       deletingLocal = false;
     }
   }
-  const user = firebase().auth.currentUser;
+  const { auth } = firebase();
+  const user = auth.currentUser;
   if (!user || user.uid !== backend.userId) throw new Error('Reconnecte-toi avant de supprimer ton compte.');
   if (!user.isAnonymous) {
     if (!password || !user.email) throw new Error('Confirme ton mot de passe avant de supprimer ton compte.');
     try {
       await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+      requireCurrentUser(auth, backend.userId);
       await user.getIdToken(true);
     } catch (error) {
+      requireCurrentUser(auth, backend.userId);
       throw new Error(authMessage(error));
     }
   }
-  const result = await callServer<{ status: 'complete' | 'pending' }>('deleteAccount', { coupleId: backend.coupleId });
+  requireCurrentUser(auth, backend.userId);
+  const result = await callServer<{ status: 'complete' | 'pending' }>('deleteAccount', { coupleId: backend.coupleId, expectedUserId: backend.userId });
+  // Le serveur peut avoir invalidé le compte supprimé, mais jamais nettoyer un autre compte.
+  if (auth.currentUser) requireCurrentUser(auth, backend.userId);
   await clearSessionNow();
   return result.status;
 }

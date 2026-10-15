@@ -336,6 +336,11 @@ export async function completeDeletion(uid: string) {
 export const deleteAccount = onCall({ ...options, timeoutSeconds: 540 }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Connexion requise.');
+  // Les nouveaux clients lient la confirmation à une identité précise. Les anciens
+  // restent compatibles ; l’identité cible est toujours celle du jeton, jamais celle du champ.
+  if (request.data?.expectedUserId !== undefined && request.data.expectedUserId !== uid) {
+    throw new HttpsError('failed-precondition', 'Le compte a changé. Confirme à nouveau la suppression.');
+  }
   const existing = await getFirestore().doc(`accountDeletions/${uid}`).get();
   // Une authentification récente est requise AVANT de commencer, pas en fin de suppression.
   if (!existing.exists && request.auth!.token.firebase?.sign_in_provider !== 'anonymous' &&

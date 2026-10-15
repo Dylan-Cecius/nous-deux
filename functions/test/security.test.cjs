@@ -283,6 +283,25 @@ test('suppression : réauthentification exigée avant toute modification', async
   assert.deepEqual((await db.doc(`couples/${cid}`).get()).data().members, ['alice', 'bob']);
 });
 
+test('la suppression refuse une identité confirmée différente avant de créer une tâche', async () => {
+  await seed();
+  for (const expectedUserId of ['alice', '', null, 42]) {
+    await assert.rejects(security.deleteAccount.run(call('bob', { coupleId: cid, expectedUserId })), { code: 'failed-precondition' });
+    assert.equal((await db.doc('accountDeletions/bob').get()).exists, false);
+    assert.deepEqual((await db.doc(`couples/${cid}`).get()).data().members, ['alice', 'bob']);
+  }
+});
+
+test('la suppression accepte une identité correspondante et reste compatible avec les anciens clients', async () => {
+  for (const expected of [true, false]) {
+    await seed();
+    await db.doc('accountDeletions/alice').delete();
+    const result = await security.deleteAccount.run(call('alice', { coupleId: cid, ...(expected ? { expectedUserId: 'alice' } : {}) }));
+    assert.equal(result.status, 'complete');
+    assert.deepEqual((await db.doc(`couples/${cid}`).get()).data().members, ['bob']);
+  }
+});
+
 test('suppression reprise après panne : photos, privé, Auth et index nettoyés ; partenaire conservé', async () => {
   await seed();
   await getAuth().createUser({ uid: 'delete-alice' });
