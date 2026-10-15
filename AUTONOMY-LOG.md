@@ -870,3 +870,28 @@ Base f5f90c56649ba9504653010e7388526e57b9b14b. Trois tests rouges puis verts : t
 
 Preuves : lint/TypeScript, 49 suites / 941 tests en 8,15 s, git diff --check et diff relu. Revue react-best-practices appliquée aux deux formulaires ; règle advanced-use-latest lue, mécanisme de référence existant conservé pour ces actions d’interface, sans détourner useEffectEvent hors d’un effet. Pas de nouvelle souscription, d’effet de synchronisation du brouillon, de changement visuel ou natif. Dernière sécurité : 67 tests à 18:14 ; serveur/règles inchangés. Aucun rappel réel, données réelles, build, déploiement, distribution ou coût.
 
+## 2026-10-15, 18:20 Europe/Brussels — Clôture et intégrité de dix checkpoints
+
+Durée observée du travail et des contrôles avant cette entrée : 17:34:02 → 18:20:11, soit 46 min 09 s. Dix tâches cohérentes sauvegardées indépendamment, puis contrôle d’intégrité ; clôture proche de la cible approximative de 50 minutes, sans attente artificielle ni heure entière revendiquée. La relance reçue pendant le travail a été intégrée sans dupliquer les tâches. Les horodatages de tâches sont consignés à la minute ; les durées de tests viennent de leurs sorties.
+
+Checkpoints GitHub (SHA distants, distincts des commits locaux de la copie texte) :
+
+- 16e48f8419da4581e4ba7570517e8b90ad8cbfed : champs intacts restaurant et hook partagé, 888 tests applicatifs.
+- 6abbb3e80cba5347ed5b91663c4264629ab54b7d : champs/actions courants agenda, 894 tests.
+- 71497cf7d2c288b7911728f365720535818b40ef : patches restaurant/agenda, 50 tests sécurité.
+- 1ed0dd608408e81ad537c7e77dcc7b91760df875 : membre retiré de l’agenda, 897 tests applicatifs.
+- 16625a5cc0bc6f7266dd28936b1b2720ad3532d4 : refus d’ouverture cartographique, 904 tests confirmés par la suite complète suivante.
+- b96fd8659192b2684ca01d68b94fefae1e2888c8 : association souvenir serveur non exposée, 63 tests sécurité.
+- 24c9afb842f0ea7f482216d84e033381dbbcce77 : intention client stable non raccordée, 933 tests applicatifs.
+- 7409d4d1d6c54c4678fdd02b1e392f817de07b3b : contrat client/serveur sur émulateurs, 67 tests sécurité.
+- f5f90c56649ba9504653010e7388526e57b9b14b : anciennes actions de dépense, 938 tests applicatifs.
+- 2708d6ad1737157fd944e4eb71ca91a93f8d320a : anciennes actions de date, 941 tests applicatifs.
+
+La première création d’arbre du dernier checkpoint a échoué sans fournir de SHA au helper, avant création de commit ou mise à jour de référence. Relecture : PR toujours ouverte/brouillon et tête attendue f5f90c5 intacte. Une nouvelle tentative a réussi ; CAS expected_sha=f5f90c5 et force=false confirmé. Cause initiale non déterminée ; aucune perte ni référence forcée, pas de nouveau blocage persistant.
+
+Intégrité vérifiée à 18:20 : les 152 fichiers texte suivis ont tous le SHA de la tête 2708d6a ; sept PNG absents localement restent identiques à l’arbre initial b5aef519b8b90dcb670ad74e79a1359b1529308e. Arbre local propre avant cette entrée, aucun workflow GitHub présent. Diff cumulé sans erreur d’espacement ; fonctions/index, règles Firestore/Storage, configuration EAS/app, flags de services et informations publiques inchangés. publicationStatus=draft et retentionVerified=false confirmés. Aucune image factice, aucun export visuel ou essai natif prétendu.
+
+Preuves finales : lint/TypeScript et 49 suites / 941 tests applicatifs à 18:18 ; compilation fonctions et 67 tests sécurité à 18:14, émulateurs arrêtés, aucun code serveur changé ensuite. Les modules souvenir sont préparés mais non activés, aucun écran raccordé ; aucun déploiement, build signée, distribution TestFlight ou statut Apple relu. Aucun contenu intime, compte réel, suppression réelle, envoi à un tiers ni opération financière.
+
+Suite prête : préparer le raccordement de reprise des souvenirs avec une stratégie explicite de clé et de persistance, sans l’activer avant conservation/transition et coût vérifiés ; auditer les anciennes actions des autres formulaires encore non couverts. Limites maintenues : créations ordinaires non idempotentes, pas de compensation des uploads orphelins, pas de résolution serveur des conflits sur un même champ, essais multi-appareils/visuels/natifs restant à réaliser. Aucun nouveau blocage nécessitant le propriétaire ni incident réel découvert.
+
