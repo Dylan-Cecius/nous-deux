@@ -482,3 +482,24 @@ Base `8ff740d2b028c872d021e8089ff2d6eb71463ce4`, 134 SHA texte vérifiés. Tests
 PhotoFrameEditor accepte disabled, ne capture plus les gestes et bloque aussi les commandes de zoom/réinitialisation ; texte d’attente explicite. CounterSheet partage son verrou avec les changements de cadrage et vérifie l’identité de l’éditeur/photo. IconButton combine désactivation externe et attente interne, avec état accessible. Documentation Gesture Responder System React Native 0.86 relue, revue React des refs/contexte et diff effectuée.
 
 Preuves finales : lint propre, TypeScript, 38 suites / 568 tests applicatifs et `git diff --check` réussis. `CI=1 npm run test:security` : compilation fonctions et 27 tests réussis en 18,16 s, sortie 0, émulateurs auth/firestore/storage arrêtés à 14:21 ; uniquement demo-nous-deux-security, données fictives. Aucun changement serveur depuis cette vérification. Pas de test tactile, clavier, image réelle ni lecteur d’écran. Le risque analogue du DateField de rencontre reste une piste prioritaire issue de la lecture du setter direct, non encore reproduite ni corrigée. Aucune dépense, build, diffusion ni validation Apple.
+
+## 2026-10-15, 14:24 Europe/Brussels — Clôture et reprise durable
+
+Travail continu observé depuis 13:34:59, soit environ 49 minutes jusqu’au contrôle final de 14:23:58, hors dernière sauvegarde du présent journal. Dix tâches cohérentes réalisées et sauvegardées indépendamment, sans attendre artificiellement pour atteindre une heure. Clôture à une frontière de tâche proche de l’objectif de 50 minutes ; le prochain chantier DateField nécessite ses propres vérifications multiplateformes, pas de correctif précipité. Aucun arrêt lié à un achat de quota ni nouvelle automatisation.
+
+Checkpoints GitHub de cette session (SHA du dépôt, distincts des commits locaux de la reconstruction) :
+
+- `1000a7ec340c721dc79ce42fe37641a6f4f175e9` : formulaires listes, 424 tests applicatifs.
+- `69c1451f73200e6991b1712e6246da3419e4bf9c` : formulaires restaurants, 443 tests.
+- `9e7955f01155cf92b074cdfeed027a0317fb2709` : cycle de vie photo/date, 461 tests.
+- `e6d85aef4edb398115d1e770b4f2639a96b76654` : identité et repli des uploads, 476 tests.
+- `00928424541b1394cd65294059d350f34c0d0afa` : préconditions d’identité des mutations cloud, 508 tests.
+- `9e10018f081e5762441e798069ba5fcc16d16be9` : destinations cartographiques, 533 tests.
+- `bb867b2b63966961bc05fe790f1c565eddacb0bf` : tirages et cartes périmés, 548 tests.
+- `c278f578b7fc88e718d8c0d41ed7ea393a862044` : brouillons verrouillés pendant sauvegarde, 557 tests.
+- `8ff740d2b028c872d021e8089ff2d6eb71463ce4` : notation accessible, 562 tests.
+- `cb07d24b41d51f9753d12b9ecd8c2ef91adece2c` : cadrage et boutons icônes, 568 tests.
+
+État final vérifié : 135 fichiers texte aux SHA identiques à GitHub, autres blobs inchangés à chaque checkpoint, arbre local propre ; aucun workflow GitHub dans l’arbre. Chaque référence avancée avec expected_sha et force=false. Lint/TypeScript et 38 suites applicatives passent ; compilation fonctions et 27 tests de sécurité finaux passent sur émulateurs arrêtés. Runtime de contrôle Node 24.19.0 / Java 17.0.20 ; ce n’est pas une validation du runtime de production Node 22.
+
+PR #3 toujours ouverte et en brouillon lors des sauvegardes, aucune fusion. Les 7 images binaires manquent toujours à la copie de contrôle : ni export visuel, ni build signée, ni essai appareil, ni distribution, ni nouveau statut Apple constaté. publicationStatus=draft et retentionVerified=false inchangés ; fonctionnalités payantes non activées. Les prérequis serveur avant distribution, l’association/réconciliation des uploads et les preuves légales restent distincts de ces tests clients. Aucun incident sur des données réelles observé ni intervention nouvelle du propriétaire nécessaire.
