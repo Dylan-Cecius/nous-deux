@@ -76,13 +76,12 @@ export class PhotoUploadError extends Error {
 }
 
 /**
- * Firebase Storage demande le forfait Blaze. Tant qu'il n'est pas activé, l'envoi échoue avec
- * l'une de ces erreurs : on bascule alors sur les photos rangées dans Firestore.
+ * Le repli historique dans Firestore est réservé à une configuration Storage absente.
+ * Un refus d'accès ou une panne inconnue ne prouve ni l'absence du bucket ni son coût.
  */
-let storageAvailable = true;
 function isStorageUnavailable(e: unknown) {
   const code = (e as { code?: string })?.code ?? '';
-  return ['storage/unknown', 'storage/unauthorized', 'storage/bucket-not-found', 'storage/project-not-found'].includes(code);
+  return ['storage/bucket-not-found', 'storage/project-not-found'].includes(code);
 }
 
 /**
@@ -721,6 +720,8 @@ function subscribeAnswers(coupleId: string, uid: string, cb: (items: Answer[]) =
 }
 
 function cloudBackend(coupleId: string, uid: string): Backend {
+  // Une reconnexion réévalue la configuration ; aucun repli ne fuit vers un autre backend.
+  let storageAvailable = true;
   const { db } = firebase();
   const coupleRef = doc(db, 'couples', coupleId);
   // Les collections privées (idées cadeaux) sont rangées sous le membre : l'autre ne peut pas les lire.
@@ -817,17 +818,31 @@ function cloudBackend(coupleId: string, uid: string): Backend {
       await deleteDoc(docRef(name, id));
     },
     async uploadPhoto(localUri) {
-      // Sans Firebase Storage (forfait gratuit) : photo réduite, rangée directement dans Firestore.
-      if (!storageAvailable) return toCompactDataUri(localUri);
-      const { storage } = firebase();
+      const { storage, auth } = firebase();
+      requireCurrentUser(auth, uid);
+      const compact = async () => {
+        const uri = await toCompactDataUri(localUri);
+        requireCurrentUser(auth, uid);
+        return uri;
+      };
+      // Repli existant : aucun forfait ni service n'est activé automatiquement.
+      if (!storageAvailable) return compact();
       const target = ref(storage, `couples/${coupleId}/photos/${uid}/${newId()}.jpg`);
+      let uploaded = false;
       try {
-        await uploadBytes(target, await readAsBlob(localUri), { contentType: 'image/jpeg' });
-        return await getDownloadURL(target);
+        const blob = await readAsBlob(localUri);
+        requireCurrentUser(auth, uid);
+        await uploadBytes(target, blob, { contentType: 'image/jpeg' });
+        uploaded = true;
+        requireCurrentUser(auth, uid);
+        const url = await getDownloadURL(target);
+        requireCurrentUser(auth, uid);
+        return url;
       } catch (e) {
-        if (isStorageUnavailable(e)) {
+        requireCurrentUser(auth, uid);
+        if (!uploaded && isStorageUnavailable(e)) {
           storageAvailable = false;
-          return toCompactDataUri(localUri);
+          return compact();
         }
         throw new PhotoUploadError();
       }
