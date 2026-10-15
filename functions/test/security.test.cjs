@@ -628,12 +628,15 @@ test('suppression reprise après panne : photos, privé, Auth et index nettoyés
 test('la suppression du dernier membre efface aussi les sous-collections et fichiers orphelins', async () => {
   await seed(['last-member']);
   await db.doc(`couples/${cid}/items/one`).set({ title: 'partagé' });
+  const receiptPaths = ['last-member', 'unknown-old'].map(uid => `couples/${cid}/private/${uid}/settlementRequests/one`);
+  for (const path of receiptPaths) await db.doc(path).set({ fingerprint: 'fictitious', settlementId: 'old-mark', createdAt: new Date() });
   const file = getStorage().bucket().file(`couples/${cid}/photos/unknown-old.jpg`);
   await file.save(Buffer.from('image'), { contentType: 'image/jpeg' });
   await queueDeletion('last-member', cid);
   await completeDeletion('last-member');
   assert.equal((await db.doc(`couples/${cid}`).get()).exists, false);
   assert.equal((await db.doc(`couples/${cid}/items/one`).get()).exists, false);
+  for (const path of receiptPaths) assert.equal((await db.doc(path).get()).exists, false);
   assert.equal((await file.exists())[0], false);
   assert.equal((await db.doc('accountDeletions/last-member').get()).data().status, 'complete');
 });

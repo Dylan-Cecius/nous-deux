@@ -33,10 +33,25 @@ La connexion Firebase sur Hydan est désormais opérationnelle. Une première ex
 
 ## Points encore nécessaires pour la politique publique
 
+### Stockage préparé le 15 octobre : reçus de marques informatives
+
+Inventaire fondé sur `functions/src/settlements.ts`, `security.ts`, `retention.ts` et les règles de la branche, pas sur une lecture du projet réel. Ce protocole n’a pas été déployé par ces travaux.
+
+| Donnée préparée | Usage et accès | Effacement observé dans le code |
+| --- | --- | --- |
+| `couples/{coupleId}/private/{uid}/settlementRequests/{requestId}` : empreinte SHA-256 du relevé, identifiant de marque, date serveur | Empêcher de rejouer une intention ; le chemin rattache le reçu au membre. Aucun titre ni montant en clair dans le reçu. Lecture/écriture via serveur seulement, pas d’accès direct depuis le client, même demandeur. Une empreinte et un identifiant liés au compte ne constituent pas une anonymisation. | Nettoyage récursif privé au départ du demandeur, ou de tout l’espace au dernier départ. Le reçu du partenaire restant est conservé. Retirer une marque ne retire pas son reçu : celui-ci empêche sa recréation par une ancienne demande. |
+| `expenseSettlementRevision` dans le document couple | Compteur de sérialisation, sans copie du relevé ; lisible aux membres avec le couple et modifiable seulement par le serveur. | Supprimé avec l’espace au dernier départ ; pas de purge séparée. |
+| Compteur anti-abus `settlements:{uid}` dans `rateLimits` (clé hachée par le mécanisme existant) | Limiter les tentatives, y compris les reprises ; même mécanisme serveur que les autres quotas. | Pris en charge par la purge technique existante des compteurs expirés, pas par une nouvelle durée. |
+
+La purge quotidienne actuelle **ne parcourt pas ces reçus privés** : aucune expiration périodique n’est implémentée ni durée maximale promise. Décider et documenter une conservation proportionnée avant mise en service ; un éventuel changement de durée doit préserver le contrat de reprise ou définir explicitement sa fenêtre. Les tests d’émulateurs vérifient départ individuel, conservation du partenaire et dernier départ, y compris reçus orphelins. Ils ne prouvent pas l’effacement de sauvegardes, journaux ou copies de prestataires.
+
+### Conditions de publication restantes
+
 - Vérifier les copies de maintenance sur MSI et leur procédure de conservation.
 - Définir la conservation des demandes d’assistance et une procédure de nettoyage correspondante.
 - Compléter l’identité légale de l’éditeur et les mentions applicables.
 - Garder `retentionVerified: false` et la publication en brouillon tant que ces éléments ne sont pas résolus.
+- Intégrer les reçus préparés et leur conservation effectivement retenue aux informations publiques et aux déclarations de la version concernée avant activation ; ne pas présenter ce stockage comme déjà déployé ou validé juridiquement.
 
 ## Références techniques
 

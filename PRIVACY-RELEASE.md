@@ -31,6 +31,7 @@ Les invitations expirent fonctionnellement après 24 heures. Leur expiration ne 
 - Terminer l’inventaire des copies de maintenance, notamment sur MSI hors ligne, et des éventuels exports. Confirmer les dates d’expiration et limiter les accès. Ne pas supprimer les sauvegardes ou comptes réels dans le cadre de cette préparation.
 - Fixer une procédure de nettoyage des demandes d’assistance, puis renseigner `securityRetention`, `supportRetention` et `backupRetention` avec des descriptions conformes aux réglages déployés.
 - Passer `retentionVerified` à `true` seulement après ces vérifications. Ne pas annoncer « suppression sous 30 jours » sans mécanisme réel correspondant.
+- Le protocole de marques préparé le 15 octobre ajoute des reçus privés d’idempotence, sans déploiement à ce jour. Leur inventaire et leur nettoyage lié au départ figurent dans FIREBASE-RETENTION.md. Aucune purge périodique de ces reçus n’existe : leur conservation doit être décidée et reflétée dans les informations publiques avant mise en service. L’empreinte liée au membre n’est pas une donnée anonyme.
 
 ## Comportement de suppression décrit dans les pages
 
