@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { clearReminders, scheduleCountdownReminders } from '../notifications';
 import type { SpecialDate } from '../types';
+import { fromKey, toKey } from '../dates';
 
 jest.mock('expo-constants', () => ({
   __esModule: true, default: { executionEnvironment: 'standalone' }, ExecutionEnvironment: { StoreClient: 'storeClient' },
@@ -287,4 +288,19 @@ test('une programmation supplantée rapporte un arrêt, pas une réussite', asyn
   permission.resolve({ granted: true });
   expect(await old).toBe(false);
   expect(current).toBe(true);
+});
+
+test.each([
+  ['2026-02-28', ['2026-02-28', '2026-03-01']],
+  ['2026-03-01', ['2026-03-01']],
+])('rappels du 29 février au %s : pas de saut à l’année suivante', async (today, expected) => {
+  jest.useFakeTimers();
+  const now = fromKey(today);
+  now.setHours(8);
+  jest.setSystemTime(now);
+  try {
+    await scheduleCountdownReminders([{ ...dates[0], date: '2024-02-29', yearly: true }]);
+    const triggers = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls.map(([request]) => toKey(request.trigger.date));
+    expect(triggers).toEqual(expected);
+  } finally { jest.useRealTimers(); }
 });

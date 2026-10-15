@@ -30,8 +30,11 @@ export function nextOccurrence(key: string, yearly: boolean): string {
   const today = todayKey();
   const [, m, d] = key.split('-');
   const year = new Date().getFullYear();
-  const thisYear = `${year}-${m}-${d}`;
-  return thisYear >= today ? thisYear : `${year + 1}-${m}-${d}`;
+  // Conserver le report au 1er mars déjà utilisé par Date pour un 29 février
+  // hors année bissextile, mais comparer une date réelle, pas « YYYY-02-29 ».
+  const occurrence = (y: number) => toKey(new Date(y, Number(m) - 1, Number(d)));
+  const thisYear = occurrence(year);
+  return thisYear >= today ? thisYear : occurrence(year + 1);
 }
 
 export function formatLong(key: string): string {

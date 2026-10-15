@@ -9,6 +9,8 @@ import {
   parseTime,
   quote,
   toFrenchDate,
+  toKey,
+  fromKey,
 } from '../dates';
 
 describe('dates', () => {
@@ -61,5 +63,27 @@ describe('dates', () => {
   test('formatNumber et quote utilisent des espaces insécables', () => {
     expect(formatNumber(1337)).toBe('1 337');
     expect(quote('Je t’aime')).toBe('« Je t’aime »');
+  });
+});
+
+describe('anniversaire du 29 février', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  test.each([
+    ['2026-02-28', '2026-03-01'],
+    ['2026-03-01', '2026-03-01'],
+    ['2026-03-02', '2027-03-01'],
+    ['2027-03-02', '2028-02-29'],
+    ['2028-02-29', '2028-02-29'],
+    ['2028-03-01', '2029-03-01'],
+    ['2100-02-28', '2100-03-01'],
+    ['2400-02-29', '2400-02-29'],
+  ])('le %s, la prochaine date réelle est %s', (today, expected) => {
+    jest.setSystemTime(fromKey(today));
+    const actual = nextOccurrence('2024-02-29', true);
+    expect(actual).toBe(expected);
+    expect(toKey(fromKey(actual))).toBe(actual);
+    expect(daysBetween(today, actual)).toBeGreaterThanOrEqual(0);
   });
 });
