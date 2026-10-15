@@ -558,10 +558,18 @@ Base `4029cc350c58f9146ee8ade292e17d4a491e0e54`. Dix-neuf cas rouges ajoutés : 
 
 Preuves : lint/TypeScript, 42 suites / 665 tests applicatifs et git diff --check réussis, diff et refs/cleanup relus. Aucun mécanisme de suppression/serveur/règle modifié dans cette tâche ; les 27 tests sécurité de 14:58 restent la dernière preuve, pas une nouvelle exécution. Pas de build, distribution ni essai physique. Suite : actions des lignes de dépenses et marque informative de remboursement, à protéger séparément sans changer les règles de calcul ni prétendre résoudre la concurrence multi-appareils.
 
-## 2026-10-15, 15:08 Europe/Brussels — Actions des dépenses
+## 2026-10-15, 15:07 Europe/Brussels — Actions des dépenses
 
 Base `238183ff3519a32bcb8cf0f39581e9ecd2181ff2`. Dix-neuf cas rouges initiaux et un contrôle nominal ; la revue a ajouté un cas rouge de réémission/réordonnancement du même relevé et un contrôle de retour légitime à un relevé précédent. Vingt-deux tests ajoutés au total. Button et confirmDelete restent doublés : leurs gardes individuelles préexistantes ne sont pas confondues avec le verrou partagé testé ici.
 
 Contexte backend/membres, lecture et présence relus avant suppression ; verrou commun aux actions de liste. Marque de remboursement limitée à la vue courante du relevé, non rejouée en attente d’actualisation ; token basé sur identifiants/montants/payeurs/types, stable si seuls ordre/titres changent. Une modification effective permet une nouvelle action explicite. Les erreurs anciennes et vibrations tardives sont ignorées. Ce n’est ni un paiement ni une transaction comptable atomique multi-appareils ; aucune donnée réelle n’a été lue ou modifiée.
 
 Preuves : lint/TypeScript, 43 suites / 687 tests applicatifs et git diff --check réussis ; revue React des refs/state et diff relu. Compilation fonctions et 27 tests sécurité réussis en 18,70 s, sortie 0 et émulateurs arrêtés à 15:04, uniquement demo-nous-deux-security. Dernier ajustement limité au token client du relevé, sans modifier serveur/règles/suppression. PR #3 et consignes GitHub relues à 15:05, tête inchangée ; travail en cours poursuivi sans doubler les tâches. Limites : une réponse d’écriture ambiguë ou deux appareils peuvent encore nécessiter une idempotence serveur. Aucun build, déploiement, dépense ni distribution.
+
+## 2026-10-15, 15:10 Europe/Brussels — Cohérence des centimes
+
+Base `6e6f3769892d636d37323a0345530bf4ea99f76a`. Lecture du calcul puis neuf cas rouges et un contrôle : Math.round des demi-centimes négatifs ne donne pas l’opposé du positif. Exemple fictif 10,31 € payé par un membre : 5,16 € affiché d’un côté contre -5,15 € de l’autre ; une marque de 5,16 € laissait l’autre vue à 0,01 €. Certains tests échouaient d’abord sur -0, mais la divergence non nulle de l’autre vue est aussi couverte.
+
+Calcul séparé du net des dépenses et des marques : partage net à moitié arrondi au centime en valeur absolue puis signe restauré ; remboursements entiers ajoutés ensuite. L’arrondi positif existant est préservé, le négatif devient son opposé. Les demi-centimes sont cumulés avant arrondi et l’ordre des lignes ne change pas le résultat. Aucun enregistrement, remboursement réel ni migration effectué ; uniquement calcul local sur fixtures. L’heure de l’entrée précédente est corrigée de 15:08 à 15:07 pour correspondre à la sauvegarde observée.
+
+Preuves : lint/TypeScript, 43 suites / 697 tests applicatifs et git diff --check réussis, diff relu. Aucun serveur/règle/suppression modifié ; pas de nouveau test sécurité nécessaire pour cette fonction pure. Les clients déjà distribués gardent leur ancien calcul jusqu’à une distribution ultérieure autorisée ; aucune build, diffusion, dépense ou validation Apple. Suite : contrôle du contexte des réglages et confirmations de déconnexion, pistes issues de la lecture de Nous.

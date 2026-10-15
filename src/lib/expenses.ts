@@ -6,11 +6,18 @@ import type { Expense } from './types';
  */
 export function balanceFor(expenses: Pick<Expense, 'amount' | 'paidBy' | 'kind'>[], meId: string) {
   // Calcul en centimes entiers : les nombres à virgule donneraient 5,154999… au lieu de 5,155.
-  let cents = 0;
+  let expenseCents = 0;
+  let settlementCents = 0;
   for (const e of expenses) {
     const amount = Math.round(e.amount * 100);
-    const share = e.kind === 'settle' ? amount : amount / 2;
-    cents += e.paidBy === meId ? share : -share;
+    const signed = e.paidBy === meId ? amount : -amount;
+    if (e.kind === 'settle') settlementCents += signed;
+    else expenseCents += signed;
   }
-  return Math.round(cents) / 100;
+  // Arrondir le partage net symétriquement : Math.round(-0.5) vaut -0,
+  // ce qui donnait deux soldes différents selon le membre qui les consultait.
+  const sharedCents = Math.sign(expenseCents) * Math.round(Math.abs(expenseCents) / 2);
+  // Les remboursements sont déjà en centimes : les mélanger à un demi-centime
+  // avant l’arrondi laisserait un reliquat après remboursement du solde affiché.
+  return (sharedCents + settlementCents) / 100;
 }
