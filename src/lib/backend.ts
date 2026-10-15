@@ -50,7 +50,7 @@ export interface Backend {
   subscribeCouple(cb: (couple: Couple | null) => void, onError?: (error: unknown) => void): () => void;
   updateCouple(patch: { since?: string; photoUrl?: string; photoFrame?: PhotoFrame }): Promise<void>;
   updateMember(memberId: string, patch: Partial<Omit<Member, 'id'>>): Promise<void>;
-  subscribe<K extends CollectionName>(col: K, cb: (items: Collections[K][]) => void): () => void;
+  subscribe<K extends CollectionName>(col: K, cb: (items: Collections[K][]) => void, onError?: (error: unknown) => void): () => void;
   add<K extends CollectionName>(col: K, data: Omit<Collections[K], 'id'>): Promise<void>;
   /** Ajoute toute une série d'horaires, ou aucun, pour éviter les doublons après un échec partiel. */
   addEvents(events: Omit<AgendaEvent, 'id'>[]): Promise<void>;
@@ -240,7 +240,7 @@ function localBackend(): Backend {
       const members = couple.members.map((m) => (m.id === memberId ? { ...m, ...patch } : m));
       await writeLocal('local:couple', { ...couple, members });
     },
-    subscribe: (col, cb) => watchLocal(colKey(col), [], cb),
+    subscribe: (col, cb, onError) => watchLocal(colKey(col), [], cb, onError),
     async add(col, data) {
       const items = await readLocal<any[]>(colKey(col), []);
       await writeLocal(colKey(col), [...items, { ...data, id: newId() }]);
@@ -457,12 +457,24 @@ export async function hasAiConsent(backend: Backend) {
 }
 
 /** Fusionne uniquement nos réponses privées, les statuts sans texte et les réponses révélées. */
-function subscribeAnswers(coupleId: string, uid: string, cb: (items: Answer[]) => void) {
+function subscribeAnswers(coupleId: string, uid: string, cb: (items: Answer[]) => void, onError?: (error: unknown) => void) {
   const { db } = firebase();
   let own: Answer[] = [];
   let revealed: Answer[] = [];
   let statuses: { date: string; responded: string[] }[] = [];
+  let active = true;
+  const stops: (() => void)[] = [];
+  const stopAll = () => { for (const stop of stops.splice(0)) stop(); };
+  const track = (stop: () => void) => { if (active) stops.push(stop); else stop(); };
+  const fail = (error: unknown) => {
+    if (!active) return;
+    active = false;
+    own = []; revealed = []; statuses = [];
+    stopAll();
+    if (onError) onError(error); else cb([]);
+  };
   const emit = () => {
+    if (!active) return;
     const merged = new Map<string, Answer>();
     for (const state of statuses) for (const from of state.responded) {
       merged.set(`${state.date}_${from}`, { id: `${state.date}_${from}`, date: state.date, from, text: '', createdAt: 0 });
@@ -470,16 +482,19 @@ function subscribeAnswers(coupleId: string, uid: string, cb: (items: Answer[]) =
     for (const answer of [...revealed, ...own]) merged.set(`${answer.date}_${answer.from}`, answer);
     cb([...merged.values()]);
   };
-  const stopOwn = onSnapshot(collection(db, 'couples', coupleId, 'private', uid, 'answers'), (snap) => {
+  track(onSnapshot(collection(db, 'couples', coupleId, 'private', uid, 'answers'), (snap) => {
+    if (!active) return;
     own = snap.docs.map((d) => ({ ...d.data(), id: d.id }) as Answer); emit();
-  }, () => { own = []; emit(); });
-  const stopRevealed = onSnapshot(collection(db, 'couples', coupleId, 'revealedAnswers'), (snap) => {
+  }, fail));
+  track(onSnapshot(collection(db, 'couples', coupleId, 'revealedAnswers'), (snap) => {
+    if (!active) return;
     revealed = snap.docs.map((d) => ({ ...d.data(), id: d.id }) as Answer); emit();
-  }, () => { revealed = []; emit(); });
-  const stopStatus = onSnapshot(collection(db, 'couples', coupleId, 'answerStatus'), (snap) => {
+  }, fail));
+  track(onSnapshot(collection(db, 'couples', coupleId, 'answerStatus'), (snap) => {
+    if (!active) return;
     statuses = snap.docs.map((d) => d.data() as { date: string; responded: string[] }); emit();
-  }, () => { statuses = []; emit(); });
-  return () => { stopOwn(); stopRevealed(); stopStatus(); };
+  }, fail));
+  return () => { active = false; stopAll(); };
 }
 
 function cloudBackend(coupleId: string, uid: string): Backend {
@@ -529,14 +544,14 @@ function cloudBackend(coupleId: string, uid: string): Backend {
       );
       await updateDoc(coupleRef, fields);
     },
-    subscribe: (name, cb) => {
-      if (name === 'answers') return subscribeAnswers(coupleId, uid, cb as (items: Answer[]) => void);
+    subscribe: (name, cb, onError) => {
+      if (name === 'answers') return subscribeAnswers(coupleId, uid, cb as (items: Answer[]) => void, onError);
       return onSnapshot(col(name), (snap) => cb(snap.docs.map((d) => {
         const data = d.data({ serverTimestamps: 'estimate' });
         // Les anciennes données utilisent des millisecondes ; les nouvelles sont datées par Firebase.
         if (data.createdAt instanceof Timestamp) data.createdAt = data.createdAt.toMillis();
         return { ...data, id: d.id } as Collections[typeof name];
-      })), () => cb([]));
+      })), (error) => { if (onError) onError(error); else cb([]); });
     },
     async add(name, data) {
       if (name === 'answers') {

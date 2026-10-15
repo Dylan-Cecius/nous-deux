@@ -2,7 +2,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
 import { showDialog } from '@/components/dialog';
 import { useAsyncAction } from '../use-async-action';
-import { CoupleProvider, useCouple } from '../couple-context';
+import { CoupleProvider, useCollectionState, useCouple } from '../couple-context';
 import { clearSession, loadSession, type Backend } from '../backend';
 import type { Couple } from '../types';
 
@@ -11,7 +11,52 @@ jest.mock('@/constants/theme', () => ({ BothColor: '#000000' }));
 jest.mock('../backend', () => ({ loadSession: jest.fn(), clearSession: jest.fn() }));
 
 let root: ReactTestRenderer;
-afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
+afterEach(async () => {
+  if (root) await act(async () => root.unmount());
+  jest.clearAllMocks();
+  (loadSession as jest.Mock).mockReset();
+});
+
+test('une collection distingue attente, vide et erreur et ignore les anciennes tentatives', async () => {
+  const listeners: { data: (items: never[]) => void; error: (error: unknown) => void; stop: jest.Mock }[] = [];
+  const backend = {
+    subscribeCouple: jest.fn(() => jest.fn()),
+    subscribe: jest.fn((_name, data, error) => {
+      const stop = jest.fn();
+      listeners.push({ data, error, stop });
+      return stop;
+    }),
+  } as unknown as Backend;
+  (loadSession as jest.Mock).mockResolvedValueOnce(backend);
+  let state!: ReturnType<typeof useCollectionState<'expenses'>>;
+  let session!: ReturnType<typeof useCouple>;
+  function Consumer() { state = useCollectionState('expenses'); session = useCouple(); return null; }
+  await act(async () => { root = create(<CoupleProvider><Consumer /></CoupleProvider>); });
+  expect(state.loading).toBe(true);
+  expect(state.error).toBe(false);
+  await act(async () => { listeners[0].data([]); });
+  expect(state.loading).toBe(false);
+  expect(state.items).toEqual([]);
+  await act(async () => { listeners[0].error({ code: 'unavailable' }); });
+  expect(state.error).toBe(true);
+  expect(state.loading).toBe(false);
+  await act(async () => { listeners[0].data([]); });
+  expect(state.error).toBe(true);
+  await act(async () => { state.retry(); });
+  expect(state.loading).toBe(true);
+  expect(state.error).toBe(false);
+  expect(listeners[0].stop).toHaveBeenCalledTimes(1);
+  await act(async () => { listeners[0].data([]); listeners[0].error({}); });
+  expect(state.loading).toBe(true);
+  await act(async () => { listeners[1].data([]); });
+  expect(state.loading).toBe(false);
+  await act(async () => { session.setBackend({ ...backend }); });
+  expect(state.loading).toBe(true);
+  expect(listeners[1].stop).toHaveBeenCalledTimes(1);
+  await act(async () => { listeners[1].data([]); });
+  expect(state.loading).toBe(true);
+  expect(clearSession).not.toHaveBeenCalled();
+});
 
 test('un double appui ne crée pas deux enregistrements pendant une requête', async () => {
   let finish!: () => void;

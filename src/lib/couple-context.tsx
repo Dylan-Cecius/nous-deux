@@ -83,17 +83,34 @@ export function useSession() {
   return { backend, couple, members, me, partner, nameOf, colorOf, signOut };
 }
 
-/** Abonnement temps réel à une collection du couple. */
-export function useCollection<K extends CollectionName>(name: K) {
+/** Abonnement temps réel avec résultat associé à la session et à la tentative courantes. */
+export function useCollectionState<K extends CollectionName>(name: K) {
   const { backend } = useCouple();
-  const [snapshot, setSnapshot] = useState<{ backend: Backend; name: K; items: Collections[K][] } | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const retry = () => setAttempt((value) => value + 1);
+  const [snapshot, setSnapshot] = useState<{
+    backend: Backend; name: K; attempt: number; items: Collections[K][]; error: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (!backend) return;
     let active = true;
-    const stop = backend.subscribe(name, (items) => { if (active) setSnapshot({ backend, name, items }); });
+    const stop = backend.subscribe(name,
+      (items) => { if (active) setSnapshot({ backend, name, attempt, items, error: false }); },
+      () => {
+        if (!active) return;
+        active = false;
+        setSnapshot({ backend, name, attempt, items: [], error: true });
+      },
+    );
     return () => { active = false; stop(); };
-  }, [backend, name]);
+  }, [backend, name, attempt]);
 
-  return snapshot?.backend === backend && snapshot?.name === name ? snapshot.items : [];
+  const current = snapshot?.backend === backend && snapshot?.name === name && snapshot?.attempt === attempt ? snapshot : null;
+  return { items: current?.items ?? [], loading: current === null, error: current?.error ?? false, retry };
+}
+
+/** Compatibilité des écrans dont l’affichage des erreurs reste à migrer. */
+export function useCollection<K extends CollectionName>(name: K) {
+  return useCollectionState(name).items;
 }
