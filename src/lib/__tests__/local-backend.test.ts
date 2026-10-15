@@ -26,6 +26,38 @@ const read = async (key: string) => JSON.parse((await storage.getItem(key))!);
 const note = (text: string) => ({ text, from: 'me', createdAt: 1 });
 const event: Omit<AgendaEvent, 'id'> = { title: 'Horaire fictif', who: 'me', date: '2026-10-15', start: '09:00', end: '12:00', kind: 'travail', createdBy: 'me' };
 
+test('un refus de suppression groupée conserve tous les horaires et le cache', async () => {
+  await backend.addEvents([event, event, event]);
+  const original = await read('local:col:events');
+  const ids = original.slice(0, 2).map((x: AgendaEvent) => x.id);
+  (storage.setItem as jest.Mock).mockRejectedValueOnce(new Error('Disque fictif plein'));
+  await expect(backend.removeEvents(ids)).rejects.toThrow('Disque fictif plein');
+  expect(await read('local:col:events')).toEqual(original);
+  await backend.removeEvents(ids);
+  expect(await read('local:col:events')).toEqual([original[2]]);
+});
+
+test('la suppression de 52 horaires fait une seule écriture et conserve un ajout concurrent', async () => {
+  await backend.addEvents(Array.from({ length: 52 }, () => event));
+  const ids = (await read('local:col:events')).map((x: AgendaEvent) => x.id);
+  (storage.setItem as jest.Mock).mockClear();
+  await Promise.all([backend.removeEvents([...ids, ids[0]]), backend.add('events', { ...event, title: 'À garder' })]);
+  expect(storage.setItem).toHaveBeenCalledTimes(2);
+  expect((await read('local:col:events')).map((x: AgendaEvent) => x.title)).toEqual(['À garder']);
+});
+
+test.each([Array.from({ length: 53 }, (_, i) => `${i}`), [''], ['a/b']].map((ids) => [ids]))('un lot invalide est refusé avant toute écriture : %j', async (ids) => {
+  (storage.setItem as jest.Mock).mockClear();
+  await expect(backend.removeEvents(ids)).rejects.toThrow();
+  expect(storage.setItem).not.toHaveBeenCalled();
+});
+
+test('un lot vide ne déclenche aucune écriture', async () => {
+  (storage.setItem as jest.Mock).mockClear();
+  await backend.removeEvents([]);
+  expect(storage.setItem).not.toHaveBeenCalled();
+});
+
 test('deux ajouts simultanés à une collection sont tous deux conservés', async () => {
   await Promise.all([backend.add('notes', note('Premier')), backend.add('notes', note('Second'))]);
   expect((await read('local:col:notes')).map((x: { text: string }) => x.text)).toEqual(['Premier', 'Second']);

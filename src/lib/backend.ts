@@ -54,6 +54,8 @@ export interface Backend {
   add<K extends CollectionName>(col: K, data: Omit<Collections[K], 'id'>): Promise<void>;
   /** Ajoute toute une série d'horaires, ou aucun, pour éviter les doublons après un échec partiel. */
   addEvents(events: Omit<AgendaEvent, 'id'>[]): Promise<void>;
+  /** Supprime au plus 52 horaires dans une seule écriture, sans lot partiel. */
+  removeEvents(ids: string[]): Promise<void>;
   update<K extends CollectionName>(col: K, id: string, patch: Partial<Collections[K]>): Promise<void>;
   remove(col: CollectionName, id: string): Promise<void>;
   /** Enregistre une photo (Firebase Storage, ou dossier de l'app en mode local) et renvoie son adresse. */
@@ -289,6 +291,15 @@ function watchLocal<T>(epoch: number, key: string, fallback: T, cb: (value: T) =
 
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
+function eventRemovalIds(ids: string[]): string[] {
+  if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string' || !id.trim() || id.includes('/'))) {
+    throw new Error('La sélection d’horaires est invalide. Recharge l’agenda avant de réessayer.');
+  }
+  const unique = [...new Set(ids)];
+  if (unique.length > 52) throw new Error('Cette série dépasse 52 horaires. Aucune suppression effectuée. Contacte l’assistance.');
+  return unique;
+}
+
 export async function createLocalCouple(me: Omit<Member, 'id'>, partner: Omit<Member, 'id'>) {
   if (deletingLocal) throw localUnavailable();
   return withSession(() => createLocalCoupleNow(me, partner));
@@ -333,6 +344,11 @@ function localBackend(): Backend {
     async addEvents(events) {
       if (!events.length || events.length > 52) throw new Error('Choisis entre 1 et 52 horaires.');
       await operate(() => mutateLocal<AgendaEvent[]>(colKey('events'), [], (items) => [...items, ...events.map((event) => ({ ...event, id: newId() }))]));
+    },
+    async removeEvents(ids) {
+      const selected = new Set(eventRemovalIds(ids));
+      if (!selected.size) return;
+      await operate(() => mutateLocal<AgendaEvent[]>(colKey('events'), [], (items) => items.filter((event) => !selected.has(event.id))));
     },
     async update(col, id, patch) {
       await operate(() => mutateLocal<any[]>(colKey(col), [], (items) => items.map((it) => it.id === id ? { ...it, ...patch } : it)));
@@ -701,6 +717,13 @@ function cloudBackend(coupleId: string, uid: string): Backend {
       if (!events.length || events.length > 52) throw new Error('Choisis entre 1 et 52 horaires.');
       const batch = writeBatch(db);
       for (const event of events) batch.set(doc(col('events')), clean(event));
+      await batch.commit();
+    },
+    async removeEvents(ids) {
+      const selected = eventRemovalIds(ids);
+      if (!selected.length) return;
+      const batch = writeBatch(db);
+      for (const id of selected) batch.delete(docRef('events', id));
       await batch.commit();
     },
     async update(name, id, patch) {

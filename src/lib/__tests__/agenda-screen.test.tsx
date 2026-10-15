@@ -33,7 +33,7 @@ jest.mock('@/components/ui', () => {
 let root: ReactTestRenderer;
 const ready = { items: [], loading: false, error: false, retry: jest.fn() };
 const event = { id: 'event', title: 'Horaire fictif', date: todayKey(), who: 'alice', start: '09:00', end: '12:00', kind: 'travail' };
-const backend = { userId: 'alice', remove: jest.fn().mockResolvedValue(undefined) };
+const backend = { userId: 'alice', remove: jest.fn().mockResolvedValue(undefined), removeEvents: jest.fn().mockResolvedValue(undefined) };
 const session = { backend, members: [{ id: 'alice', name: 'Alice' }, { id: 'bob', name: 'Bob' }], colorOf: () => '#000', nameOf: () => 'Alice' };
 beforeEach(() => { (useCollectionState as jest.Mock).mockReturnValue(ready); (useSession as jest.Mock).mockReturnValue(session); });
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
@@ -55,6 +55,7 @@ test.each(['loading', 'error'])('la suppression de série est bloquée en %s san
   await act(async () => { seriesButton().props.onPress(); });
   expect(confirmDelete).not.toHaveBeenCalled();
   expect(backend.remove).not.toHaveBeenCalled();
+  expect(backend.removeEvents).not.toHaveBeenCalled();
   expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
   if (status === 'error') {
     await act(async () => { root.root.findByProps({ label: 'Réessayer la série' }).props.onPress(); });
@@ -74,6 +75,7 @@ test.each(['loading', 'error', 'backend', 'closed'])('une confirmation devenue o
   });
   await act(async () => { await confirm(); });
   expect(backend.remove).not.toHaveBeenCalled();
+  expect(backend.removeEvents).not.toHaveBeenCalled();
   if (change !== 'closed') {
     expect(showDialog).toHaveBeenCalled();
     expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
@@ -88,7 +90,21 @@ test('la confirmation utilise la série fraîche et préserve les autres horaire
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items });
   await act(async () => { root.update(<Agenda />); });
   await act(async () => { await confirm(); });
-  expect(backend.remove.mock.calls).toEqual([['events', 'event'], ['events', 'future']]);
+  expect(backend.removeEvents.mock.calls).toEqual([[['event', 'future']]]);
+  expect(backend.remove).not.toHaveBeenCalled();
+  expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
+});
+
+test('un refus du lot conserve le formulaire et permet de réessayer', async () => {
+  await openSeries();
+  await act(async () => { seriesButton().props.onPress(); });
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  backend.removeEvents.mockRejectedValueOnce(new Error('Lot fictif refusé'));
+  await act(async () => { await expect(confirm()).rejects.toThrow('Lot fictif refusé'); });
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
+  await act(async () => { await confirm(); });
+  expect(backend.removeEvents).toHaveBeenCalledTimes(2);
+  expect(backend.remove).not.toHaveBeenCalled();
   expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
 });
 

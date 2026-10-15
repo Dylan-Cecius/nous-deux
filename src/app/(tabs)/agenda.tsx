@@ -320,7 +320,7 @@ function EventSheet({
         return;
       }
       const toRemove = current.state.items.filter((x) => x.seriesId === event.seriesId && x.date >= event.date);
-      for (const x of toRemove) await backend.remove('events', x.id);
+      await backend.removeEvents(toRemove.map((x) => x.id));
       onClose();
     });
   };

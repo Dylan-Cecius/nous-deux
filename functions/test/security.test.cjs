@@ -7,7 +7,7 @@ const { getFirestore } = require('firebase-admin/firestore');
 const { getAuth } = require('firebase-admin/auth');
 const { getStorage } = require('firebase-admin/storage');
 const { initializeTestEnvironment, assertFails, assertSucceeds } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, serverTimestamp, Timestamp } = require('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, serverTimestamp, Timestamp, writeBatch } = require('firebase/firestore');
 const { ref, uploadBytes, getBytes } = require('firebase/storage');
 
 const projectId = 'demo-nous-deux-security';
@@ -91,6 +91,31 @@ test('les notes ne permettent pas d’usurper un auteur et les modifications par
   await assertFails(updateDoc(doc(client('bob'), path), { createdBy: 'bob' }));
   await assertFails(updateDoc(doc(client('bob'), path), { start: '25:00' }));
   await assertFails(getDoc(doc(client('mallory'), path)));
+});
+
+test('la suppression groupée de 52 horaires est atomique et refuse tout accès à un autre couple', async () => {
+  await seed();
+  await db.doc('couples/foreign').set({ members: ['mallory'], profiles: { mallory: profile }, securityVersion: 2 });
+  const event = { title: 'Horaire fictif', date, start: '09:00', end: '12:00', who: 'both', kind: 'travail', createdBy: 'alice' };
+  const paths = Array.from({ length: 52 }, (_, i) => `couples/${cid}/events/${i}`);
+  const keep = `couples/${cid}/events/keep`;
+  const foreign = 'couples/foreign/events/one';
+  const setup = db.batch();
+  for (const path of [...paths, keep, foreign]) setup.set(db.doc(path), event);
+  await setup.commit();
+  const alice = client('alice');
+  const denied = writeBatch(alice);
+  denied.delete(doc(alice, paths[0]));
+  denied.delete(doc(alice, foreign));
+  await assertFails(denied.commit());
+  assert.equal((await db.doc(paths[0]).get()).exists, true);
+  assert.equal((await db.doc(foreign).get()).exists, true);
+  const allowed = writeBatch(alice);
+  for (const path of paths) allowed.delete(doc(alice, path));
+  await assertSucceeds(allowed.commit());
+  const remaining = await db.collection(`couples/${cid}/events`).get();
+  assert.deepEqual(remaining.docs.map((item) => item.id), ['keep']);
+  assert.equal((await db.doc(foreign).get()).exists, true);
 });
 
 test('l’heure serveur permet les écritures malgré une horloge client en avance, sans accepter les dates futures', async () => {
