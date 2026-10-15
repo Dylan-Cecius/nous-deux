@@ -732,3 +732,9 @@ Base d68793ddb409ba9b9f4c23fd94227a3b96997e90. Un test rouge reproduit « Photo 
 
 Preuves : lint/TypeScript, 46 suites / 815 tests applicatifs, diff relu et git diff --check. Serveur/règles inchangés, derniers tests sécurité à 16:37. Le message ne résout pas l’idempotence ni les fichiers orphelins et ne prétend pas le faire. Aucun upload, compte, contenu réel, build, déploiement ou coût.
 
+## 2026-10-15, 16:52 Europe/Brussels — Portraits bornés sur le grand côté
+
+Base 6594e1388912d4887ff86d8ec89f5c5141791dec. Trois régressions reproduites avec API d’image doublées : portrait 1000×10000 non réduit, portrait 3000×4000 réduit sur le mauvais axe et même défaut via caméra. Le sélecteur réduit désormais le grand côté connu à 1600, avec un seul axe fourni pour préserver le ratio natif ; aucune augmentation des petits formats. Douze tests nouveaux incluent paysage/carré, métadonnées nulles, annulation, refus caméra, base64 facultatif, erreur de rendu et seuil compact existant. Un matcher Jest non disponible a été corrigé avant la reproduction probante : 3 échecs comportementaux et 9 succès.
+
+Documentation officielle Expo 57 ImagePicker/ImageManipulator consultée : dimensions parfois nulles (0), resize sur un seul axe conserve le ratio ; types installés relus. Preuves : lint/TypeScript, 47 suites / 827 tests applicatifs, git diff --check et diff relu. Ces contrôles ne produisent aucune image réelle ni preuve visuelle/native. Limite connue : métadonnées inconnues non bornées par ce correctif ; repli compact encore fondé sur la largeur. Aucun changement serveur, donnée réelle, service payant, build ou diffusion.
+

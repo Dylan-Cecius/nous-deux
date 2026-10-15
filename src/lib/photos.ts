@@ -20,7 +20,10 @@ export async function pickPhoto({ camera = false, withBase64 = false } = {}): Pr
 
   const asset = result.assets[0];
   const context = ImageManipulator.manipulate(asset.uri);
-  if (asset.width > 1600) context.resize({ width: 1600 });
+  // Limiter le grand côté : borner seulement la largeur laisse les portraits
+  // très hauts inchangés. Une seule dimension conserve le ratio côté natif.
+  if (asset.height > asset.width && asset.height > 1600) context.resize({ height: 1600 });
+  else if (asset.width > 1600) context.resize({ width: 1600 });
   const image = await context.renderAsync();
   const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.75, base64: withBase64 });
   return { uri: saved.uri, base64: saved.base64, mediaType: 'image/jpeg' };
