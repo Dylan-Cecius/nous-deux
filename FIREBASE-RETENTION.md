@@ -47,6 +47,8 @@ La purge quotidienne actuelle **ne parcourt pas ces reçus privés** : aucune ex
 
 ### Conditions de publication restantes
 
+Le module préparé `functions/src/memories.ts`, non exporté et non activé, ajouterait des reçus `couples/{coupleId}/private/{uid}/memoryRequests/{requestId}` : empreinte du contenu, identifiant de souvenir et date serveur. Ils empêchent une reprise de recréer une fiche supprimée. Aucune URL photo ni légende n’est copiée dans le reçu ; l’empreinte demeure rattachée au compte et n’est pas une anonymisation. Nettoyage privé au départ du demandeur, global au dernier départ, pas de purge périodique ni durée maximale décidée. Le compteur anti-abus `memory-associations:{uid}` utilise la purge technique existante. Ces données ne sont pas encore créées en production par ces travaux ; voir `MEMORY-PROTOCOL.md` et intégrer la conservation retenue avant toute activation.
+
 - Vérifier les copies de maintenance sur MSI et leur procédure de conservation.
 - Définir la conservation des demandes d’assistance et une procédure de nettoyage correspondante.
 - Compléter l’identité légale de l’éditeur et les mentions applicables.

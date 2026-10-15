@@ -20,6 +20,7 @@ const security = require('../lib/security');
 const { migrateSecurity } = require('../lib/migration');
 const { purgeTechnicalData, RETENTION } = require('../lib/retention');
 const settlementApi = () => require('../lib/settlements');
+const memoryApi = () => require('../lib/memories');
 const { createSpace, issueInvitation, acceptInvitation, submitAnswer, consumeQuota, queueDeletion, completeDeletion, requireAiConsent, AI_CONSENT_VERSION } = security;
 const profile = { name: 'Test', color: '#abcdef' };
 const cid = 'test-couple';
@@ -40,6 +41,168 @@ after(async () => { await env?.cleanup(); await deleteApp(app); });
 
 const settlementInput = (requestId = 'request-alice-0001', expected = [{ id: 'original', amount: 40, paidBy: 'alice', kind: 'expense' }]) => ({
   coupleId: cid, expectedUserId: 'alice', requestId, expected,
+});
+const memoryInput = (patch = {}) => ({
+  coupleId: cid, expectedUserId: 'alice', requestId: 'memory-alice-0001',
+  photoUrl: 'data:image/jpeg;base64,AAAA', caption: 'Souvenir fictif', date: '2026-10-15', ...patch,
+});
+
+test('association souvenir : les demandes concurrentes produisent un seul document et reçu', async () => {
+  await seed();
+  const results = await Promise.all(Array.from({ length: 5 }, () => memoryApi().associateMemory.run(call('alice', memoryInput()))));
+  assert.equal(new Set(results.map(result => result.memoryId)).size, 1);
+  const memories = await db.collection(`couples/${cid}/memories`).get();
+  const receipts = await db.collection(`couples/${cid}/private/alice/memoryRequests`).get();
+  assert.equal(memories.size, 1); assert.equal(receipts.size, 1);
+  assert.equal(memories.docs[0].data().createdBy, 'alice');
+  assert.ok(memories.docs[0].data().createdAt.toMillis() > 0);
+  assert.deepEqual(Object.keys(receipts.docs[0].data()).sort(), ['createdAt', 'fingerprint', 'memoryId']);
+  assert.match(receipts.docs[0].data().fingerprint, /^[a-f0-9]{64}$/);
+});
+
+test('association souvenir : une reprise conserve les éditions puis ne recrée pas une fiche supprimée', async () => {
+  await seed();
+  const first = await memoryApi().associateMemory.run(call('alice', memoryInput()));
+  const path = `couples/${cid}/memories/${first.memoryId}`;
+  await assertSucceeds(updateDoc(doc(client('bob'), path), { caption: 'Légende modifiée' }));
+  assert.deepEqual(await memoryApi().associateMemory.run(call('alice', memoryInput())), first);
+  assert.equal((await db.doc(path).get()).data().caption, 'Légende modifiée');
+  await assertSucceeds(deleteDoc(doc(client('bob'), path)));
+  assert.deepEqual(await memoryApi().associateMemory.run(call('alice', memoryInput())), first);
+  assert.equal((await db.doc(path).get()).exists, false);
+});
+
+test('association souvenir : une clé ne peut pas changer de contenu', async () => {
+  await seed();
+  await memoryApi().associateMemory.run(call('alice', memoryInput()));
+  for (const patch of [{ caption: 'Autre' }, { date: '2026-10-16' }, { photoUrl: 'data:image/jpeg;base64,BBBB' }]) {
+    await assert.rejects(memoryApi().associateMemory.run(call('alice', memoryInput(patch))), { code: 'failed-precondition' });
+  }
+  assert.equal((await db.collection(`couples/${cid}/memories`).get()).size, 1);
+});
+
+test('association souvenir : identité, appartenance et suppression restent obligatoires', async () => {
+  await seed();
+  await assert.rejects(memoryApi().associateMemory.run({ data: memoryInput() }), { code: 'unauthenticated' });
+  await assert.rejects(memoryApi().associateMemory.run(call('bob', memoryInput())), { code: 'failed-precondition' });
+  await assert.rejects(memoryApi().associateMemory.run(call('mallory', memoryInput({ expectedUserId: 'mallory' }))), { code: 'permission-denied' });
+  await db.doc(`couples/${cid}`).update({ deletionLock: 'fictitious' });
+  await assert.rejects(memoryApi().associateMemory.run(call('alice', memoryInput())), { code: 'failed-precondition' });
+  await db.doc(`couples/${cid}`).update({ deletionLock: FieldValue.delete() });
+  await db.doc('accountDeletions/alice').set({ status: 'pending' });
+  await assert.rejects(memoryApi().associateMemory.run(call('alice', memoryInput())), { code: 'failed-precondition' });
+  assert.equal((await db.collection(`couples/${cid}/memories`).get()).size, 0);
+});
+
+test('association souvenir : reçus privés inaccessibles et intentions isolées par demandeur', async () => {
+  await seed();
+  const a = await memoryApi().associateMemory.run(call('alice', memoryInput()));
+  const b = await memoryApi().associateMemory.run(call('bob', memoryInput({ expectedUserId: 'bob' })));
+  assert.notEqual(a.memoryId, b.memoryId);
+  const path = `couples/${cid}/private/alice/memoryRequests/memory-alice-0001`;
+  for (const uid of ['alice', 'bob', 'mallory']) {
+    await assertFails(getDoc(doc(client(uid), path)));
+    await assertFails(setDoc(doc(client(uid), path), { memoryId: 'forged' }));
+    await assertFails(deleteDoc(doc(client(uid), path)));
+  }
+});
+
+test('association souvenir : payloads invalides refusés sans créer de reçu', async () => {
+  await seed();
+  for (const patch of [{ requestId: '../forged' }, { date: '2026-02-30' }, { caption: 'x'.repeat(4001) }, { createdBy: 'bob' },
+    { photoUrl: 'data:image/jpeg;base64,' }, { photoUrl: 'data:image/svg+xml;base64,AAAA' }, { photoUrl: 'data:image/jpeg;base64,A===' },
+    { photoUrl: `data:image/jpeg;base64,${'A'.repeat(600000)}` }]) {
+    await assert.rejects(memoryApi().associateMemory.run(call('alice', memoryInput(patch))), { code: 'invalid-argument' });
+  }
+  assert.equal((await db.collection(`couples/${cid}/private/alice/memoryRequests`).get()).size, 0);
+  assert.equal((await db.collection(`couples/${cid}/memories`).get()).size, 0);
+});
+
+test('association souvenir : limite existante anti-abus appliquée avant toute création', async () => {
+  await seed();
+  await db.doc(`rateLimits/${hash('memory-associations:alice')}`).set({ count: 30, resetAt: Date.now() + 60000 });
+  await assert.rejects(memoryApi().associateMemory.run(call('alice', memoryInput())), { code: 'resource-exhausted' });
+  assert.equal((await db.collection(`couples/${cid}/memories`).get()).size, 0);
+});
+
+test('association souvenir : un reçu ne dispense jamais de vérifier l’appartenance actuelle', async () => {
+  await seed();
+  await memoryApi().associateMemory.run(call('alice', memoryInput()));
+  await db.doc(`couples/${cid}`).update({ members: ['bob'] });
+  await assert.rejects(memoryApi().associateMemory.run(call('alice', memoryInput())), { code: 'permission-denied' });
+  assert.equal((await db.collection(`couples/${cid}/memories`).get()).size, 1);
+});
+
+test('association souvenir : appartenance et verrou sont revérifiés dans la transaction finale', async () => {
+  for (const patch of [{ members: ['bob'] }, { deletionLock: 'fictitious-lock' }]) {
+    await seed();
+    let transactions = 0;
+    const original = db.runTransaction;
+    db.runTransaction = async function (...args) {
+      transactions += 1;
+      if (transactions === 2) await db.doc(`couples/${cid}`).update(patch);
+      return original.apply(this, args);
+    };
+    try {
+      await assert.rejects(memoryApi().associateMemory.run(call('alice', memoryInput())), { code: patch.members ? 'permission-denied' : 'failed-precondition' });
+    } finally { db.runTransaction = original; }
+    assert.equal((await db.collection(`couples/${cid}/memories`).get()).size, 0);
+    assert.equal((await db.collection(`couples/${cid}/private/alice/memoryRequests`).get()).size, 0);
+  }
+});
+
+test('association souvenir : le repli compact proche du plafond reste borné et accepté', async () => {
+  await seed();
+  const photoUrl = `data:image/jpeg;base64,${'A'.repeat(599996)}`;
+  assert.equal(photoUrl.length, 600019);
+  const result = await memoryApi().associateMemory.run(call('alice', memoryInput({ photoUrl })));
+  assert.equal((await db.doc(`couples/${cid}/memories/${result.memoryId}`).get()).data().photoUrl, photoUrl);
+  await assert.rejects(memoryApi().associateMemory.run(call('alice', memoryInput({ requestId: 'memory-alice-0002', photoUrl: photoUrl + 'AAAA' }))), { code: 'invalid-argument' });
+});
+
+const storagePhotoUrl = (path, token = 'fictitious-token', bucket = getStorage().bucket().name) =>
+  `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
+
+test('association souvenir : vérifie le fichier propre, puis rejoue même après retrait du fichier', async () => {
+  await seed();
+  const path = `couples/${cid}/photos/alice/association.jpg`;
+  const file = getStorage().bucket().file(path);
+  await file.save(Buffer.from([1, 2, 3]), { metadata: { contentType: 'image/jpeg', metadata: { firebaseStorageDownloadTokens: 'fictitious-token' } } });
+  try {
+    const input = memoryInput({ photoUrl: storagePhotoUrl(path) });
+    const first = await memoryApi().associateMemory.run(call('alice', input));
+    assert.equal((await db.doc(`couples/${cid}/memories/${first.memoryId}`).get()).data().photoUrl, input.photoUrl);
+    await file.delete();
+    assert.deepEqual(await memoryApi().associateMemory.run(call('alice', input)), first);
+  } finally { await file.delete({ ignoreNotFound: true }); }
+});
+
+test('association souvenir : refuse les URL externes, les autres buckets et les photos du partenaire', async () => {
+  await seed();
+  const ownPath = `couples/${cid}/photos/alice/fake.jpg`;
+  for (const photoUrl of ['https://example.com/photo.jpg', 'file:///private/photo.jpg',
+    storagePhotoUrl(`couples/${cid}/photos/bob/fake.jpg`), storagePhotoUrl('couples/foreign/photos/alice/fake.jpg'),
+    storagePhotoUrl(ownPath, 'fictitious-token', 'other-bucket'), storagePhotoUrl(ownPath) + '&token=duplicate',
+    storagePhotoUrl(ownPath) + '#fragment', storagePhotoUrl(ownPath).replace('https:', 'http:')]) {
+    await assert.rejects(memoryApi().associateMemory.run(call('alice', memoryInput({ photoUrl }))), { code: 'invalid-argument' });
+  }
+  assert.equal((await db.collection(`couples/${cid}/memories`).get()).size, 0);
+});
+
+test('association souvenir : refuse fichier absent, vide, non image et jeton erroné', async () => {
+  await seed();
+  const path = `couples/${cid}/photos/alice/invalid-association.jpg`;
+  const file = getStorage().bucket().file(path);
+  const input = memoryInput({ photoUrl: storagePhotoUrl(path) });
+  await assert.rejects(memoryApi().associateMemory.run(call('alice', input)), { code: 'failed-precondition' });
+  try {
+    for (const [bytes, contentType, token] of [[[], 'image/jpeg', 'fictitious-token'], [[1], 'text/plain', 'fictitious-token'], [[1], 'image/jpeg', 'wrong-token']]) {
+      await file.save(Buffer.from(bytes), { metadata: { contentType, metadata: { firebaseStorageDownloadTokens: token } } });
+      await assert.rejects(memoryApi().associateMemory.run(call('alice', input)), { code: 'invalid-argument' });
+    }
+    assert.equal((await db.collection(`couples/${cid}/memories`).get()).size, 0);
+    assert.equal((await db.collection(`couples/${cid}/private/alice/memoryRequests`).get()).size, 0);
+  } finally { await file.delete({ ignoreNotFound: true }); }
 });
 async function seedExpense() {
   await seed();
@@ -649,6 +812,8 @@ test('suppression reprise après panne : photos, privé, Auth et index nettoyés
   await db.doc(`couples/${cid}/private/delete-alice/gifts/one`).set({ title: 'secret' });
   await db.doc(`couples/${cid}/private/delete-alice/settlementRequests/one`).set({ fingerprint: 'fictitious', settlementId: 'one' });
   await db.doc(`couples/${cid}/private/bob/settlementRequests/one`).set({ fingerprint: 'fictitious', settlementId: 'other' });
+  const deletedMemory = await memoryApi().associateMemory.run(call('delete-alice', memoryInput({ expectedUserId: 'delete-alice' })));
+  const keptMemory = await memoryApi().associateMemory.run(call('bob', memoryInput({ expectedUserId: 'bob' })));
   await db.doc(`couples/${cid}/notes/one`).set({ from: 'delete-alice', text: 'secret' });
   await db.doc(`couples/${cid}/expenses/one`).set({ paidBy: 'delete-alice', amount: 10 });
   await db.doc(`couples/${cid}/private/bob/gifts/one`).set({ title: 'conserver' });
@@ -680,6 +845,10 @@ test('suppression reprise après panne : photos, privé, Auth et index nettoyés
   assert.equal((await db.doc(`couples/${cid}/private/delete-alice/gifts/one`).get()).exists, false);
   assert.equal((await db.doc(`couples/${cid}/private/delete-alice/settlementRequests/one`).get()).exists, false);
   assert.equal((await db.doc(`couples/${cid}/private/bob/settlementRequests/one`).get()).exists, true);
+  assert.equal((await db.doc(`couples/${cid}/private/delete-alice/memoryRequests/memory-alice-0001`).get()).exists, false);
+  assert.equal((await db.doc(`couples/${cid}/private/bob/memoryRequests/memory-alice-0001`).get()).exists, true);
+  assert.equal((await db.doc(`couples/${cid}/memories/${deletedMemory.memoryId}`).get()).exists, false);
+  assert.equal((await db.doc(`couples/${cid}/memories/${keptMemory.memoryId}`).get()).exists, true);
   assert.equal((await db.doc(`couples/${cid}/notes/one`).get()).exists, false);
   assert.equal((await db.doc(`couples/${cid}/private/bob/gifts/one`).get()).exists, true);
   assert.equal((await db.doc(`couples/${cid}/expenses/one`).get()).data().paidBy, 'former-member');
@@ -692,7 +861,7 @@ test('suppression reprise après panne : photos, privé, Auth et index nettoyés
 test('la suppression du dernier membre efface aussi les sous-collections et fichiers orphelins', async () => {
   await seed(['last-member']);
   await db.doc(`couples/${cid}/items/one`).set({ title: 'partagé' });
-  const receiptPaths = ['last-member', 'unknown-old'].map(uid => `couples/${cid}/private/${uid}/settlementRequests/one`);
+  const receiptPaths = ['last-member', 'unknown-old'].flatMap(uid => ['settlementRequests', 'memoryRequests'].map(col => `couples/${cid}/private/${uid}/${col}/one`));
   for (const path of receiptPaths) await db.doc(path).set({ fingerprint: 'fictitious', settlementId: 'old-mark', createdAt: new Date() });
   const file = getStorage().bucket().file(`couples/${cid}/photos/unknown-old.jpg`);
   await file.save(Buffer.from('image'), { contentType: 'image/jpeg' });
