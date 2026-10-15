@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, Text, View } from 'react-native';
 
 import {
@@ -25,6 +25,7 @@ import { useCollectionState, useSession } from '@/lib/couple-context';
 import { pickOne } from '@/lib/random';
 import { features } from '@/lib/features';
 import type { Restaurant, RestaurantStatus } from '@/lib/types';
+import { useAsyncAction } from '@/lib/use-async-action';
 
 const STATUSES: { value: RestaurantStatus; label: string }[] = [
   { value: 'envie', label: 'À tester' },
@@ -67,6 +68,11 @@ function Hearts({ value, onChange, size = 18 }: { value: number; onChange?: (v: 
 }
 
 export default function Restos() {
+  const { backend } = useSession();
+  return <RestosContent key={`${backend.mode}:${backend.coupleId}:${backend.userId}`} />;
+}
+
+function RestosContent() {
   const t = useTheme();
   const { colorOf, nameOf } = useSession();
   const restaurantState = useCollectionState('restaurants');
@@ -171,7 +177,7 @@ export default function Restos() {
       </Screen>
       {!unavailable && <Fab onPress={() => setEditing('new')} label="Ajouter un resto" />}
       {editing && (
-        <RestoSheet resto={editing === 'new' ? undefined : editing} defaultStatus={tab} onClose={() => setEditing(null)} />
+        <RestoSheet key={editing === 'new' ? 'new' : editing.id} resto={editing === 'new' ? undefined : editing} defaultStatus={tab} onClose={() => setEditing(null)} />
       )}
     </>
   );
@@ -187,6 +193,14 @@ function RestoSheet({
   onClose: () => void;
 }) {
   const { backend } = useSession();
+  const collection = useCollectionState('restaurants');
+  const context = useMemo(() => ({ backend }), [backend]);
+  const latest = useRef<{ context: typeof context; collection: typeof collection } | null>(null);
+  const closed = useRef(false);
+  useEffect(() => {
+    latest.current = { context, collection };
+    return () => { latest.current = null; };
+  }, [context, collection]);
   const [name, setName] = useState(resto?.name ?? '');
   const [cuisine, setCuisine] = useState(resto?.cuisine ?? '');
   const [place, setPlace] = useState(resto?.place ?? '');
@@ -198,8 +212,23 @@ function RestoSheet({
     photoUrl: resto?.photoUrl,
     mapsUrl: resto?.mapsUrl,
   });
+  const { run, pending } = useAsyncAction((action: () => unknown) => action());
+  const isCurrent = () => !closed.current && latest.current?.context === context;
+  const containsResto = (state: typeof collection) => !resto || state.items.some((entry) => entry.id === resto.id);
+  const unavailable = collection.loading || collection.error || !containsResto(collection);
+  const canWrite = () => {
+    const state = latest.current?.collection;
+    return isCurrent() && state && !state.loading && !state.error && containsResto(state);
+  };
+  const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
+  const runCurrent = (action: () => Promise<void>) => run(async () => {
+    if (!canWrite()) return;
+    try { await action(); }
+    catch (error) { if (isCurrent()) throw error; }
+  });
 
-  const save = async () => {
+  const save = () => runCurrent(async () => {
+    if (!name.trim()) return;
     const data = {
       name: name.trim(),
       cuisine: cuisine.trim(),
@@ -213,11 +242,18 @@ function RestoSheet({
     };
     if (resto) await backend.update('restaurants', resto.id, data);
     else await backend.add('restaurants', { ...data, createdBy: backend.userId, createdAt: Date.now() });
-    onClose();
+    close();
+  });
+  const remove = () => {
+    if (!resto || pending || !canWrite()) return;
+    confirmDelete(resto.name, () => runCurrent(async () => {
+      await backend.remove('restaurants', resto.id);
+      close();
+    }));
   };
 
   return (
-    <Sheet visible title={resto ? resto.name : 'Nouveau resto'} onClose={onClose}>
+    <Sheet visible title={resto ? resto.name : 'Nouveau resto'} onClose={() => run(close)}>
       {!resto && backend.mode === 'cloud' && features.places && (
         <PlaceSearch
           onPick={(p) => {
@@ -251,18 +287,16 @@ function RestoSheet({
         </View>
       )}
       <Field label="Notes" value={note} maxLength={4000} onChangeText={setNote} placeholder="Prendre la burrata, réserver le samedi…" multiline />
-      <Button label="Enregistrer" disabled={!name.trim()} onPress={save} />
+      {unavailable && <T variant="small" muted>Restos indisponibles ou adresse retirée. Ton brouillon est conservé ; recharge les adresses avant de continuer.</T>}
+      {collection.error && <Button label="Recharger les restos du formulaire" variant="outline" onPress={collection.retry} />}
+      <Button label="Enregistrer" disabled={!name.trim() || pending || unavailable} onPress={save} />
       {resto && (
         <Button
           label="Supprimer"
           variant="danger"
           icon="trash-outline"
-          onPress={() =>
-            confirmDelete(resto.name, async () => {
-              await backend.remove('restaurants', resto.id);
-              onClose();
-            })
-          }
+          disabled={pending || unavailable}
+          onPress={remove}
         />
       )}
     </Sheet>
