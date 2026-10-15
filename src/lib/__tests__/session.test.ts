@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signOut, signInAnonymously, signInWithEmailAndPassword } from 'firebase/auth';
 import { getDoc, onSnapshot } from 'firebase/firestore';
-import { clearSession, loadSession, signInWithEmail, deleteMyAccount, type Backend } from '../backend';
+import { clearSession, loadSession, signInWithEmail, deleteMyAccount, createCloudCouple, joinCloudCouple, type Backend } from '../backend';
+import { httpsCallable } from 'firebase/functions';
 import { firebase } from '../firebase';
 import { clearReminders } from '../notifications';
 
@@ -28,6 +29,61 @@ beforeEach(async () => {
   await AsyncStorage.clear();
   (getDoc as jest.Mock).mockReset().mockResolvedValue({ data: () => ({ members: ['alice', 'bob'] }) });
   (signInWithEmailAndPassword as jest.Mock).mockResolvedValue({ user: { uid: 'alice' } });
+});
+
+const profile = { name: 'Alice fictive', color: '#abcdef' };
+const onboard = [
+  ['création', () => createCloudCouple(profile)],
+  ['invitation', () => joinCloudCouple('ABCD234567', profile)],
+] as const;
+
+describe.each(onboard)('récupération après %s', (_name, enter) => {
+  test.each(['stockage', 'réponse'])('une panne de %s après succès serveur ne relance pas l’opération', async (failure) => {
+    let created = false;
+    (getDoc as jest.Mock).mockImplementation(() => Promise.resolve({ data: () => created ? { coupleId: 'recovered', members: ['alice', 'bob'] } : undefined }));
+    const call = jest.fn(async () => {
+      if (created) throw { code: 'functions/failed-precondition', message: 'Code utilisé ou espace déjà créé' };
+      created = true;
+      if (failure === 'réponse') throw { code: 'functions/unavailable' };
+      return { data: { coupleId: 'recovered' } };
+    });
+    (httpsCallable as jest.Mock).mockReturnValue(call);
+    if (failure === 'stockage') (AsyncStorage.setItem as jest.Mock).mockRejectedValueOnce(new Error('Stockage fictif indisponible'));
+    await expect(enter()).rejects.toThrow();
+    expect(await AsyncStorage.getItem('session')).toBeNull();
+    expect((await enter()).coupleId).toBe('recovered');
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(signInAnonymously).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
+    expect(JSON.parse((await AsyncStorage.getItem('session'))!)).toEqual({ mode: 'cloud', userId: 'alice', coupleId: 'recovered' });
+  });
+
+  test('un nouvel utilisateur garde le parcours de création ou d’acceptation', async () => {
+    (getDoc as jest.Mock).mockResolvedValue({ data: () => undefined });
+    const call = jest.fn().mockResolvedValue({ data: { coupleId: 'new-space' } });
+    (httpsCallable as jest.Mock).mockReturnValue(call);
+    expect((await enter()).coupleId).toBe('new-space');
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+
+  test('une lecture impossible ne crée pas un nouvel espace ni une autre identité', async () => {
+    (getDoc as jest.Mock).mockRejectedValueOnce({ code: 'unavailable' });
+    const call = jest.fn().mockResolvedValue({ data: { coupleId: 'wrong' } });
+    (httpsCallable as jest.Mock).mockReturnValue(call);
+    await expect(enter()).rejects.toThrow('Vérifie ta connexion');
+    expect(call).not.toHaveBeenCalled();
+    expect(signInAnonymously).not.toHaveBeenCalled();
+    expect(await AsyncStorage.getItem('session')).toBeNull();
+  });
+
+  test('un index existant sans appartenance vérifiée reste refusé', async () => {
+    (getDoc as jest.Mock).mockResolvedValueOnce({ data: () => ({ coupleId: 'foreign' }) }).mockResolvedValueOnce({ data: () => ({ members: ['bob'] }) });
+    const call = jest.fn().mockResolvedValue({ data: { coupleId: 'wrong' } });
+    (httpsCallable as jest.Mock).mockReturnValue(call);
+    await expect(enter()).rejects.toThrow('accès à cet espace');
+    expect(call).not.toHaveBeenCalled();
+    expect(await AsyncStorage.getItem('session')).toBeNull();
+  });
 });
 
 test('une erreur de collection est transmise sans émettre une fausse liste vide', async () => {

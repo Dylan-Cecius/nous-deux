@@ -305,8 +305,7 @@ function clean<T extends object>(data: T): T {
 }
 
 /**
- * Mémorise l'espace du couple sur ce téléphone, et côté serveur dans `users/{uid}` :
- * c'est ce qui permet de retrouver son espace en se reconnectant sur un autre téléphone.
+ * Mémorise sur ce téléphone le rattachement déjà enregistré par le serveur dans `users/{uid}`.
  */
 async function saveCloudSession(coupleId: string, userId: string) {
   await AsyncStorage.setItem(
@@ -359,16 +358,25 @@ export async function secureAccount(email: string, password: string) {
 
 /** Se reconnecter (nouveau téléphone, réinstallation) et retrouver son espace. */
 export async function signInWithEmail(email: string, password: string): Promise<Backend> {
-  const { auth, db } = firebase();
+  const { auth } = firebase();
   let uid: string;
   try {
     uid = (await signInWithEmailAndPassword(auth, email.trim(), password)).user.uid;
   } catch (e) {
     throw new Error(authMessage(e));
   }
+  const restored = await recoverCloudSession(uid);
+  if (!restored) throw new Error('Ce compte n’est relié à aucun espace de couple.');
+  return restored;
+}
+
+/** Une réponse perdue ou une panne de stockage ne doit pas rejouer une invitation consommée. */
+async function recoverCloudSession(uid: string): Promise<Backend | null> {
+  const { db } = firebase();
   try {
     const index = await getDoc(doc(db, 'users', uid));
     const coupleId = index.data()?.coupleId;
+    if (coupleId == null) return null;
     if (typeof coupleId !== 'string' || !coupleId) throw new Error('Ce compte n’est relié à aucun espace de couple.');
     // Un ancien index ne suffit pas : vérifier l’espace avant de quitter la connexion.
     const couple = await getDoc(doc(db, 'couples', coupleId));
@@ -431,6 +439,8 @@ export async function deleteMyAccount(backend: Backend, password?: string): Prom
 
 export async function createCloudCouple(me: Omit<Member, 'id'>) {
   const uid = await ensureSignedIn();
+  const restored = await recoverCloudSession(uid);
+  if (restored) return restored;
   const { coupleId } = await callServer<{ coupleId: string }>('createCouple', { profile: { name: me.name, color: me.color } });
   await saveCloudSession(coupleId, uid);
   return cloudBackend(coupleId, uid);
@@ -438,6 +448,8 @@ export async function createCloudCouple(me: Omit<Member, 'id'>) {
 
 export async function joinCloudCouple(rawCode: string, me: Omit<Member, 'id'>) {
   const uid = await ensureSignedIn();
+  const restored = await recoverCloudSession(uid);
+  if (restored) return restored;
   const code = rawCode.replace(/\s|-/g, '').toUpperCase();
   const { coupleId } = await callServer<{ coupleId: string }>('joinCouple', { code, profile: { name: me.name, color: me.color } });
   await saveCloudSession(coupleId, uid);

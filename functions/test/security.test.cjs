@@ -161,6 +161,20 @@ test('invitations expirables : renouvellement, utilisation unique et concurrence
   await assert.rejects(acceptInvitation('other', { code: valid.code, profile }), { code: 'failed-precondition' });
 });
 
+test('un membre retrouve son rattachement après consommation du code sans réutiliser l’invitation', async () => {
+  const { coupleId } = await createSpace('alice', profile);
+  const invitation = await issueInvitation('alice', coupleId);
+  await acceptInvitation('bob', { code: invitation.code, profile });
+  await assert.rejects(acceptInvitation('bob', { code: invitation.code, profile }), { code: 'failed-precondition' });
+  const bob = client('bob');
+  const index = await assertSucceeds(getDoc(doc(bob, 'users', 'bob')));
+  assert.equal(index.data().coupleId, coupleId);
+  const couple = await assertSucceeds(getDoc(doc(bob, 'couples', index.data().coupleId)));
+  assert.deepEqual(couple.data().members, ['alice', 'bob']);
+  await assertFails(getDoc(doc(client('mallory'), 'users', 'bob')));
+  await assertFails(getDoc(doc(client('mallory'), 'couples', coupleId)));
+});
+
 test('le quota atomique résiste aux appels simultanés et se réinitialise', async () => {
   const limits = [{ key: 'cost', maximum: 3, windowMs: 1000 }];
   const results = await Promise.allSettled(Array.from({ length: 6 }, () => consumeQuota(limits, 1000)));
