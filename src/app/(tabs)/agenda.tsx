@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import {
@@ -17,10 +17,11 @@ import {
   T,
 } from '@/components/ui';
 import { useAssistant } from '@/components/assistant-context';
+import { showDialog } from '@/components/dialog';
 import { TimeField } from '@/components/pickers';
 import { cardShadow, Fonts, Spacing, useTheme } from '@/constants/theme';
 import { notifyPartner } from '@/lib/assistant';
-import { useCollection, useCollectionState, useSession } from '@/lib/couple-context';
+import { useCollectionState, useSession } from '@/lib/couple-context';
 import { endMin, freeSlots, fromMin, mondayOf, toMin } from '@/lib/agenda';
 import { addDays, formatLong, fromKey, todayKey, weekdayShort } from '@/lib/dates';
 import { BOTH, type AgendaEvent, type EventKind } from '@/lib/types';
@@ -277,7 +278,14 @@ function EventSheet({
 }) {
   const session = useSession();
   const { backend, members } = session;
-  const allEvents = useCollection('events');
+  const allEvents = useCollectionState('events');
+  const seriesUnavailable = allEvents.loading || allEvents.error;
+  // A native confirmation may outlive the snapshot, session or sheet that opened it.
+  const latest = useRef<{ backend: typeof backend; state: typeof allEvents } | null>(null);
+  useEffect(() => {
+    latest.current = { backend, state: allEvents };
+    return () => { latest.current = null; };
+  }, [backend, allEvents]);
   const [title, setTitle] = useState(event?.title ?? '');
   const [who, setWho] = useState(event?.who ?? defaultWho);
   const [kind, setKind] = useState<EventKind>(event?.kind ?? 'travail');
@@ -303,9 +311,15 @@ function EventSheet({
   };
 
   const removeSeries = () => {
-    if (!event?.seriesId) return;
+    if (!event?.seriesId || seriesUnavailable) return;
     confirmDelete(`${event.title} (toutes les semaines à venir)`, async () => {
-      const toRemove = allEvents.filter((x) => x.seriesId === event.seriesId && x.date >= event.date);
+      const current = latest.current;
+      if (!current) return;
+      if (current.backend !== backend || current.state.loading || current.state.error) {
+        showDialog('Agenda indisponible', 'Recharge les horaires avant de supprimer la série.');
+        return;
+      }
+      const toRemove = current.state.items.filter((x) => x.seriesId === event.seriesId && x.date >= event.date);
       for (const x of toRemove) await backend.remove('events', x.id);
       onClose();
     });
@@ -357,7 +371,16 @@ function EventSheet({
         />
       )}
       {!!event?.seriesId && (
-        <Button label="Supprimer aussi les semaines suivantes" variant="danger" onPress={removeSeries} />
+        <>
+          {allEvents.loading && <T variant="small" muted>Chargement de la série…</T>}
+          {allEvents.error && (
+            <>
+              <T variant="small" muted>Série indisponible. Recharge les horaires avant de supprimer les semaines suivantes.</T>
+              <Button label="Réessayer la série" variant="outline" onPress={allEvents.retry} />
+            </>
+          )}
+          <Button label="Supprimer aussi les semaines suivantes" variant="danger" disabled={seriesUnavailable} onPress={removeSeries} />
+        </>
       )}
     </Sheet>
   );

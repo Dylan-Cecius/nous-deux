@@ -1,18 +1,21 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import Agenda from '@/app/(tabs)/agenda';
 import Home from '@/app/(tabs)/index';
-import { useCollectionState } from '../couple-context';
+import { useCollectionState, useSession } from '../couple-context';
+import { confirmDelete } from '@/components/ui';
+import { showDialog } from '@/components/dialog';
 import { todayKey } from '../dates';
 
 jest.mock('../couple-context', () => {
   const state = jest.fn();
   return {
     useCollection: (name: string) => state(name).items, useCollectionState: state,
-    useSession: () => ({ backend: { userId: 'alice' }, members: [{ id: 'alice', name: 'Alice' }, { id: 'bob', name: 'Bob' }], colorOf: () => '#000', nameOf: () => 'Alice' }),
+    useSession: jest.fn(),
   };
 });
 jest.mock('@/components/assistant-context', () => ({ useAssistant: () => null }));
 jest.mock('../assistant', () => ({ notifyPartner: jest.fn() }));
+jest.mock('@/components/dialog', () => ({ showDialog: jest.fn() }));
 jest.mock('@/components/invitation-card', () => ({ InvitationCard: () => null }));
 jest.mock('@/components/home/home-hero', () => ({ HomeHero: () => null }));
 jest.mock('@/components/home/love-cards', () => ({ NoteCard: () => null, PingCard: () => null }));
@@ -30,9 +33,64 @@ jest.mock('@/components/ui', () => {
 let root: ReactTestRenderer;
 const ready = { items: [], loading: false, error: false, retry: jest.fn() };
 const event = { id: 'event', title: 'Horaire fictif', date: todayKey(), who: 'alice', start: '09:00', end: '12:00', kind: 'travail' };
-beforeEach(() => { (useCollectionState as jest.Mock).mockReturnValue(ready); });
+const backend = { userId: 'alice', remove: jest.fn().mockResolvedValue(undefined) };
+const session = { backend, members: [{ id: 'alice', name: 'Alice' }, { id: 'bob', name: 'Bob' }], colorOf: () => '#000', nameOf: () => 'Alice' };
+beforeEach(() => { (useCollectionState as jest.Mock).mockReturnValue(ready); (useSession as jest.Mock).mockReturnValue(session); });
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
 const text = () => root.root.findAllByType('t' as never).map((node) => node.children.filter((child) => typeof child === 'string').join('')).join('\n');
+
+const seriesEvent = { ...event, seriesId: 'series' };
+const seriesButton = () => root.root.findByProps({ label: 'Supprimer aussi les semaines suivantes' });
+const openSeries = async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [seriesEvent] });
+  await act(async () => { root = create(<Agenda />); });
+  await act(async () => { root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00' }).find((node) => typeof node.props.onPress === 'function')!.props.onPress(); });
+};
+
+test.each(['loading', 'error'])('la suppression de série est bloquée en %s sans perdre le formulaire', async (status) => {
+  await openSeries();
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [seriesEvent], [status]: true });
+  await act(async () => { root.update(<Agenda />); });
+  expect(seriesButton().props.disabled).toBe(true);
+  await act(async () => { seriesButton().props.onPress(); });
+  expect(confirmDelete).not.toHaveBeenCalled();
+  expect(backend.remove).not.toHaveBeenCalled();
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
+  if (status === 'error') {
+    await act(async () => { root.root.findByProps({ label: 'Réessayer la série' }).props.onPress(); });
+    expect(ready.retry).toHaveBeenCalledTimes(1);
+  }
+});
+
+test.each(['loading', 'error', 'backend', 'closed'])('une confirmation devenue obsolète (%s) ne supprime rien', async (change) => {
+  await openSeries();
+  await act(async () => { seriesButton().props.onPress(); });
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  if (change === 'backend') (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...backend } });
+  else if (change !== 'closed') (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [seriesEvent], [change]: true });
+  await act(async () => {
+    if (change === 'closed') root.root.findByProps({ title: 'Modifier l’horaire' }).props.onClose();
+    else root.update(<Agenda />);
+  });
+  await act(async () => { await confirm(); });
+  expect(backend.remove).not.toHaveBeenCalled();
+  if (change !== 'closed') {
+    expect(showDialog).toHaveBeenCalled();
+    expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
+  }
+});
+
+test('la confirmation utilise la série fraîche et préserve les autres horaires', async () => {
+  await openSeries();
+  await act(async () => { seriesButton().props.onPress(); });
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  const items = [seriesEvent, { ...seriesEvent, id: 'future', date: '2099-01-01' }, { ...seriesEvent, id: 'past', date: '2000-01-01' }, { ...seriesEvent, id: 'other', seriesId: 'other' }];
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items });
+  await act(async () => { root.update(<Agenda />); });
+  await act(async () => { await confirm(); });
+  expect(backend.remove.mock.calls).toEqual([['events', 'event'], ['events', 'future']]);
+  expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
+});
 
 test.each(['loading', 'error'])('un agenda en %s ne ressemble pas à une journée vide', async (status) => {
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, [status]: true });
