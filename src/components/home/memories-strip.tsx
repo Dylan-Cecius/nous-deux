@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
 import { showDialog } from '@/components/dialog';
@@ -14,16 +14,23 @@ import { pickPhoto } from '@/lib/photos';
 /** Ajoute une photo aux souvenirs (utilisé ici et sur l'écran Souvenirs). */
 export function useAddMemory() {
   const { backend } = useSession();
-  const [busy, setBusy] = useState(false);
-  const sending = useRef(false);
+  const [progress, setProgress] = useState<{ backend: typeof backend; busy: boolean } | null>(null);
+  const scopeRef = useRef<{ backend: typeof backend; active: boolean; sending: boolean } | null>(null);
+  useEffect(() => {
+    const scope = { backend, active: true, sending: false };
+    scopeRef.current = scope;
+    return () => { scope.active = false; };
+  }, [backend]);
   const add = async () => {
-    if (sending.current) return;
-    sending.current = true;
-    setBusy(true);
+    const scope = scopeRef.current;
+    if (!scope?.active || scope.backend !== backend || scope.sending) return;
+    scope.sending = true;
+    setProgress({ backend, busy: true });
     try {
       const picked = await pickPhoto();
-      if (!picked) return;
+      if (!picked || !scope.active) return;
       const photoUrl = await backend.uploadPhoto(picked.uri);
+      if (!scope.active) return;
       await backend.add('memories', {
         photoUrl,
         caption: '',
@@ -31,15 +38,15 @@ export function useAddMemory() {
         createdBy: backend.userId,
         createdAt: Date.now(),
       });
-      success();
+      if (scope.active) success();
     } catch (e) {
-      showDialog('Photo non enregistrée', e instanceof Error ? e.message : String(e));
+      if (scope.active) showDialog('Photo non enregistrée', e instanceof Error ? e.message : String(e));
     } finally {
-      sending.current = false;
-      setBusy(false);
+      scope.sending = false;
+      if (scope.active) setProgress({ backend, busy: false });
     }
   };
-  return { add, busy };
+  return { add, busy: progress?.backend === backend && progress.busy };
 }
 
 /** Souvenirs sur l'accueil : « Il y a un an… » et les dernières photos. */
