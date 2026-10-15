@@ -23,7 +23,7 @@ jest.mock('@/components/home/love-cards', () => ({ NoteCard: () => null, PingCar
 jest.mock('@/components/home/memories-strip', () => ({ MemoriesStrip: () => null }));
 jest.mock('@/components/home/question-card', () => ({ QuestionCard: () => null }));
 jest.mock('@/constants/theme', () => ({ useTheme: () => ({}), cardShadow: () => ({}), Fonts: {}, Spacing: {} }));
-jest.mock('@/components/pickers', () => ({ TimeField: () => null, DateField: () => null }));
+jest.mock('@/components/pickers', () => ({ TimeField: 'time', DateField: () => null }));
 jest.mock('@/components/ui', () => {
   const React = jest.requireActual('react');
   return { confirmDelete: jest.fn(), ...Object.fromEntries(['Screen', 'SectionTitle', 'Card', 'T', 'Button', 'Fab', 'Row', 'Dot', 'Ionicons', 'Sheet', 'Field', 'Chips', 'IconButton'].map((name) => [
@@ -314,4 +314,121 @@ test('une date revient après reprise sans effacer la saisie de la nouvelle date
   await act(async () => { root.update(<Home />); });
   expect(text()).toContain('Sortie fictive');
   expect(root.root.findByProps({ label: 'Quoi ?' }).props.value).toBe('Date en préparation');
+});
+
+test.each(['loading', 'error', 'removed'])('sauvegarde et suppression simple bloquées après %s', async (status) => {
+  await openSeries();
+  const save = root.root.findByProps({ label: 'Enregistrer' }).props.onPress;
+  await act(async () => root.root.findByProps({ label: 'Supprimer' }).props.onPress());
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: status === 'removed' ? [] : [seriesEvent], [status]: true });
+  await act(async () => root.update(<Agenda />));
+  await act(async () => { await save(); await confirm(); });
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(backend.remove).not.toHaveBeenCalled();
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
+  expect(root.root.findByProps({ label: 'Enregistrer' }).props.disabled).toBe(true);
+  expect(root.root.findByProps({ label: 'Supprimer' }).props.disabled).toBe(true);
+});
+
+test.each(['loading', 'error'])('création bloquée si la lecture devient %s', async (status) => {
+  await act(async () => { root = create(<Agenda />); });
+  await act(async () => root.root.findByProps({ label: 'Ajouter un horaire' }).props.onPress());
+  await act(async () => root.root.findByProps({ label: 'Titre' }).props.onChangeText('Brouillon fictif'));
+  const save = root.root.findByProps({ label: 'Enregistrer' }).props.onPress;
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, [status]: true });
+  await act(async () => root.update(<Agenda />));
+  await act(async () => { await save(); });
+  expect(backend.addEvents).not.toHaveBeenCalled();
+  expect(notifyPartner).not.toHaveBeenCalled();
+});
+
+test('tous les champs du formulaire agenda partagent le verrou de sauvegarde', async () => {
+  await openSeries();
+  const title = root.root.findByProps({ label: 'Titre' }).props.onChangeText;
+  const who = root.root.findByProps({ label: 'Pour qui ?' }).props.onChange;
+  const kind = root.root.findByProps({ label: 'Type' }).props.onChange;
+  const start = root.root.findByProps({ label: 'Début' }).props.onChange;
+  const end = root.root.findByProps({ label: 'Fin' }).props.onChange;
+  const day = root.root.findByProps({ label: 'Jour suivant' }).props.onPress;
+  let finish!: () => void;
+  backend.update.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = root.root.findByProps({ label: 'Enregistrer' }).props.onPress();
+    await title('Trop tard'); await who('bob'); await kind('perso'); await start('08:00'); await end('20:00'); await day();
+  });
+  expect(root.root.findByProps({ label: 'Titre' }).props).toMatchObject({ value: event.title, editable: false });
+  for (const [label, value] of [['Pour qui ?', event.who], ['Type', event.kind], ['Début', event.start], ['Fin', event.end]]) {
+    expect(root.root.findByProps({ label }).props).toMatchObject({ value, disabled: true });
+  }
+  expect(root.root.findByProps({ label: 'Jour suivant' }).props.disabled).toBe(true);
+  expect(root.root.findByProps({ label: 'Jour précédent' }).props.disabled).toBe(true);
+  await act(async () => { finish(); await pending; });
+});
+
+test('la répétition d’un nouvel horaire est figée pendant son ajout', async () => {
+  await act(async () => { root = create(<Agenda />); });
+  await act(async () => root.root.findByProps({ label: 'Ajouter un horaire' }).props.onPress());
+  await act(async () => root.root.findByProps({ label: 'Titre' }).props.onChangeText('Nouveau fictif'));
+  const change = root.root.findByProps({ label: 'Répéter chaque semaine' }).props.onChange;
+  let finish!: () => void;
+  backend.addEvents.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); await change('12'); });
+  expect(root.root.findByProps({ label: 'Répéter chaque semaine' }).props).toMatchObject({ value: '0', disabled: true });
+  await act(async () => { finish(); await pending; });
+});
+
+test.each(['save', 'delete', 'series', 'longpress'])('un aller-retour de backend n’actualise pas une ancienne action %s', async (action) => {
+  await openSeries();
+  let old: () => Promise<void>;
+  if (action === 'save') old = root.root.findByProps({ label: 'Enregistrer' }).props.onPress;
+  else {
+    await act(async () => {
+      if (action === 'longpress') root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00' }).find((node) => node.props.onLongPress)!.props.onLongPress();
+      else root.root.findByProps({ label: action === 'series' ? 'Supprimer aussi les semaines suivantes' : 'Supprimer' }).props.onPress();
+    });
+    old = (confirmDelete as jest.Mock).mock.calls[0][1];
+  }
+  (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...backend } });
+  await act(async () => root.update(<Agenda />));
+  (useSession as jest.Mock).mockReturnValue(session);
+  await act(async () => root.update(<Agenda />));
+  await act(async () => { await old(); });
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(backend.remove).not.toHaveBeenCalled();
+  expect(backend.removeEvents).not.toHaveBeenCalled();
+});
+
+test.each(['removed', 'series', 'date'])('une confirmation de série refuse une ancre %s', async (change) => {
+  await openSeries();
+  await act(async () => seriesButton().props.onPress());
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  const anchor = change === 'series' ? { ...seriesEvent, seriesId: 'other' } : { ...seriesEvent, date: '2099-01-01' };
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: change === 'removed' ? [] : [anchor] });
+  await act(async () => root.update(<Agenda />));
+  await act(async () => { await confirm(); });
+  expect(backend.removeEvents).not.toHaveBeenCalled();
+});
+
+test.each(['save', 'delete', 'series', 'longpress'])('une ancienne erreur %s n’interrompt pas le backend courant', async (action) => {
+  await openSeries();
+  let reject!: (error: Error) => void;
+  const method = action === 'save' ? backend.update : action === 'series' ? backend.removeEvents : backend.remove;
+  method.mockImplementationOnce(() => new Promise<void>((_, no) => { reject = no; }));
+  let pending!: Promise<void>;
+  await act(async () => {
+    if (action === 'save') pending = root.root.findByProps({ label: 'Enregistrer' }).props.onPress();
+    else {
+      if (action === 'longpress') root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00' }).find((node) => node.props.onLongPress)!.props.onLongPress();
+      else root.root.findByProps({ label: action === 'series' ? 'Supprimer aussi les semaines suivantes' : 'Supprimer' }).props.onPress();
+      pending = (confirmDelete as jest.Mock).mock.calls[0][1]();
+    }
+  });
+  (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...backend } });
+  await act(async () => root.update(<Agenda />));
+  await act(async () => { reject(new Error('Ancien échec')); await pending; });
+  expect(showDialog).not.toHaveBeenCalled();
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
 });

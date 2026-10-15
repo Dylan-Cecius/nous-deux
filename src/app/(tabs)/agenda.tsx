@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import {
@@ -44,11 +44,12 @@ function AgendaContent() {
   const t = useTheme();
   const { backend, members, colorOf } = useSession();
   const eventState = useCollectionState('events');
-  const latest = useRef<{ backend: typeof backend; state: typeof eventState } | null>(null);
+  const context = useMemo(() => ({ backend }), [backend]);
+  const latest = useRef<{ context: typeof context; state: typeof eventState } | null>(null);
   useEffect(() => {
-    latest.current = { backend, state: eventState };
+    latest.current = { context, state: eventState };
     return () => { latest.current = null; };
-  }, [backend, eventState]);
+  }, [context, eventState]);
   const { run: runDelete } = useAsyncAction((action: () => Promise<void>) => action());
   const unavailable = eventState.loading || eventState.error;
   const events = unavailable ? [] : eventState.items;
@@ -80,16 +81,17 @@ function AgendaContent() {
   };
 
   const askRemove = (event: AgendaEvent) => {
-    if (latest.current?.backend !== backend) return;
+    if (latest.current?.context !== context) return;
     confirmDelete(event.title, () => runDelete(async () => {
       const current = latest.current;
-      if (!current || current.backend !== backend) return;
+      if (!current || current.context !== context) return;
       if (current.state.loading || current.state.error) {
         showDialog('Agenda indisponible', 'Recharge les horaires avant de supprimer cet horaire.');
         return;
       }
       if (!current.state.items.some((item) => item.id === event.id)) return;
-      await backend.remove('events', event.id);
+      try { await backend.remove('events', event.id); }
+      catch (error) { if (latest.current?.context === context) throw error; }
     }));
   };
 
@@ -306,13 +308,15 @@ function EventSheet({
   const session = useSession();
   const { backend, members } = session;
   const allEvents = useCollectionState('events');
-  const seriesUnavailable = allEvents.loading || allEvents.error;
+  const unavailable = allEvents.loading || allEvents.error || (!!event && !allEvents.items.some((entry) => entry.id === event.id));
   // A native confirmation may outlive the snapshot, session or sheet that opened it.
-  const latest = useRef<{ backend: typeof backend; state: typeof allEvents } | null>(null);
+  const context = useMemo(() => ({ backend }), [backend]);
+  const latest = useRef<{ context: typeof context; state: typeof allEvents } | null>(null);
+  const closed = useRef(false);
   useEffect(() => {
-    latest.current = { backend, state: allEvents };
+    latest.current = { context, state: allEvents };
     return () => { latest.current = null; };
-  }, [backend, allEvents]);
+  }, [context, allEvents]);
   const [title, setTitle] = useState(event?.title ?? '');
   const [who, setWho] = useState(event?.who ?? defaultWho);
   const [kind, setKind] = useState<EventKind>(event?.kind ?? 'travail');
@@ -321,12 +325,22 @@ function EventSheet({
   const [end, setEnd] = useState(event?.end ?? '17:00');
   const [repeat, setRepeat] = useState('0');
   const { run, pending: busy } = useAsyncAction((action: () => unknown) => action());
-  const isCurrent = () => latest.current?.backend === backend;
+  const isCurrent = () => !closed.current && latest.current?.context === context;
+  const canWrite = () => {
+    const state = latest.current?.state;
+    return isCurrent() && state && !state.loading && !state.error && (!event || state.items.some((entry) => entry.id === event.id));
+  };
+  const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
+  const runCurrent = (action: () => Promise<void>) => run(async () => {
+    if (!canWrite()) return;
+    try { await action(); }
+    catch (error) { if (isCurrent()) throw error; }
+  });
 
   const valid = !!title.trim() && start < end;
 
-  const save = () => run(async () => {
-    if (!valid || !isCurrent()) return;
+  const save = () => runCurrent(async () => {
+    if (!valid) return;
     const data = { title: title.trim(), who, kind, date, start, end, createdBy: event?.createdBy ?? backend.userId };
     if (event) {
       await backend.update('events', event.id, data);
@@ -337,36 +351,38 @@ function EventSheet({
       if (!isCurrent()) return;
       await notifyPartner(session, 'Agenda', `${session.me?.name ?? 'Ta moitié'} a ajouté « ${data.title} ».`);
     }
-    if (isCurrent()) onClose();
+    close();
   });
 
   const removeOne = () => {
-    if (!event || busy || !isCurrent()) return;
-    confirmDelete(event.title, () => run(async () => {
-      if (!isCurrent()) return;
+    if (!event || busy || !canWrite()) return;
+    confirmDelete(event.title, () => runCurrent(async () => {
       await backend.remove('events', event.id);
-      if (isCurrent()) onClose();
+      close();
     }));
   };
 
   const removeSeries = () => {
-    if (!event?.seriesId || seriesUnavailable || busy || !isCurrent()) return;
+    if (!event?.seriesId || busy || !canWrite()) return;
     confirmDelete(`${event.title} (toutes les semaines à venir)`, () => run(async () => {
       const current = latest.current;
-      if (!current) return;
-      if (current.backend !== backend || current.state.loading || current.state.error) {
+      if (!current || closed.current) return;
+      const anchor = current.state.items.find((entry) => entry.id === event.id);
+      if (!isCurrent() || current.state.loading || current.state.error || !anchor || anchor.seriesId !== event.seriesId || anchor.date !== event.date) {
         showDialog('Agenda indisponible', 'Recharge les horaires avant de supprimer la série.');
         return;
       }
       const toRemove = current.state.items.filter((x) => x.seriesId === event.seriesId && x.date >= event.date);
-      await backend.removeEvents(toRemove.map((x) => x.id));
-      if (isCurrent()) onClose();
+      try {
+        await backend.removeEvents(toRemove.map((x) => x.id));
+        close();
+      } catch (error) { if (isCurrent()) throw error; }
     }));
   };
 
   return (
-    <Sheet visible title={event ? 'Modifier l’horaire' : 'Nouvel horaire'} onClose={() => run(onClose)}>
-      <Field label="Titre" value={title} maxLength={200} onChangeText={setTitle} placeholder="Boulot, sport, resto…" />
+    <Sheet visible title={event ? 'Modifier l’horaire' : 'Nouvel horaire'} onClose={() => run(close)}>
+      <Field label="Titre" value={title} maxLength={200} editable={!busy} onChangeText={(value) => run(() => { if (isCurrent()) setTitle(value); })} placeholder="Boulot, sport, resto…" />
       <Chips
         label="Pour qui ?"
         options={[
@@ -374,34 +390,37 @@ function EventSheet({
           { value: BOTH, label: 'Nous deux', icon: 'heart' as const },
         ]}
         value={who}
-        onChange={setWho}
+        disabled={busy}
+        onChange={(value) => run(() => { if (isCurrent()) setWho(value); })}
       />
-      <Chips label="Type" options={KINDS} value={kind} onChange={setKind} />
+      <Chips label="Type" options={KINDS} value={kind} disabled={busy} onChange={(value) => run(() => { if (isCurrent()) setKind(value); })} />
       <View style={{ gap: 8 }}>
         <T variant="caption" muted>
           Jour
         </T>
         <Card style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 8 }}>
-          <IconButton icon="chevron-back" label="Jour précédent" onPress={() => setDate(addDays(date, -1))} size={40} />
+          <IconButton icon="chevron-back" label="Jour précédent" disabled={busy} onPress={() => run(() => { if (isCurrent()) setDate(addDays(date, -1)); })} size={40} />
           <T variant="bodyBold" style={{ flex: 1, textAlign: 'center', textTransform: 'capitalize' }}>
             {formatLong(date)}
           </T>
-          <IconButton icon="chevron-forward" label="Jour suivant" onPress={() => setDate(addDays(date, 1))} size={40} />
+          <IconButton icon="chevron-forward" label="Jour suivant" disabled={busy} onPress={() => run(() => { if (isCurrent()) setDate(addDays(date, 1)); })} size={40} />
         </Card>
       </View>
       <Row style={{ gap: Spacing.three }}>
-        <TimeField label="Début" value={start} onChange={setStart} grow />
-        <TimeField label="Fin" value={end} onChange={setEnd} grow />
+        <TimeField label="Début" value={start} disabled={busy} onChange={(value) => run(() => { if (isCurrent()) setStart(value); })} grow />
+        <TimeField label="Fin" value={end} disabled={busy} onChange={(value) => run(() => { if (isCurrent()) setEnd(value); })} grow />
       </Row>
       {start >= end && <T variant="small">L’heure de fin doit être après l’heure de début. Pour une nuit, ajoute un horaire sur chaque journée.</T>}
-      {!event && <Chips label="Répéter chaque semaine" options={REPEATS} value={repeat} onChange={setRepeat} />}
-      <Button label="Enregistrer" disabled={!valid || busy} onPress={save} />
+      {!event && <Chips label="Répéter chaque semaine" options={REPEATS} value={repeat} disabled={busy} onChange={(value) => run(() => { if (isCurrent()) setRepeat(value); })} />}
+      {unavailable && <T variant="small" muted>Agenda indisponible ou horaire retiré. Ton brouillon est conservé ; recharge les horaires avant de continuer.</T>}
+      {allEvents.error && !event?.seriesId && <Button label="Recharger l’agenda du formulaire" variant="outline" onPress={allEvents.retry} />}
+      <Button label="Enregistrer" disabled={!valid || busy || unavailable} onPress={save} />
       {event && (
         <Button
           label="Supprimer"
           variant="danger"
           icon="trash-outline"
-          disabled={busy}
+          disabled={busy || unavailable}
           onPress={removeOne}
         />
       )}
@@ -414,7 +433,7 @@ function EventSheet({
               <Button label="Réessayer la série" variant="outline" onPress={allEvents.retry} />
             </>
           )}
-          <Button label="Supprimer aussi les semaines suivantes" variant="danger" disabled={seriesUnavailable || busy} onPress={removeSeries} />
+          <Button label="Supprimer aussi les semaines suivantes" variant="danger" disabled={unavailable || busy} onPress={removeSeries} />
         </>
       )}
     </Sheet>
