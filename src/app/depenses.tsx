@@ -28,16 +28,46 @@ function DepensesContent() {
   const { items: expenses, loading, error, retry } = useCollectionState('expenses');
   const ready = !loading && !error;
   const [adding, setAdding] = useState(false);
+  const context = useMemo(() => ({ backend, meId: me?.id, partnerId: partner?.id }), [backend, me?.id, partner?.id]);
+  // Un nouveau tableau, un ordre différent ou un titre modifié ne changent pas le relevé comptable.
+  const revision = useMemo(() => JSON.stringify([...expenses].sort((a, b) => a.id.localeCompare(b.id))
+    .map((entry) => [entry.id, entry.amount, entry.paidBy, entry.kind])), [expenses]);
+  const snapshot = useMemo(() => ({ revision }), [revision]);
+  const latest = useRef<{ context: typeof context; snapshot: typeof snapshot; expenses: typeof expenses; ready: boolean } | null>(null);
+  const recorded = useRef<typeof snapshot | null>(null);
+  const [recordedSnapshot, setRecordedSnapshot] = useState<typeof snapshot | null>(null);
+  useEffect(() => {
+    latest.current = { context, snapshot, expenses, ready };
+    return () => { latest.current = null; };
+  }, [context, snapshot, expenses, ready]);
+  const { run, pending } = useAsyncAction((action: () => unknown) => action());
+  const isCurrent = () => latest.current?.context === context;
+  const canWrite = () => isCurrent() && latest.current?.ready;
 
   const sorted = [...expenses].sort((a, b) => b.createdAt - a.createdAt);
   const balance = me ? balanceFor(expenses, me.id) : 0;
   const total = expenses.filter((e) => e.kind !== 'settle').reduce((s, e) => s + e.amount, 0);
 
-  const settle = async () => {
-    if (!ready || !me || !partner || balance === 0) return;
-    // Celui qui doit rembourse l'autre : le solde revient à zéro.
-    await addSettlement(backend, Math.abs(balance), balance > 0 ? partner.id : me.id);
-    success();
+  const settle = () => run(async () => {
+    if (!canWrite() || !me || !partner || balance === 0 || latest.current?.snapshot !== snapshot || recorded.current === snapshot) return;
+    // Information saisie par l’utilisateur, jamais un transfert d’argent.
+    try {
+      await addSettlement(backend, Math.abs(balance), balance > 0 ? partner.id : me.id);
+      if (!isCurrent()) return;
+      // Ne pas rejouer le même solde en attendant le prochain snapshot de la collection.
+      recorded.current = snapshot;
+      setRecordedSnapshot(snapshot);
+      success();
+    } catch (failure) { if (isCurrent()) throw failure; }
+  });
+  const remove = (id: string, title: string) => {
+    const contains = () => latest.current?.expenses.some((entry) => entry.id === id);
+    if (pending || !canWrite() || !contains()) return;
+    confirmDelete(title, () => run(async () => {
+      if (!canWrite() || !contains()) return;
+      try { await backend.remove('expenses', id); }
+      catch (failure) { if (isCurrent()) throw failure; }
+    }));
   };
 
   return (
@@ -69,7 +99,8 @@ function DepensesContent() {
                   <T color={t.onFeatureMuted}>
                     {balance > 0 ? `${partner.name} te doit cette somme` : `Tu dois cette somme à ${partner.name}`}
                   </T>
-                  <Button label="Marquer comme remboursé" variant="soft" icon="checkmark-done" onPress={settle} />
+                  <Button label="Marquer comme remboursé" variant="soft" icon="checkmark-done" disabled={pending || recordedSnapshot === snapshot} onPress={settle} />
+                  {recordedSnapshot === snapshot && <T variant="small" color={t.onFeatureMuted}>Marque enregistrée. En attente de l’actualisation du solde.</T>}
                 </>
               )}
             </Card>
@@ -85,7 +116,9 @@ function DepensesContent() {
                 {sorted.map((e, i) => (
                   <Pressable
                     key={e.id}
-                    onLongPress={() => confirmDelete(e.title, () => backend.remove('expenses', e.id))}
+                    disabled={pending}
+                    accessibilityState={{ disabled: pending }}
+                    onLongPress={() => remove(e.id, e.title)}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -122,7 +155,7 @@ function DepensesContent() {
           </>
         )}
       </Screen>
-      {ready && <Fab onPress={() => setAdding(true)} label="Ajouter une dépense" />}
+      {ready && <Fab onPress={() => run(() => { if (canWrite()) setAdding(true); })} label="Ajouter une dépense" />}
       {adding && <ExpenseSheet onClose={() => setAdding(false)} />}
     </>
   );
