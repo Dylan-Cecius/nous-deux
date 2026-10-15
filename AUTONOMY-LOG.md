@@ -852,3 +852,9 @@ Base b96fd8659192b2684ca01d68b94fefae1e2888c8. Préparation du contrat manquant 
 
 Limites explicites : génération de clé, persistance et raccordement UI non réalisés ; l’appelant doit invalider au démontage/changement de contexte, y compris les aller-retours invisibles entre deux observations. Rien ne relance un upload ni ne crée une fiche aléatoire. Aucun test téléphone/transport réel, aucun build, déploiement, contenu réel ni coût. La relance reçue pendant le travail a été intégrée après relecture GitHub des quatre consignes/journal et vérification de la tête b96fd86, sans recommencer les tâches terminées.
 
+## 2026-10-15, 18:14 Europe/Brussels — Contrat souvenir vérifié sur émulateurs
+
+Base 24c9afb842f0ea7f482216d84e033381dbbcce77. Quatre tests de contrat relient le vrai contrôleur client (transpilation du fichier source, pas réimplémentation) au module serveur via un adaptateur contrôlé appelant run(). Réponse perdue après commit puis modification par le partenaire : reprise même clé, un document et légende préservée. Confirmation invalide puis retrait : reçu retrouvé sans recréation. Deux instances partageant la clé : un seul souvenir. Invalidation après commit : résultat obsolète ignoré sans prétendre annuler une écriture terminée.
+
+Preuves : compilation fonctions, 67 tests sécurité en 35,33 s, sortie 0 et émulateurs demo-nous-deux-security arrêtés ; lint/TypeScript, git diff --check et diff relu. Dernière suite applicative : 49 suites / 933 tests à 18:10, aucun code applicatif changé. Contrôleur et endpoint toujours non raccordés/non exposés. Pas de transport HTTPS Callable, jeton réel, photo mobile, build native, déploiement ni dépense. Prochaine tâche réalisable repérée dans le code existant : vérifier les anciennes actions de création de dépense qui capturent encore les champs du rendu initial.
+

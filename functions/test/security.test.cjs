@@ -21,6 +21,16 @@ const { migrateSecurity } = require('../lib/migration');
 const { purgeTechnicalData, RETENTION } = require('../lib/retention');
 const settlementApi = () => require('../lib/settlements');
 const memoryApi = () => require('../lib/memories');
+// Compile the actual pure client module, not a rewritten test implementation.
+// No Expo/native import or network adapter is executed by this isolated module.
+const memoryClient = () => {
+  const { transpileModule, ModuleKind, ScriptTarget } = require('typescript');
+  const source = readFileSync('../src/lib/memory-association.ts', 'utf8');
+  const compiled = transpileModule(source, { compilerOptions: { module: ModuleKind.CommonJS, target: ScriptTarget.ES2022 } });
+  const exports = {};
+  require('node:vm').runInNewContext(compiled.outputText, { exports }, { filename: 'memory-association.test-runtime.cjs' });
+  return exports;
+};
 const { createSpace, issueInvitation, acceptInvitation, submitAnswer, consumeQuota, queueDeletion, completeDeletion, requireAiConsent, AI_CONSENT_VERSION } = security;
 const profile = { name: 'Test', color: '#abcdef' };
 const cid = 'test-couple';
@@ -45,6 +55,80 @@ const settlementInput = (requestId = 'request-alice-0001', expected = [{ id: 'or
 const memoryInput = (patch = {}) => ({
   coupleId: cid, expectedUserId: 'alice', requestId: 'memory-alice-0001',
   photoUrl: 'data:image/jpeg;base64,AAAA', caption: 'Souvenir fictif', date: '2026-10-15', ...patch,
+});
+
+test('contrat client/serveur : réponse perdue après commit puis reprise sans doublon ni écrasement', async () => {
+  await seed();
+  const { prepareMemoryAssociation } = memoryClient();
+  const sent = [];
+  let memoryId;
+  const backend = { mode: 'cloud', userId: 'alice', coupleId: cid, call: async (name, payload) => {
+    assert.equal(name, 'associateMemory'); sent.push({ ...payload });
+    const result = await memoryApi().associateMemory.run(call('alice', payload));
+    memoryId = result.memoryId;
+    if (sent.length === 1) throw new Error('Réponse fictivement perdue après commit');
+    return result;
+  } };
+  const attempt = prepareMemoryAssociation(backend, memoryInput(), { isCurrent: () => true, canSubmit: () => true });
+  assert.equal((await attempt.submit()).status, 'unconfirmed');
+  const path = `couples/${cid}/memories/${memoryId}`;
+  await assertSucceeds(updateDoc(doc(client('bob'), path), { caption: 'Modification partenaire fictive' }));
+  const result = await attempt.submit();
+  assert.equal(result.status, 'receipt-confirmed'); assert.equal(result.memoryId, memoryId);
+  assert.deepEqual(sent[1], sent[0]);
+  assert.equal((await db.collection(`couples/${cid}/memories`).get()).size, 1);
+  assert.equal((await db.doc(path).get()).data().caption, 'Modification partenaire fictive');
+  await attempt.submit();
+  assert.equal(sent.length, 2);
+});
+
+test('contrat client/serveur : confirmation invalide puis fiche supprimée, reçu retrouvé sans recréation', async () => {
+  await seed();
+  const { prepareMemoryAssociation } = memoryClient();
+  let requests = 0;
+  let memoryId;
+  const backend = { mode: 'cloud', userId: 'alice', coupleId: cid, call: async (name, payload) => {
+    requests++;
+    const result = await memoryApi().associateMemory.run(call('alice', payload));
+    memoryId = result.memoryId;
+    return requests === 1 ? {} : result;
+  } };
+  const attempt = prepareMemoryAssociation(backend, memoryInput(), { isCurrent: () => true, canSubmit: () => true });
+  assert.equal((await attempt.submit()).status, 'unconfirmed');
+  await assertSucceeds(deleteDoc(doc(client('bob'), `couples/${cid}/memories/${memoryId}`)));
+  const result = await attempt.submit();
+  assert.equal(result.status, 'receipt-confirmed'); assert.equal(result.memoryId, memoryId);
+  assert.equal((await db.collection(`couples/${cid}/memories`).get()).size, 0);
+});
+
+test('contrat client/serveur : instances concurrentes partageant la même intention, un seul souvenir', async () => {
+  await seed();
+  const { prepareMemoryAssociation } = memoryClient();
+  const backend = { mode: 'cloud', userId: 'alice', coupleId: cid,
+    call: async (name, payload) => memoryApi().associateMemory.run(call('alice', payload)) };
+  const prepare = () => prepareMemoryAssociation(backend, memoryInput(), { isCurrent: () => true, canSubmit: () => true });
+  const results = await Promise.all([prepare().submit(), prepare().submit()]);
+  assert.ok(results.every(result => result.status === 'receipt-confirmed'));
+  assert.equal(results[0].memoryId, results[1].memoryId);
+  assert.equal((await db.collection(`couples/${cid}/memories`).get()).size, 1);
+});
+
+test('contrat client/serveur : invalidation après commit ne prétend pas annuler l’écriture', async () => {
+  await seed();
+  const { prepareMemoryAssociation } = memoryClient();
+  let requests = 0;
+  let attempt;
+  const backend = { mode: 'cloud', userId: 'alice', coupleId: cid, call: async (name, payload) => {
+    requests++;
+    const result = await memoryApi().associateMemory.run(call('alice', payload));
+    attempt.invalidate();
+    return result;
+  } };
+  attempt = prepareMemoryAssociation(backend, memoryInput(), { isCurrent: () => true, canSubmit: () => true });
+  assert.equal((await attempt.submit()).status, 'stale');
+  assert.equal((await attempt.submit()).status, 'stale');
+  assert.equal(requests, 1);
+  assert.equal((await db.collection(`couples/${cid}/memories`).get()).size, 1);
 });
 
 test('association souvenir : les demandes concurrentes produisent un seul document et reçu', async () => {
