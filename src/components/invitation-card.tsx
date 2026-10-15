@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Share } from 'react-native';
 import { showDialog } from './dialog';
 import { Button, Card, T } from './ui';
@@ -7,20 +7,35 @@ import { useSession } from '@/lib/couple-context';
 
 export function InvitationCard() {
   const { backend, partner } = useSession();
+  if (backend.mode !== 'cloud' || partner) return null;
+  return <InvitationForm key={`${backend.mode}:${backend.coupleId}:${backend.userId}`} />;
+}
+
+function InvitationForm() {
+  const { backend } = useSession();
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [busy, setBusy] = useState(false);
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => { active.current = false; };
+  }, []);
   useEffect(() => {
     if (!invitation) return;
     const timer = setTimeout(() => setInvitation(null), Math.max(0, invitation.expiresAt - Date.now()));
     return () => clearTimeout(timer);
   }, [invitation]);
-  if (backend.mode !== 'cloud' || partner) return null;
   const create = async () => {
     if (busy) return;
     setBusy(true);
-    try { setInvitation(await createCoupleInvitation(backend)); }
-    catch (error) { showDialog('Invitation indisponible', error instanceof Error ? error.message : String(error)); }
-    finally { setBusy(false); }
+    try {
+      const result = await createCoupleInvitation(backend);
+      if (active.current) setInvitation(result);
+    } catch (error) {
+      if (active.current) showDialog('Invitation indisponible', error instanceof Error ? error.message : String(error));
+    } finally {
+      if (active.current) setBusy(false);
+    }
   };
   const share = async () => {
     if (!invitation || invitation.expiresAt <= Date.now()) return setInvitation(null);
