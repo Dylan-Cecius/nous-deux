@@ -37,6 +37,33 @@ const leave = async (kind: string) => {
   }
 };
 
+test('le cadrage ne change pas pendant la sauvegarde puis reprend après échec', async () => {
+  await act(async () => button('Repositionner la photo')());
+  const editor = () => root.root.findByType('editor' as never);
+  const change = editor().props.onChange;
+  const nextFrame = { x: 0.7, y: 0.8, zoom: 1.5 };
+  let reject!: (error: Error) => void;
+  backend.updateCouple.mockReturnValueOnce(new Promise<void>((_, fail) => { reject = fail; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = button('Enregistrer le cadrage')(); await change(nextFrame); });
+  expect(editor().props.frame).toEqual(couple.photoFrame);
+  expect(editor().props.disabled).toBe(true);
+  await act(async () => { reject(new Error('Échec fictif')); await pending; });
+  expect(editor().props.disabled).toBe(false);
+  await act(async () => editor().props.onChange(nextFrame));
+  await act(async () => { await button('Enregistrer le cadrage')(); });
+  expect(backend.updateCouple).toHaveBeenLastCalledWith({ photoFrame: nextFrame });
+});
+
+test('un ancien éditeur ne modifie pas un cadrage rouvert', async () => {
+  await act(async () => button('Repositionner la photo')());
+  const change = root.root.findByType('editor' as never).props.onChange;
+  await act(async () => root.root.findByType('sheet' as never).props.onClose());
+  await act(async () => button('Repositionner la photo')());
+  await act(async () => change({ x: 0.7, y: 0.8, zoom: 1.5 }));
+  expect(root.root.findByType('editor' as never).props.frame).toEqual(couple.photoFrame);
+});
+
 test.each(['unmount', 'backend'])('sélecteur tardif après %s : aucun upload', async (kind) => {
   let finish!: (result: unknown) => void;
   (pickPhoto as jest.Mock).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));

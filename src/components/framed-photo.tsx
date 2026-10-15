@@ -67,11 +67,13 @@ export function PhotoFrameEditor({
   frame,
   onChange,
   height = 230,
+  disabled = false,
 }: {
   uri: string;
   frame: PhotoFrame;
   onChange: (f: PhotoFrame) => void;
   height?: number;
+  disabled?: boolean;
 }) {
   const t = useTheme();
   const { box, layout, onLayout, onLoad } = useFramedLayout(frame);
@@ -81,14 +83,15 @@ export function PhotoFrameEditor({
   const clamp = (v: number) => Math.min(1, Math.max(0, v));
 
   const responder = {
-    onStartShouldSetResponder: () => true,
-    onMoveShouldSetResponderCapture: () => true,
-    onResponderTerminationRequest: () => false,
+    onStartShouldSetResponder: () => !disabled,
+    onMoveShouldSetResponderCapture: () => !disabled,
+    onResponderTerminationRequest: () => disabled,
     onResponderGrant: (e: GestureResponderEvent) => {
+      if (disabled) return;
       start.current = { pageX: e.nativeEvent.pageX, pageY: e.nativeEvent.pageY, frame };
     },
     onResponderMove: (e: GestureResponderEvent) => {
-      if (!layout || !box) return;
+      if (disabled || !layout || !box) return;
       const from = start.current;
       const dx = e.nativeEvent.pageX - from.pageX;
       const dy = e.nativeEvent.pageY - from.pageY;
@@ -100,6 +103,7 @@ export function PhotoFrameEditor({
   };
 
   const zoomBy = (delta: number) => {
+    if (disabled) return;
     const min = layout?.minZoom ?? 1;
     onChange({ ...frame, zoom: Math.min(MAX_ZOOM, Math.max(min, (layout?.zoom ?? frame.zoom) + delta)) });
   };
@@ -132,13 +136,13 @@ export function PhotoFrameEditor({
         </View>
       </View>
       <T variant="small" muted style={{ textAlign: 'center' }}>
-        Fais glisser la photo pour la repositionner
+        {disabled ? 'Cadrage temporairement indisponible' : 'Fais glisser la photo pour la repositionner'}
       </T>
       <Row style={{ justifyContent: 'center', gap: 12 }}>
-        <IconButton icon="remove" label="Dézoomer" onPress={() => zoomBy(-0.15)} />
-        <IconButton icon="expand-outline" label="Photo entière" onPress={() => onChange({ x: 0.5, y: 0.5, zoom: 0 })} />
-        <IconButton icon="scan-outline" label="Remplir le cadre" onPress={() => onChange(DEFAULT_FRAME)} />
-        <IconButton icon="add" label="Zoomer" onPress={() => zoomBy(0.15)} />
+        <IconButton icon="remove" label="Dézoomer" disabled={disabled} onPress={() => zoomBy(-0.15)} />
+        <IconButton icon="expand-outline" label="Photo entière" disabled={disabled} onPress={() => { if (!disabled) onChange({ x: 0.5, y: 0.5, zoom: 0 }); }} />
+        <IconButton icon="scan-outline" label="Remplir le cadre" disabled={disabled} onPress={() => { if (!disabled) onChange(DEFAULT_FRAME); }} />
+        <IconButton icon="add" label="Zoomer" disabled={disabled} onPress={() => zoomBy(0.15)} />
       </Row>
     </View>
   );

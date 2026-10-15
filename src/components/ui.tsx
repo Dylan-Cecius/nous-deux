@@ -327,23 +327,26 @@ export function IconButton({
   onPress,
   variant = 'outline',
   size = 44,
+  disabled = false,
 }: {
   icon: IconName;
   label: string;
   onPress: () => void;
   variant?: 'outline' | 'primary' | 'accent';
   size?: number;
+  disabled?: boolean;
 }) {
   const t = useTheme();
-  const { run, pending } = useAsyncAction(onPress);
+  const { run, pending } = useAsyncAction(() => { if (!disabled) return onPress(); });
+  const unavailable = disabled || pending;
   const bg = { outline: t.card, primary: t.primary, accent: t.featureAccent }[variant];
   const fg = { outline: t.primary, primary: t.onPrimary, accent: t.feature }[variant];
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      disabled={pending}
-      accessibilityState={{ disabled: pending, busy: pending }}
+      disabled={unavailable}
+      accessibilityState={{ disabled: unavailable, busy: pending }}
       onPress={run}
       hitSlop={6}
       style={({ pressed }) => [
@@ -354,7 +357,7 @@ export function IconButton({
           backgroundColor: bg,
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: pressed ? 0.75 : 1,
+          opacity: unavailable ? 0.5 : pressed ? 0.75 : 1,
         },
         variant === 'outline' && { borderWidth: 1, borderColor: t.border },
       ]}>

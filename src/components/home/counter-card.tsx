@@ -51,7 +51,9 @@ function CounterForm({ onClose }: { onClose: () => void }) {
     const photoChanged = couple?.photoUrl !== framing.uri;
     return (
       <Sheet visible title="Cadrer la photo" onClose={() => run(() => { if (isCurrent()) setFraming(null); })}>
-        <PhotoFrameEditor uri={framing.uri} frame={frame} onChange={setFrame} />
+        <PhotoFrameEditor uri={framing.uri} frame={frame} disabled={busy || !couple || photoChanged} onChange={(next) => run(() => {
+          if (canWrite() && latest.current?.framing === framing && latest.current?.couple?.photoUrl === framing.uri) setFrame(next);
+        })} />
         {photoChanged && <T>La photo a changé ou sa synchronisation est en cours. Reviens au formulaire puis rouvre le cadrage de la photo actuelle.</T>}
         <Button
           label="Enregistrer le cadrage"

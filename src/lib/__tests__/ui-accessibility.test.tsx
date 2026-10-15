@@ -1,6 +1,6 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Pressable } from 'react-native';
-import { Chips, ColorPicker, SectionTitle, Segmented } from '@/components/ui';
+import { Chips, ColorPicker, IconButton, SectionTitle, Segmented } from '@/components/ui';
 import { tap } from '../haptics';
 
 jest.mock('@expo/vector-icons/Ionicons', () => 'icon');
@@ -17,6 +17,32 @@ jest.mock('react-native', () => Object.create(jest.requireActual('react-native')
 let root: ReactTestRenderer;
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
 const options = [{ value: 'alice', label: 'Alice' }, { value: 'bob', label: 'Bob' }];
+
+test('un bouton icône peut être désactivé par son formulaire puis réactivé', async () => {
+  const onPress = jest.fn();
+  await act(async () => { root = create(<IconButton icon="add" label="Zoomer" onPress={onPress} disabled />); });
+  const button = root.root.findByType(Pressable);
+  expect(button.props.disabled).toBe(true);
+  expect(button.props.accessibilityState).toMatchObject({ disabled: true, busy: false });
+  await act(async () => { await button.props.onPress(); });
+  expect(onPress).not.toHaveBeenCalled();
+  await act(async () => root.update(<IconButton icon="add" label="Zoomer" onPress={onPress} />));
+  await act(async () => { await root.root.findByType(Pressable).props.onPress(); });
+  expect(onPress).toHaveBeenCalledTimes(1);
+});
+
+test('le verrou interne d’un bouton icône reste actif sans désactivation externe', async () => {
+  let finish!: () => void;
+  const onPress = jest.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+  await act(async () => { root = create(<IconButton icon="add" label="Zoomer" onPress={onPress} />); });
+  const action = root.root.findByType(Pressable).props.onPress;
+  let pending!: Promise<void>;
+  await act(async () => { pending = action(); await action(); });
+  expect(onPress).toHaveBeenCalledTimes(1);
+  expect(root.root.findByType(Pressable).props.accessibilityState).toEqual({ disabled: true, busy: true });
+  await act(async () => { finish(); await pending; });
+  expect(root.root.findByType(Pressable).props.disabled).toBe(false);
+});
 
 test('les choix radio désactivés restent cochés mais ne réagissent pas', async () => {
   const onChange = jest.fn();
