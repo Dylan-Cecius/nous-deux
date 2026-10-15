@@ -489,15 +489,17 @@ export function ColorPicker({
   value,
   onChange,
   ringColor,
+  disabled = false,
 }: {
   colors: string[];
   value: string;
   onChange: (c: string) => void;
   /** Couleur de l'anneau autour de la pastille choisie (par défaut : le fond de l'app). */
   ringColor?: string;
+  disabled?: boolean;
 }) {
   const t = useTheme();
-  const { run, pending } = useAsyncAction(onChange);
+  const { run, pending } = useAsyncAction((color: string) => { if (!disabled) return onChange(color); });
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
       {colors.map((c) => (
@@ -505,8 +507,8 @@ export function ColorPicker({
           key={c}
           accessibilityRole="radio"
           accessibilityLabel={`Couleur ${c}`}
-          accessibilityState={{ checked: value === c, disabled: pending, busy: pending }}
-          disabled={pending}
+          accessibilityState={{ checked: value === c, disabled: disabled || pending, busy: pending }}
+          disabled={disabled || pending}
           onPress={() => run(c)}
           style={{
             width: 40,

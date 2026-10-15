@@ -249,8 +249,27 @@ function NousContent() {
 }
 
 function MemberCard({ member, editable, isMe }: { member: Member; editable: boolean; isMe: boolean }) {
-  const { backend } = useSession();
-  const [name, setName] = useState(member.name);
+  const { backend, members } = useSession();
+  const context = useMemo(() => ({ backend, memberId: member.id, editable }), [backend, member.id, editable]);
+  const latest = useRef<{ context: typeof context; members: typeof members } | null>(null);
+  useEffect(() => {
+    latest.current = { context, members };
+    return () => { latest.current = null; };
+  }, [context, members]);
+  const [draft, setDraft] = useState({ base: member.name, value: member.name });
+  const name = draft.base !== member.name && draft.value.trim() === draft.base ? member.name : draft.value;
+  // Ajustement borné au changement externe ; ne pas écraser une saisie en cours.
+  if (draft.base !== member.name) setDraft({ base: member.name, value: name });
+  const { run, pending } = useAsyncAction((action: () => unknown) => action());
+  const isCurrent = () => editable && latest.current?.context === context;
+  const update = (changes: { name?: string; color?: string }) => run(async () => {
+    const current = latest.current?.members.find((entry) => entry.id === member.id);
+    if (!isCurrent() || !current) return;
+    if (changes.name !== undefined && (!changes.name || changes.name === current.name)) return;
+    if (changes.color !== undefined && (!MemberColors.includes(changes.color) || changes.color === current.color)) return;
+    try { await backend.updateMember(member.id, changes); }
+    catch (error) { if (isCurrent()) throw error; }
+  });
 
   return (
     <Card style={{ gap: 14 }}>
@@ -266,15 +285,15 @@ function MemberCard({ member, editable, isMe }: { member: Member; editable: bool
       {editable && (
         <>
           <Row>
-            <Field value={name} maxLength={60} onChangeText={setName} grow accessibilityLabel="Prénom" />
+            <Field value={name} maxLength={60} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setDraft({ base: member.name, value }); })} grow accessibilityLabel="Prénom" />
             <Button
               label="OK"
               small
-              disabled={!name.trim() || name.trim() === member.name}
-              onPress={() => backend.updateMember(member.id, { name: name.trim() })}
+              disabled={pending || !name.trim() || name.trim() === member.name}
+              onPress={() => update({ name: name.trim() })}
             />
           </Row>
-          <ColorPicker colors={MemberColors} value={member.color} onChange={(color) => backend.updateMember(member.id, { color })} />
+          <ColorPicker colors={MemberColors} value={member.color} disabled={pending} onChange={(color) => update({ color })} />
         </>
       )}
     </Card>

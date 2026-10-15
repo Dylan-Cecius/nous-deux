@@ -101,6 +101,17 @@ test('les pastilles annoncent leur état occupé et indisponible pendant la sauv
   expect(root.root.findAllByType(Pressable)[0].props.accessibilityState).toMatchObject({ busy: false, disabled: false });
 });
 
+test('un formulaire peut désactiver les pastilles sans perdre la sélection', async () => {
+  const onChange = jest.fn();
+  await act(async () => { root = create(<ColorPicker colors={['#111111', '#222222']} value="#111111" onChange={onChange} disabled />); });
+  expect(root.root.findAllByType(Pressable)[0].props.accessibilityState).toMatchObject({ checked: true, disabled: true });
+  await act(async () => { await root.root.findAllByType(Pressable)[1].props.onPress(); });
+  expect(onChange).not.toHaveBeenCalled();
+  await act(async () => root.update(<ColorPicker colors={['#111111', '#222222']} value="#111111" onChange={onChange} />));
+  await act(async () => { await root.root.findAllByType(Pressable)[1].props.onPress(); });
+  expect(onChange).toHaveBeenCalledWith('#222222');
+});
+
 test('les onglets conservent leur état selected, distinct des choix radio', async () => {
   await act(async () => { root = create(<Segmented options={options} value="alice" onChange={jest.fn()} />); });
   expect(root.root.findAllByType(Pressable).map((b) => b.props.accessibilityState.selected)).toEqual([true, false]);
