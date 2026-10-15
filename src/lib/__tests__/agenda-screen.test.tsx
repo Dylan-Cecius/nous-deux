@@ -89,3 +89,31 @@ test('le résumé du jour affiche à nouveau les événements après reprise', a
   expect(text()).toContain('Horaire fictif');
   expect(text()).not.toContain('Agenda indisponible');
 });
+
+test.each(['loading', 'error'])('les dates à venir en %s ne proposent pas un faux démarrage à zéro', async (status) => {
+  (useCollectionState as jest.Mock).mockImplementation((name) => name === 'dates' ? { ...ready, [status]: true } : ready);
+  await act(async () => { root = create(<Home />); });
+  expect(text()).not.toContain('ajoutez les dates que vous attendez');
+  expect(text()).toContain(status === 'loading' ? 'Chargement des dates' : 'Dates indisponibles');
+  if (status === 'error') {
+    await act(async () => { root.root.findByProps({ label: 'Réessayer les dates' }).props.onPress(); });
+    expect(ready.retry).toHaveBeenCalledTimes(1);
+  }
+});
+
+test('une date revient après reprise sans effacer la saisie de la nouvelle date', async () => {
+  const date = { id: 'date', title: 'Sortie fictive', date: todayKey(), yearly: false };
+  (useCollectionState as jest.Mock).mockImplementation((name) => name === 'dates' ? { ...ready, items: [date] } : ready);
+  await act(async () => { root = create(<Home />); });
+  expect(text()).toContain('Sortie fictive');
+  await act(async () => { root.root.findByProps({ title: 'À venir' }).props.onAction(); });
+  await act(async () => { root.root.findByProps({ label: 'Quoi ?' }).props.onChangeText('Date en préparation'); });
+  (useCollectionState as jest.Mock).mockImplementation((name) => name === 'dates' ? { ...ready, error: true, items: [date] } : ready);
+  await act(async () => { root.update(<Home />); });
+  expect(text()).not.toContain('Sortie fictive');
+  expect(root.root.findByProps({ label: 'Quoi ?' }).props.value).toBe('Date en préparation');
+  (useCollectionState as jest.Mock).mockImplementation((name) => name === 'dates' ? { ...ready, items: [date] } : ready);
+  await act(async () => { root.update(<Home />); });
+  expect(text()).toContain('Sortie fictive');
+  expect(root.root.findByProps({ label: 'Quoi ?' }).props.value).toBe('Date en préparation');
+});

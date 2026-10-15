@@ -4,9 +4,9 @@ import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
 import { showDialog } from '@/components/dialog';
-import { Card, Ionicons, Row, SectionTitle, T } from '@/components/ui';
+import { Button, Card, Ionicons, Row, SectionTitle, T } from '@/components/ui';
 import { useTheme } from '@/constants/theme';
-import { useCollection, useSession } from '@/lib/couple-context';
+import { useCollectionState, useSession } from '@/lib/couple-context';
 import { fromKey, todayKey } from '@/lib/dates';
 import { success } from '@/lib/haptics';
 import { pickPhoto } from '@/lib/photos';
@@ -45,12 +45,24 @@ export function useAddMemory() {
 /** Souvenirs sur l'accueil : « Il y a un an… » et les dernières photos. */
 export function MemoriesStrip() {
   const t = useTheme();
-  const memories = useCollection('memories');
+  const memories = useCollectionState('memories');
   const { add, busy } = useAddMemory();
   const today = todayKey();
-  const sorted = [...memories].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+  const sorted = [...memories.items].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
   const onThisDay = sorted.find((m) => m.date.slice(5) === today.slice(5) && m.date < today);
   const yearsAgo = onThisDay ? Number(today.slice(0, 4)) - Number(onThisDay.date.slice(0, 4)) : 0;
+
+  if (memories.loading || memories.error) {
+    return (
+      <View style={{ gap: 12 }}>
+        <SectionTitle title="Souvenirs" action="Tout voir" onAction={() => router.push('/souvenirs')} />
+        <Card>
+          <T>{memories.loading ? 'Chargement des souvenirs…' : 'Souvenirs indisponibles. Impossible de charger votre album pour le moment.'}</T>
+          {memories.error && <Button label="Réessayer les souvenirs" variant="outline" onPress={memories.retry} />}
+        </Card>
+      </View>
+    );
+  }
 
   return (
     <View style={{ gap: 12 }}>

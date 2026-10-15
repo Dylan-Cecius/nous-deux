@@ -9,19 +9,19 @@ import { QuestionCard } from '@/components/home/question-card';
 import { DateField } from '@/components/pickers';
 import { Button, Card, confirmDelete, Field, Ionicons, Row, Screen, SectionTitle, Sheet, T } from '@/components/ui';
 import { cardShadow, useTheme } from '@/constants/theme';
-import { useCollection, useCollectionState, useSession } from '@/lib/couple-context';
+import { useCollectionState, useSession } from '@/lib/couple-context';
 import { daysBetween, fromKey, nextOccurrence, todayKey } from '@/lib/dates';
 
 export default function Home() {
   const t = useTheme();
   const { backend, nameOf, colorOf } = useSession();
-  const dates = useCollection('dates');
+  const dates = useCollectionState('dates');
   const events = useCollectionState('events');
   const [dateOpen, setDateOpen] = useState(false);
 
   const today = todayKey();
   const todayEvents = events.items.filter((e) => e.date === today).sort((a, b) => a.start.localeCompare(b.start));
-  const upcoming = dates
+  const upcoming = dates.items
     .map((d) => {
       const next = nextOccurrence(d.date, d.yearly);
       return { ...d, next, left: daysBetween(today, next) };
@@ -70,8 +70,13 @@ export default function Home() {
       </Card>
 
       {/* Comptes à rebours */}
-      <SectionTitle title="À venir" action="Ajouter" onAction={() => setDateOpen(true)} />
-      {upcoming.length === 0 ? (
+      <SectionTitle title="À venir" action={dates.loading || dates.error ? undefined : 'Ajouter'} onAction={() => setDateOpen(true)} />
+      {dates.loading || dates.error ? (
+        <Card>
+          <T>{dates.loading ? 'Chargement des dates…' : 'Dates indisponibles. Impossible de charger vos comptes à rebours pour le moment.'}</T>
+          {dates.error && <Button label="Réessayer les dates" variant="outline" onPress={dates.retry} />}
+        </Card>
+      ) : upcoming.length === 0 ? (
         <Card onPress={() => setDateOpen(true)}>
           <Row style={{ gap: 12 }}>
             <Ionicons name="hourglass-outline" size={22} color={t.primary} />

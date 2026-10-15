@@ -5,23 +5,29 @@ import { Pressable, View } from 'react-native';
 
 import { useAddMemory } from '@/components/home/memories-strip';
 import { DateField } from '@/components/pickers';
-import { Button, confirmDelete, Empty, Fab, Field, Screen, Sheet, T } from '@/components/ui';
-import { useCollection, useSession } from '@/lib/couple-context';
+import { Button, Card, confirmDelete, Empty, Fab, Field, Screen, Sheet, T } from '@/components/ui';
+import { useCollectionState, useSession } from '@/lib/couple-context';
 import { fromKey } from '@/lib/dates';
 import type { Memory } from '@/lib/types';
 
 export default function Souvenirs() {
-  const memories = useCollection('memories');
+  const memories = useCollectionState('memories');
   const { add, busy } = useAddMemory();
   const [editing, setEditing] = useState<Memory | null>(null);
 
-  const sorted = [...memories].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+  const unavailable = memories.loading || memories.error;
+  const sorted = [...memories.items].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
   const years = [...new Set(sorted.map((m) => m.date.slice(0, 4)))];
 
   return (
     <>
-      <Screen overline={`${memories.length} photo${memories.length > 1 ? 's' : ''}`} title="Souvenirs" onBack={() => router.back()}>
-        {sorted.length === 0 ? (
+      <Screen overline={unavailable ? 'Votre album' : `${memories.items.length} photo${memories.items.length > 1 ? 's' : ''}`} title="Souvenirs" onBack={() => router.back()}>
+        {unavailable ? (
+          <Card>
+            <T>{memories.loading ? 'Chargement des souvenirs…' : 'Souvenirs indisponibles. Impossible de charger votre album pour le moment.'}</T>
+            {memories.error && <Button label="Réessayer les souvenirs" variant="outline" onPress={memories.retry} />}
+          </Card>
+        ) : sorted.length === 0 ? (
           <Empty
             icon="images-outline"
             title="Votre album à deux"
@@ -47,7 +53,7 @@ export default function Souvenirs() {
           ))
         )}
       </Screen>
-      <Fab onPress={add} label={busy ? 'Envoi en cours' : 'Ajouter une photo'} />
+      {!unavailable && <Fab onPress={add} label={busy ? 'Envoi en cours' : 'Ajouter une photo'} />}
       {editing && <MemorySheet memory={editing} onClose={() => setEditing(null)} />}
     </>
   );
