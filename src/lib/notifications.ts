@@ -8,12 +8,19 @@ import type { SpecialDate } from './types';
 const supported = Platform.OS !== 'web';
 export const pushSupported = supported && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
 let remindersGeneration = 0;
+let remindersCleanup: Promise<void> = Promise.resolve();
 
 export async function clearReminders() {
   remindersGeneration++;
   if (supported) {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    await Notifications.dismissAllNotificationsAsync();
+    const cleanup = remindersCleanup.then(async () => {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      await Notifications.dismissAllNotificationsAsync();
+    });
+    // Une erreur reste transmise à l'appelant, sans empoisonner la file des
+    // prochaines tentatives. Les créations attendent la fin du nettoyage natif.
+    remindersCleanup = cleanup.catch(() => {});
+    await cleanup;
   }
 }
 
@@ -68,6 +75,8 @@ export async function scheduleCountdownReminders(dates: SpecialDate[], isActive:
   const isCurrent = () => generation === remindersGeneration && isActive();
   const granted = (await Notifications.getPermissionsAsync()).granted;
   if (!granted || !isCurrent()) return;
+  await remindersCleanup;
+  if (!isCurrent()) return;
 
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   // Les lectures natives peuvent terminer après une programmation plus récente.

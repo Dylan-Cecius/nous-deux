@@ -185,3 +185,55 @@ test('un contexte toujours actif conserve les deux rappels', async () => {
   await scheduleCountdownReminders(dates, () => true);
   expect(scheduled.size).toBe(2);
 });
+
+test.each(['cancel', 'dismiss'])('un nettoyage %s en attente précède les nouveaux rappels', async (step) => {
+  const entered = deferred<void>();
+  const release = deferred<void>();
+  const method = step === 'cancel' ? Notifications.cancelAllScheduledNotificationsAsync : Notifications.dismissAllNotificationsAsync;
+  (method as jest.Mock).mockImplementationOnce(async () => {
+    entered.resolve();
+    await release.promise;
+    if (step === 'cancel') scheduled.clear();
+  });
+  const cleanup = clearReminders();
+  await entered.promise;
+  const next = scheduleCountdownReminders(dates);
+  // Laisser avancer les promesses, sans temps natif ni attente chronométrée.
+  for (let i = 0; i < 12; i++) await Promise.resolve();
+  const startedBeforeCleanup = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls.length;
+  release.resolve();
+  await Promise.all([cleanup, next]);
+  expect(startedBeforeCleanup).toBe(0);
+  expect(scheduled.size).toBe(2);
+});
+
+test('deux nettoyages sont ordonnés et seule la programmation la plus récente reprend', async () => {
+  const firstEntered = deferred<void>();
+  const firstRelease = deferred<void>();
+  const secondEntered = deferred<void>();
+  const secondRelease = deferred<void>();
+  (Notifications.cancelAllScheduledNotificationsAsync as jest.Mock)
+    .mockImplementationOnce(async () => { firstEntered.resolve(); await firstRelease.promise; scheduled.clear(); })
+    .mockImplementationOnce(async () => { secondEntered.resolve(); await secondRelease.promise; scheduled.clear(); });
+  const first = clearReminders();
+  await firstEntered.promise;
+  const obsolete = scheduleCountdownReminders([{ ...dates[0], title: 'Ancienne date' }]);
+  const second = clearReminders();
+  const current = scheduleCountdownReminders(dates);
+  for (let i = 0; i < 12; i++) await Promise.resolve();
+  const concurrentClears = (Notifications.cancelAllScheduledNotificationsAsync as jest.Mock).mock.calls.length;
+  firstRelease.resolve();
+  await secondEntered.promise;
+  secondRelease.resolve();
+  await Promise.all([first, obsolete, second, current]);
+  expect(concurrentClears).toBe(1);
+  expect(scheduled.size).toBe(2);
+  expect([...scheduled.values()].every((n) => n.content.body?.includes('Date fictive'))).toBe(true);
+});
+
+test('une erreur de nettoyage est visible et ne bloque pas toutes les reprises suivantes', async () => {
+  (Notifications.cancelAllScheduledNotificationsAsync as jest.Mock).mockRejectedValueOnce(new Error('Annulation fictive impossible'));
+  await expect(clearReminders()).rejects.toThrow('Annulation fictive impossible');
+  await scheduleCountdownReminders(dates);
+  expect(scheduled.size).toBe(2);
+});
