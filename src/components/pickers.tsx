@@ -42,7 +42,8 @@ function PickerField({
 }) {
   const t = useTheme();
   const scheme = useColorScheme();
-  const context = useMemo(() => ({ mode, disabled }), [mode, disabled]);
+  const context = useMemo(() => ({ mode, disabled, value }), [mode, disabled, value]);
+  const request = useRef<object | null>(null);
   const latest = useRef<{ context: typeof context; onChange: typeof onChange } | null>(null);
   useEffect(() => {
     latest.current = { context, onChange };
@@ -83,12 +84,19 @@ function PickerField({
           accessibilityState={{ disabled }}
           onPress={() => {
             if (!isCurrent()) return;
+            const opening = {};
+            request.current = opening;
             DateTimePickerAndroid.open({
               mode,
               value: toDate(mode, value),
               maximumDate,
               is24Hour: true,
-              onValueChange: (_, d) => change(fromDate(mode, d)),
+              onValueChange: (_, d) => {
+                if (!isCurrent() || request.current !== opening) return;
+                request.current = null;
+                change(fromDate(mode, d));
+              },
+              onDismiss: () => { if (request.current === opening) request.current = null; },
             });
           }}
           style={{
