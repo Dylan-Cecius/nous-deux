@@ -34,7 +34,7 @@ beforeEach(async () => {
   (getDownloadURL as jest.Mock).mockReset().mockResolvedValue('https://fictitious.invalid/photo');
   (toCompactDataUri as jest.Mock).mockReset().mockResolvedValue('data:image/jpeg;base64,FAKE');
   xhr = jest.fn(() => {
-    const request = { response: { size: 12, close: closeBlob }, responseType: '', onload: () => {}, onerror: () => {}, open: jest.fn(), send: () => { onRead?.(); request.onload(); } };
+    const request = { response: { size: 12, close: closeBlob }, status: 200, timeout: 0, responseType: '', onload: () => {}, onerror: () => {}, ontimeout: null, onabort: null, open: jest.fn(), send: () => { onRead?.(); request.onload(); } };
     return request as unknown as XMLHttpRequest;
   });
   Object.defineProperty(globalThis, 'XMLHttpRequest', { configurable: true, writable: true, value: xhr });
@@ -137,5 +137,47 @@ test('un nettoyage défaillant ne masque pas le changement de compte', async () 
   onRead = () => { mockAuth.currentUser = null; };
   closeBlob.mockImplementationOnce(() => { throw new Error('Nettoyage fictif'); });
   await expect(backend.uploadPhoto('fictitious://one')).rejects.toThrow('compte a changé');
+  expect(closeBlob).toHaveBeenCalledTimes(1);
+});
+
+test.each(['onabort', 'ontimeout', 'onerror'])('la lecture terminée par %s ne laisse pas l’action en attente', async event => {
+  xhr.mockImplementationOnce(() => ({
+    responseType: '', open: jest.fn(),
+    send() { (this as any)[event]?.(); },
+  }));
+  let outcome: unknown = 'pending';
+  const pending = backend.uploadPhoto('fictitious://one').then(() => { outcome = 'success'; }, error => { outcome = error; });
+  // Pas de temporisation réelle ni de timeout Jest pour constater l’attente.
+  await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+  expect(outcome).toBeInstanceOf(PhotoUploadError);
+  await pending;
+  expect(uploadBytes).not.toHaveBeenCalled();
+  expect(toCompactDataUri).not.toHaveBeenCalled();
+});
+
+test('la lecture locale demande un délai fini de 60 secondes au transport', async () => {
+  await backend.uploadPhoto('fictitious://one');
+  expect(xhr.mock.results[0].value.timeout).toBe(60000);
+});
+
+test.each([
+  { status: 404, size: 12 }, { status: 500, size: 12 },
+  { status: 200, size: 0 }, { status: 200, size: NaN },
+])('une réponse inutilisable %j est refusée avant upload et libérée', async ({ status, size }) => {
+  onRead = () => { const request = xhr.mock.results[0].value; request.status = status; request.response.size = size; };
+  await expect(backend.uploadPhoto('fictitious://one')).rejects.toBeInstanceOf(PhotoUploadError);
+  expect(uploadBytes).not.toHaveBeenCalled(); expect(toCompactDataUri).not.toHaveBeenCalled();
+  expect(closeBlob).toHaveBeenCalledTimes(1);
+});
+
+test('une lecture sans blob est refusée avant upload', async () => {
+  onRead = () => { xhr.mock.results[0].value.response = null; };
+  await expect(backend.uploadPhoto('fictitious://one')).rejects.toBeInstanceOf(PhotoUploadError);
+  expect(uploadBytes).not.toHaveBeenCalled();
+});
+
+test('le statut zéro d’une lecture locale avec un blob non vide reste accepté', async () => {
+  onRead = () => { xhr.mock.results[0].value.status = 0; };
+  await expect(backend.uploadPhoto('fictitious://one')).resolves.toBe('https://fictitious.invalid/photo');
   expect(closeBlob).toHaveBeenCalledTimes(1);
 });

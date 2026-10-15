@@ -750,3 +750,9 @@ Base aca5a635f33a1ada4ae26d4b75e3ff717c7f81cb. Six tests rouges : absence de clo
 
 Documentation React Native 0.86 Networking/Blob consultée et source installée Blob.js relue (libération explicite). Preuves : lint/TypeScript, 47 suites / 843 tests (7,18 s), git diff --check et diff relu. Pas de mesure mémoire ou upload réel : le test prouve l’appel au nettoyage, pas une baisse quantifiée de mémoire. Aucun fichier distant supprimé ; aucune règle, fonction serveur, donnée réelle, build ou dépense. Lecture XHR interrompue/expirée à examiner ensuite.
 
+## 2026-10-15, 17:02 Europe/Brussels — Lecture photo bornée et réponse vérifiée
+
+Base cd3f8bd4e56a418061405b881d8749919d3edf20. Huit cas rouges : annulation/expiration laissant la promesse pendante, délai infini, statuts HTTP 404/500, taille nulle/non finie et absence de blob transmis à l’upload. Gestion des trois événements d’échec, délai de lecture de 60 secondes et validation de réponse avant envoi ; blob inutilisable libéré. Statut 0 conservé pour les URI locales, contrôle nominal et événement error inclus.
+
+Documentation RN 0.86 Networking/XMLHttpRequest et source installée vérifiées : timeout par défaut à zéro, événements timeout et abort distincts de error. Preuves : lint/TypeScript, 47 suites / 853 tests (7,20 s), diff relu et git diff --check. Les événements sont simulés, aucun délai réel ou transfert natif mesuré. Ce délai concerne seulement la lecture avant upload : aucune annulation ou compensation d’écriture distante prétendue. Serveur/règles inchangés, aucun service facturable, donnée réelle ou diffusion.
+

@@ -88,13 +88,34 @@ function isStorageUnavailable(e: unknown) {
  * Lit un fichier local en Blob. Sur téléphone, `fetch(uri).blob()` produit des Blob que
  * Firebase Storage n'arrive pas à envoyer : XMLHttpRequest est la méthode fiable.
  */
-function readAsBlob(uri: string): Promise<Blob> {
+type PhotoBlob = Blob & { close?: () => void };
+
+function releasePhotoBlob(blob?: PhotoBlob | null) {
+  // Nettoyage natif facultatif sur web, sans changer le résultat de l’opération.
+  try { blob?.close?.(); } catch { /* Ne pas inviter à rejouer une écriture confirmée. */ }
+}
+
+function readAsBlob(uri: string): Promise<PhotoBlob> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.onload = () => resolve(xhr.response as Blob);
-    xhr.onerror = () => reject(new Error('Lecture de la photo impossible'));
+    const fail = () => reject(new Error('Lecture de la photo impossible'));
+    xhr.onload = () => {
+      const blob = xhr.response as PhotoBlob | null;
+      // Les URI locales peuvent avoir le statut 0, sans réponse HTTP.
+      if ((xhr.status !== 0 && (xhr.status < 200 || xhr.status >= 300))
+        || !blob || !Number.isFinite(blob.size) || blob.size <= 0) {
+        releasePhotoBlob(blob);
+        fail();
+        return;
+      }
+      resolve(blob);
+    };
+    xhr.onerror = fail;
+    xhr.onabort = fail;
+    xhr.ontimeout = fail;
     xhr.responseType = 'blob';
     xhr.open('GET', uri, true);
+    xhr.timeout = 60_000;
     xhr.send(null);
   });
 }
@@ -870,7 +891,7 @@ function cloudBackend(coupleId: string, uid: string): Backend {
       if (!storageAvailable) return compact();
       const target = ref(storage, `couples/${coupleId}/photos/${uid}/${newId()}.jpg`);
       let uploaded = false;
-      let blob: (Blob & { close?: () => void }) | undefined;
+      let blob: PhotoBlob | undefined;
       try {
         blob = await readAsBlob(localUri);
         requireCurrentUser(auth, uid);
@@ -891,7 +912,7 @@ function cloudBackend(coupleId: string, uid: string): Backend {
         // React Native expose close() pour libérer le stockage binaire natif.
         // Attendre la fin de l’envoi ; un échec de nettoyage ne doit jamais
         // transformer une écriture confirmée en invitation à la répéter.
-        try { blob?.close?.(); } catch { /* Nettoyage sans changer le résultat. */ }
+        releasePhotoBlob(blob);
       }
     },
     async call<T>(name: string, data: object) {

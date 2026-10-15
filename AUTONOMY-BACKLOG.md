@@ -38,4 +38,4 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 
 | Priorité | Complément d’audit | État / critère de fin |
 | --- | --- | --- |
-| P2 | Mémoire binaire des uploads | À 16:59 : blob natif libéré en sortie d’envoi, y compris échec, changement d’identité et repli ; nettoyage non bloquant pour le résultat et méthode absente sur web acceptée. Six régressions rouges puis vertes et deux contrôles, 843 tests applicatifs. Pas de mesure mémoire native ; lecture interrompue/expirée à examiner. |
+| P2 | Mémoire binaire et lecture des uploads | À 17:02 : blobs libérés en sortie d’envoi et après réponse invalide ; lecture interrompue/expirée rejetée, délai XHR fini de 60 secondes. Réponse HTTP en erreur, blob absent/vide refusés avant upload ; statut local 0 accepté. 853 tests applicatifs, dont huit nouvelles régressions rouges puis vertes. Pas de mesure mémoire/délai natif ; aucun timeout ajouté à une écriture déjà envoyée, aucune garantie d’annulation d’upload. |
