@@ -20,7 +20,7 @@ import { useAssistant } from '@/components/assistant-context';
 import { TimeField } from '@/components/pickers';
 import { cardShadow, Fonts, Spacing, useTheme } from '@/constants/theme';
 import { notifyPartner } from '@/lib/assistant';
-import { useCollection, useSession } from '@/lib/couple-context';
+import { useCollection, useCollectionState, useSession } from '@/lib/couple-context';
 import { endMin, freeSlots, fromMin, mondayOf, toMin } from '@/lib/agenda';
 import { addDays, formatLong, fromKey, todayKey, weekdayShort } from '@/lib/dates';
 import { BOTH, type AgendaEvent, type EventKind } from '@/lib/types';
@@ -36,7 +36,9 @@ const HOUR_H = 40;
 export default function Agenda() {
   const t = useTheme();
   const { backend, members, colorOf } = useSession();
-  const events = useCollection('events');
+  const eventState = useCollectionState('events');
+  const unavailable = eventState.loading || eventState.error;
+  const events = unavailable ? [] : eventState.items;
   const assistant = useAssistant();
 
   const [selected, setSelected] = useState(todayKey());
@@ -143,7 +145,13 @@ export default function Agenda() {
         </Row>
 
         {/* Colonnes par personne */}
-        <View>
+        {unavailable && (
+          <Card>
+            <T>{eventState.loading ? 'Chargement de l’agenda…' : 'Agenda indisponible. Impossible de vérifier vos horaires pour le moment.'}</T>
+            {eventState.error && <Button label="Réessayer l’agenda" variant="outline" onPress={eventState.retry} />}
+          </Card>
+        )}
+        {!unavailable && <View>
           <View style={{ flexDirection: 'row', marginLeft: 48, gap: 8, marginBottom: 10 }}>
             {columns.map((m) => (
               <Row key={m.id} style={{ flex: 1, gap: 6 }}>
@@ -227,15 +235,15 @@ export default function Agenda() {
               })}
             </View>
           </View>
-        </View>
+        </View>}
 
-        {ofDay.length === 0 && (
+        {!unavailable && ofDay.length === 0 && (
           <T muted style={{ textAlign: 'center' }}>
             Aucun horaire ce jour-là. Touchez + pour en ajouter.
           </T>
         )}
       </Screen>
-      <Fab onPress={() => setEditing('new')} label="Ajouter un horaire" />
+      {!unavailable && <Fab onPress={() => setEditing('new')} label="Ajouter un horaire" />}
 
       {editing && (
         <EventSheet

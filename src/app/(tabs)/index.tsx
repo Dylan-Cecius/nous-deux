@@ -9,18 +9,18 @@ import { QuestionCard } from '@/components/home/question-card';
 import { DateField } from '@/components/pickers';
 import { Button, Card, confirmDelete, Field, Ionicons, Row, Screen, SectionTitle, Sheet, T } from '@/components/ui';
 import { cardShadow, useTheme } from '@/constants/theme';
-import { useCollection, useSession } from '@/lib/couple-context';
+import { useCollection, useCollectionState, useSession } from '@/lib/couple-context';
 import { daysBetween, fromKey, nextOccurrence, todayKey } from '@/lib/dates';
 
 export default function Home() {
   const t = useTheme();
   const { backend, nameOf, colorOf } = useSession();
   const dates = useCollection('dates');
-  const events = useCollection('events');
+  const events = useCollectionState('events');
   const [dateOpen, setDateOpen] = useState(false);
 
   const today = todayKey();
-  const todayEvents = events.filter((e) => e.date === today).sort((a, b) => a.start.localeCompare(b.start));
+  const todayEvents = events.items.filter((e) => e.date === today).sort((a, b) => a.start.localeCompare(b.start));
   const upcoming = dates
     .map((d) => {
       const next = nextOccurrence(d.date, d.yearly);
@@ -40,7 +40,14 @@ export default function Home() {
       {/* Aujourd'hui */}
       <SectionTitle title="Aujourd’hui" />
       <Card style={{ gap: 14 }}>
-        {todayEvents.length === 0 ? (
+        {events.loading ? (
+          <T muted>Chargement de l’agenda…</T>
+        ) : events.error ? (
+          <>
+            <T>Agenda indisponible. Impossible de vérifier vos horaires pour le moment.</T>
+            <Button label="Réessayer l’agenda" variant="outline" onPress={events.retry} />
+          </>
+        ) : todayEvents.length === 0 ? (
           <Row style={{ gap: 12 }}>
             <Ionicons name="sunny-outline" size={22} color={t.primary} />
             <T muted>Rien de prévu. Journée libre !</T>
