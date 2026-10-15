@@ -130,6 +130,18 @@ type Session = { mode: 'local' } | { mode: 'cloud'; coupleId: string; userId: st
 
 const SESSION_KEY = 'session';
 
+function parseSession(raw: string): Session {
+  const invalid = () => new Error('La session enregistrée est illisible. Réessaie ou contacte l’assistance avant de la réinitialiser.');
+  let value: unknown;
+  try { value = JSON.parse(raw); } catch { throw invalid(); }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw invalid();
+  const saved = value as Record<string, unknown>;
+  if (saved.mode === 'local') return { mode: 'local' };
+  const validId = (id: unknown): id is string => typeof id === 'string' && id.trim().length > 0 && !id.includes('/');
+  if (saved.mode !== 'cloud' || !validId(saved.userId) || !validId(saved.coupleId)) throw invalid();
+  return { mode: 'cloud', userId: saved.userId, coupleId: saved.coupleId };
+}
+
 // Auth et la clé de session sont partagés par tous les écrans. Une ancienne
 // restauration/déconnexion doit terminer avant qu’une nouvelle session soit créée.
 let sessionWork: Promise<void> = Promise.resolve();
@@ -146,7 +158,7 @@ export async function loadSession(): Promise<Backend | null> {
 async function loadSessionNow(): Promise<Backend | null> {
   const raw = await AsyncStorage.getItem(SESSION_KEY);
   if (!raw) return null;
-  const session = JSON.parse(raw) as Session;
+  const session = parseSession(raw);
   if (session.mode === 'local') return localBackend();
   const { auth, db } = firebase();
   await auth.authStateReady();

@@ -34,6 +34,22 @@ beforeEach(async () => {
 
 const profile = { name: 'Alice fictive', color: '#abcdef' };
 
+test.each([
+  '{broken', 'null', '[]', '{}', '"local"',
+  JSON.stringify({ mode: 'unknown', userId: 'alice', coupleId: 'couple' }),
+  JSON.stringify({ mode: 'cloud', coupleId: 'couple' }),
+  JSON.stringify({ mode: 'cloud', userId: 'alice', coupleId: 42 }),
+  JSON.stringify({ mode: 'cloud', userId: '', coupleId: 'couple' }),
+  JSON.stringify({ mode: 'cloud', userId: 'alice', coupleId: 'a/b' }),
+])('une session mémorisée mal formée ne déconnecte ni ne contacte Firebase : %s', async (raw) => {
+  await AsyncStorage.setItem('session', raw);
+  await expect(loadSession()).rejects.toThrow('session enregistrée');
+  expect(firebase).not.toHaveBeenCalled();
+  expect(signOut).not.toHaveBeenCalled();
+  expect(getDoc).not.toHaveBeenCalled();
+  expect(await AsyncStorage.getItem('session')).toBe(raw);
+});
+
 test('une sécurisation en attente ne lie pas l’e-mail à un autre compte', async () => {
   const auth = { authStateReady: jest.fn(), currentUser: { uid: 'alice' } };
   const original = (firebase as jest.Mock).getMockImplementation();
