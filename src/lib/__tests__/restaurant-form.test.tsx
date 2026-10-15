@@ -3,6 +3,7 @@ import Restos from '@/app/(tabs)/restos';
 import { useCollectionState, useSession } from '../couple-context';
 import { confirmDelete } from '@/components/ui';
 import { showDialog } from '@/components/dialog';
+import { Linking } from 'react-native';
 
 jest.mock('../couple-context', () => ({ useCollectionState: jest.fn(), useSession: jest.fn() }));
 jest.mock('@/components/dialog', () => ({ showDialog: jest.fn() }));
@@ -136,4 +137,14 @@ test('une nouvelle fiche reprend après erreur sans appel Places', async () => {
   await refresh();
   await act(async () => { await button('Enregistrer')(); });
   expect(backend.add).toHaveBeenCalledWith('restaurants', expect.objectContaining({ name: 'Nom repris', status: 'envie' }));
+});
+
+test('le bouton carte ne transmet pas un schéma arbitraire au système', async () => {
+  const openUrl = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  try {
+    (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...resto, mapsUrl: 'custom-app://unexpected/action' }] });
+    await act(async () => { root = create(<Restos />); });
+    await act(async () => { await button('Voir Resto fictif sur la carte')(); });
+    expect(openUrl).toHaveBeenCalledWith('https://www.google.com/maps/search/?api=1&query=Resto%20fictif');
+  } finally { openUrl.mockRestore(); }
 });

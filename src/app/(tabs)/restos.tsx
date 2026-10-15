@@ -26,6 +26,7 @@ import { pickOne } from '@/lib/random';
 import { features } from '@/lib/features';
 import type { Restaurant, RestaurantStatus } from '@/lib/types';
 import { useAsyncAction } from '@/lib/use-async-action';
+import { restaurantMapUrl } from '@/lib/restaurant-map';
 
 const STATUSES: { value: RestaurantStatus; label: string }[] = [
   { value: 'envie', label: 'À tester' },
@@ -96,8 +97,7 @@ function RestosContent() {
     ]);
   };
 
-  const openMap = (r: Restaurant) =>
-    r.mapsUrl ? Linking.openURL(r.mapsUrl) : Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${r.name} ${r.place ?? ''}`)}`);
+  const openMap = (r: Restaurant) => Linking.openURL(restaurantMapUrl(r));
 
   return (
     <>
