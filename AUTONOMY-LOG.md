@@ -1509,3 +1509,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 | Message d’échec local | 60e56e556cecb0faeb944f77cf859a39e031ec0a |
 | Explications d’invitation/reconnexion | a8d55b5521d0cea2acac0755233163a6dd9eeeea |
 | Adaptation des libellés longs | feb15ea687117776df80d73db8074f454ff3deb6 |
+
+## 2026-10-20 — 23:37 Europe/Brussels — Repère du jour dans l’agenda
+
+- Reprise via GitHub à ff216ac47988fdef69437937b63ab4329251d4ad : PR #3 ouverte/en brouillon, consignes et journal relus, règle multi-tâches déjà conforme. 178 blobs présents identiques aux SHA courants, sept PNG absents, copie propre. Aucun changement concurrent observé.
+- Piste horaires traversant minuit écartée après lecture complète du contrat : formulaire et règles imposent start < end et demandent une saisie par journée. L’essai local sur données hors contrat et son code ont été retirés, aucun changement serveur/règles ni nouvelle prise en charge nocturne revendiquée.
+- Défaut reproduit sur l’écran monté à minuit : le repère coloré du jour reste à la veille tant qu’aucun autre événement ne rend la vue. Agenda utilise maintenant useToday, l’horloge locale partagée existante ; la journée consultée ne change pas automatiquement.
+- Preuves : un nouveau test rouge puis vert avec passage à minuit, sans rendu parent forcé ; conservation du jour sélectionné. Le montage précise AppState actif (la valeur du double par défaut ne déclenchait pas l’horloge). 104 tests agenda/horloge réussis en 2,411 s ; lint, TypeScript et diff check réussis, diff relu. Aucune écriture, notification, suppression ou API native nouvelle ; horloge/événements simulés, rendu iPhone non validé.

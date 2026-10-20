@@ -5,7 +5,7 @@ import Home from '@/app/(tabs)/index';
 import { useCollectionState, useSession } from '../couple-context';
 import { confirmDelete } from '@/components/ui';
 import { showDialog } from '@/components/dialog';
-import { addDays, todayKey } from '../dates';
+import { addDays, formatLong, todayKey } from '../dates';
 import { notifyPartner } from '../assistant';
 import { MemberColors } from '@/constants/member-colors';
 
@@ -19,12 +19,15 @@ jest.mock('../couple-context', () => {
 jest.mock('@/components/assistant-context', () => ({ useAssistant: () => null }));
 jest.mock('../assistant', () => ({ notifyPartner: jest.fn() }));
 jest.mock('@/components/dialog', () => ({ showDialog: jest.fn() }));
+jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), {
+  AppState: { value: { currentState: 'active', addEventListener: jest.fn(() => ({ remove: jest.fn() })) } },
+}));
 jest.mock('@/components/invitation-card', () => ({ InvitationCard: () => null }));
 jest.mock('@/components/home/home-hero', () => ({ HomeHero: () => null }));
 jest.mock('@/components/home/love-cards', () => ({ NoteCard: () => null, PingCard: () => null }));
 jest.mock('@/components/home/memories-strip', () => ({ MemoriesStrip: () => null }));
 jest.mock('@/components/home/question-card', () => ({ QuestionCard: () => null }));
-jest.mock('@/constants/theme', () => ({ useTheme: () => ({ successSoft: '#ddffee' }), cardShadow: () => ({}), Fonts: {}, Spacing: {} }));
+jest.mock('@/constants/theme', () => ({ useTheme: () => ({ successSoft: '#ddffee', primary: '#123456' }), cardShadow: () => ({}), Fonts: {}, Spacing: {} }));
 jest.mock('@/components/pickers', () => ({ TimeField: 'time', DateField: () => null }));
 jest.mock('@/components/ui', () => {
   const React = jest.requireActual('react');
@@ -39,8 +42,21 @@ const event = { id: 'event', title: 'Horaire fictif', date: todayKey(), who: 'al
 const backend = { mode: 'cloud', coupleId: 'couple', userId: 'alice', addEvents: jest.fn().mockResolvedValue(undefined), update: jest.fn().mockResolvedValue(undefined), remove: jest.fn().mockResolvedValue(undefined), removeEvents: jest.fn().mockResolvedValue(undefined) };
 const session = { backend, members: [{ id: 'alice', name: 'Alice' }, { id: 'bob', name: 'Bob' }], colorOf: () => '#000', nameOf: () => 'Alice' };
 beforeEach(() => { (useCollectionState as jest.Mock).mockReturnValue(ready); (useSession as jest.Mock).mockReturnValue(session); });
-afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
+afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); jest.useRealTimers(); });
 const text = () => root.root.findAllByType('t' as never).map((node) => node.children.filter((child) => typeof child === 'string').join('')).join('\n');
+
+test('à minuit le repère du jour avance sans changer la journée consultée', async () => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(new Date(2026, 9, 20, 23, 59, 59));
+  await act(async () => { root = create(<Agenda />); });
+  const day = (key: string) => root.root.findAllByProps({ accessibilityLabel: formatLong(key) }).find(node => typeof node.props.onPress === 'function')!;
+  await act(async () => day('2026-10-19').props.onPress());
+  expect(day('2026-10-20').findAllByType('t' as never)[1].props.color).toBe('#123456');
+  await act(async () => jest.advanceTimersByTime(1025));
+  expect(day('2026-10-21').findAllByType('t' as never)[1].props.color).toBe('#123456');
+  expect(day('2026-10-20').findAllByType('t' as never)[1].props.color).not.toBe('#123456');
+  expect(day('2026-10-19').props.accessibilityState.selected).toBe(true);
+});
 
 // Opaque foreground or alpha composited on the actual opaque member background.
 const contrast = (foreground: string, background: string) => {

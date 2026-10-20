@@ -28,6 +28,7 @@ import { addDays, formatLong, fromKey, todayKey, weekdayShort } from '@/lib/date
 import { BOTH, type AgendaEvent, type EventKind } from '@/lib/types';
 import { useAsyncAction } from '@/lib/use-async-action';
 import { draftPatch, useSharedDraft } from '@/lib/use-shared-draft';
+import { useToday } from '@/lib/use-today';
 
 const KINDS: { value: EventKind; label: string; icon: 'briefcase-outline' | 'person-outline' | 'heart-outline' }[] = [
   { value: 'travail', label: 'Travail', icon: 'briefcase-outline' },
@@ -44,6 +45,7 @@ export default function Agenda() {
 
 function AgendaContent() {
   const t = useTheme();
+  const today = useToday();
   const { backend, members, colorOf } = useSession();
   const eventState = useCollectionState('events');
   const context = useMemo(() => ({ backend }), [backend]);
@@ -114,7 +116,7 @@ function AgendaContent() {
         <View style={[{ flexDirection: 'row', backgroundColor: t.card, borderRadius: 22, padding: 6, gap: 4 }, cardShadow(t.shadow)]}>
           {days.map((d) => {
             const active = d === selected;
-            const isToday = d === todayKey();
+            const isToday = d === today;
             const whos = [...new Set(events.filter((e) => e.date === d).map((e) => e.who))];
             return (
               <Pressable
