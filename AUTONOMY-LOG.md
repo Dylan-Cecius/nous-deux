@@ -1255,3 +1255,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - La borne est désormais normalisée en journée locale, incluse dans le contexte d’interaction et vérifiée avant transmission. La journée limite reste entière ; une nouvelle instance Date du même jour n’invalide pas une sélection ouverte. Sur web, une saisie hors borne reste un brouillon et revient à la valeur contrôlée à la sortie du champ.
 - Preuves : six cas rouges puis verts sur les trois branches simulées et un contrôle de borne équivalente ; 105 tests ciblés (sélecteurs, date du couple, souvenir) réussis en 1,289 s. npm run lint, tsc --noEmit et diff propres. Documentation Expo SDK 57 DateTimePicker consultée.
 - Limites : le contrôle des callbacks natifs est défensif ; aucun dialogue iOS/Android ni clavier web réel essayé. Les validations métier des formulaires restent en place. Aucune écriture réelle, règle, fonction serveur, build ou distribution.
+
+## 2026-10-20 — 19:41 Europe/Brussels — Cadrage disponible après mesure
+
+- Base : `8a0d1beeca9127cc018f9ff2f9744d764d886ba4`. Avant chargement/mesure, les commandes étaient actives alors que le zoom minimal dépend du ratio encore inconnu ; le repli du calcul était 1 au lieu du minimum réel (par exemple 0,25 pour un portrait 1:4).
+- L’éditeur indique son indisponibilité et bloque commandes/prise de geste tant que la géométrie n’est pas complète et valide. Les anciens événements de cette période ne deviennent pas actifs après chargement ; une commande nouvelle utilise le minimum réel.
+- Preuves : trois nouveaux cas rouges puis verts (image absente, cadre absent, mesure invalide), avec réactivation et zoom attendu 0,4 depuis la vue entière du portrait. 35 tests ciblés réussis en 0,808 s, lint/TypeScript et diff propres.
+- Limites : API image et mesures simulées, pas de chronométrage de chargement réel ni rendu natif. Les cadrages persistés ne sont pas modifiés automatiquement ; aucune écriture réelle ou opération facturable.

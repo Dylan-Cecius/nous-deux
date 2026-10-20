@@ -133,6 +133,33 @@ describe('cycle de vie du glissement', () => {
   });
 });
 
+test.each(['image', 'cadre', 'mesure invalide'])('le cadrage attend une géométrie complète : %s manquant', async missing => {
+  const onChange = jest.fn();
+  const surface = () => root.root.findAllByType(View).find(node => node.props.onResponderMove)!;
+  const buttons = () => root.root.findAllByType('button' as never);
+  await act(async () => { root = create(<PhotoFrameEditor uri="fictitious://portrait" frame={{ ...frame, zoom: 0 }} onChange={onChange} />); });
+  await act(async () => {
+    if (missing !== 'image') root.root.findByType('image' as never).props.onLoad({ source: { width: 100, height: 400 } });
+    if (missing !== 'cadre') surface().props.onLayout({ nativeEvent: { layout: { width: 100, height: missing === 'mesure invalide' ? 0 : 100 } } });
+  });
+  expect(surface().props.onStartShouldSetResponder()).toBe(false);
+  for (const button of buttons()) {
+    expect(button.props.disabled).toBe(true);
+    await act(async () => button.props.onPress());
+  }
+  expect(onChange).not.toHaveBeenCalled();
+  const oldZoom = buttons().find(button => button.props.label === 'Zoomer')!.props.onPress;
+  await act(async () => {
+    root.root.findByType('image' as never).props.onLoad({ source: { width: 100, height: 400 } });
+    surface().props.onLayout({ nativeEvent: { layout: { width: 100, height: 100 } } });
+  });
+  await act(async () => oldZoom());
+  expect(onChange).not.toHaveBeenCalled();
+  expect(buttons().every(button => !button.props.disabled)).toBe(true);
+  await act(async () => buttons().find(button => button.props.label === 'Zoomer')!.props.onPress());
+  expect(onChange).toHaveBeenCalledWith({ x: 0.5, y: 0.5, zoom: 0.4 });
+});
+
 test.each([true, false])('désactivé=%s : commandes et déplacement respectent le verrou', async (disabled) => {
   const onChange = jest.fn();
   await act(async () => { root = create(<PhotoFrameEditor uri="fictitious://photo" frame={frame} onChange={onChange} disabled={disabled} />); });
