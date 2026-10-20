@@ -78,7 +78,7 @@ function ScopedPingCard() {
     <View style={{ gap: 8 }}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Envoyer « je pense à toi »"
+        accessibilityLabel={backend.mode === 'local' ? 'Enregistrer un cœur sur ce téléphone' : 'Envoyer « je pense à toi »'}
         onPress={ping}
         disabled={pending || sent || waitingForPartner}
         accessibilityState={{ disabled: pending || sent || waitingForPartner, busy: pending }}
@@ -107,7 +107,7 @@ function ScopedPingCard() {
               : `Un appui, et ${partner?.name ?? 'ta moitié'} reçoit un petit cœur`}
           </T>
         </View>
-        <Ionicons name="paper-plane-outline" size={20} color={t.primary} />
+        <Ionicons name={backend.mode === 'local' ? 'heart-outline' : 'paper-plane-outline'} size={20} color={t.primary} />
       </Pressable>
       {notes.error && <Button label="Réessayer les cœurs reçus" variant="outline" onPress={notes.retry} />}
     </View>
@@ -207,6 +207,9 @@ function ScopedNoteCard() {
       ) : (
         <T variant="quote">{latest ? quote(latest.text) : 'Pas encore de mot doux… et si tu commençais ?'}</T>
       )}
+      {backend.mode === 'local' && (
+        <T variant="small" muted>Ce mot reste sur ce téléphone, sans envoi ni notification à ta moitié.</T>
+      )}
       <Row>
         <Field
           accessibilityLabel="Ton mot doux"
@@ -221,10 +224,10 @@ function ScopedNoteCard() {
           placeholder={partner ? `Un petit mot pour ${partner.name}…` : 'Un petit mot…'}
           grow
           onSubmitEditing={send}
-          returnKeyType="send"
+          returnKeyType={backend.mode === 'local' ? 'done' : 'send'}
           style={{ borderColor: 'transparent' }}
         />
-        <IconButton icon="arrow-forward" label="Envoyer" variant="primary" onPress={send} disabled={busy || !note.trim()} size={50} />
+        <IconButton icon={backend.mode === 'local' ? 'checkmark' : 'arrow-forward'} label={backend.mode === 'local' ? 'Enregistrer le mot' : 'Envoyer'} variant="primary" onPress={send} disabled={busy || !note.trim()} size={50} />
       </Row>
       {written.length > 1 && (
         <Pressable onPress={() => setShowAll(!showAll)} hitSlop={8}>

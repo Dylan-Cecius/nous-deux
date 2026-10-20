@@ -37,7 +37,7 @@ function SouvenirsContent() {
           <Empty
             icon="images-outline"
             title="Votre album à deux"
-            text="Ajoutez vos plus belles photos. Chaque année, l’app vous rappellera ce que vous faisiez ce jour-là."
+            text="Ajoutez vos plus belles photos. Retrouvez sur l’accueil un souvenir des années passées à la même date."
           />
         ) : (
           years.map((year) => (

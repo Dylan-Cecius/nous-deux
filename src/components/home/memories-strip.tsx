@@ -148,7 +148,7 @@ export function MemoriesStrip() {
         <Row style={{ gap: 8 }}>
           <Ionicons name="images-outline" size={18} color={t.textSecondary} />
           <T variant="small" muted style={{ flex: 1 }}>
-            Ajoutez vos photos : l’app vous les rappellera chaque année, le même jour.
+            Ajoutez vos photos : retrouvez sur l’accueil un souvenir des années passées à la même date.
           </T>
         </Row>
       )}

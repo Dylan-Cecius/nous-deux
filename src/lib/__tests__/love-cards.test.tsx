@@ -306,12 +306,13 @@ test('un échec cœur d’un ancien backend reste silencieux', async () => {
 });
 
 test('le délai cœur se termine et le mode local peut enregistrer sans partenaire', async () => {
+  const heart = () => root.root.findByProps({ accessibilityLabel: 'Enregistrer un cœur sur ce téléphone' });
   jest.useFakeTimers();
   try {
     const session = (useSession as jest.Mock)();
     (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...session.backend, mode: 'local' }, partner: undefined });
     await act(async () => { root = create(<PingCard />); });
-    await act(async () => { await heart().props.onPress(); });
+    await act(async () => { await root.root.findByProps({ accessibilityLabel: 'Enregistrer un cœur sur ce téléphone' }).props.onPress(); });
     expect(text()).toContain('Cœur enregistré');
     expect(heart().props.disabled).toBe(true);
     await act(async () => { jest.advanceTimersByTime(2500); });

@@ -42,7 +42,7 @@ test('réduction activée : cœur immobile sans boucle native', async () => {
   await mount();
   expect(Animated.loop).not.toHaveBeenCalled();
   expect(scale()).toBe(1);
-  const button = root.root.findByProps({ accessibilityLabel: 'Envoyer « je pense à toi »' });
+  const button = root.root.findByProps({ accessibilityLabel: 'Enregistrer un cœur sur ce téléphone' });
   expect(StyleSheet.flatten(button.props.style({ pressed: true })).transform).toEqual([{ scale: 1 }]);
 });
 
@@ -68,7 +68,7 @@ test('désactivation en direct : animation disponible, puis arrêt au démontage
 test('sans mouvement, le bouton conserve son action locale explicite', async () => {
   (useReducedMotion as jest.Mock).mockReturnValue(true);
   await mount();
-  await act(async () => root.root.findByProps({ accessibilityLabel: 'Envoyer « je pense à toi »' }).props.onPress());
+  await act(async () => root.root.findByProps({ accessibilityLabel: 'Enregistrer un cœur sur ce téléphone' }).props.onPress());
   expect(sendLoveNote).toHaveBeenCalledTimes(1);
   expect(root.root.findAllByType('t' as never).some(node => node.props.children === 'Cœur enregistré !')).toBe(true);
 });
