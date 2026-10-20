@@ -42,6 +42,43 @@ const ask = async () => {
 const refresh = async () => { await act(async () => root.update(<Listes />)); };
 const editTitle = async () => { await act(async () => root.root.findByProps({ label: 'Quoi ?' }).props.onChangeText('Brouillon fictif')); };
 
+describe.each(['bucket', 'films', 'shopping', 'gifts'])('dernière saisie %s', (tab) => {
+  const prepare = async (fresh: boolean) => {
+    (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, list: tab }] });
+    await act(async () => { root = create(<Listes />); });
+    await act(async () => root.root.findByType('segmented' as never).props.onChange(tab));
+    await act(async () => {
+      if (fresh) root.root.findByType('fab' as never).props.onPress();
+      else root.root.findAll((node) => typeof node.props.onLongPress === 'function')[0].props.onPress();
+    });
+  };
+  test.each([false, true])('champs conservés avant rendu (création : %s)', async (fresh) => {
+    await prepare(fresh);
+    const submit = button('Enregistrer');
+    await act(async () => {
+      const fields = root.root.findAllByType('field' as never);
+      fields[0].props.onChangeText(' Dernier titre ');
+      fields[1].props.onChangeText(' Dernier détail ');
+      if (tab === 'films') root.root.findByType('chips' as never).props.onChange('serie');
+      await submit();
+    });
+    const data = { title: 'Dernier titre', detail: 'Dernier détail', ...(tab === 'films' ? { media: 'serie' } : {}) };
+    const collection = tab === 'gifts' ? 'gifts' : 'items';
+    if (fresh) expect(backend.add).toHaveBeenCalledWith(collection, expect.objectContaining(data));
+    else expect(backend.update).toHaveBeenCalledWith(collection, item.id, data);
+  });
+  test('titre effacé avant le rendu : aucune écriture ni fermeture', async () => {
+    await prepare(false);
+    const submit = button('Enregistrer');
+    await act(async () => {
+      root.root.findByProps({ label: 'Quoi ?' }).props.onChangeText('  ');
+      await submit();
+    });
+    expect(backend.update).not.toHaveBeenCalled();
+    expect(root.root.findAllByType('sheet' as never)).toHaveLength(1);
+  });
+});
+
 test.each([0, 1])('le champ %s ne change pas pendant une sauvegarde, puis reprend après échec', async (index) => {
   await open();
   await editTitle();

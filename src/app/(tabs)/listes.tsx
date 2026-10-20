@@ -353,6 +353,13 @@ function ItemSheet({ item, tab, onClose }: { item?: Entry; tab: Tab; onClose: ()
     return isCurrent() && state && !state.loading && !state.error && containsItem(state);
   };
   const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
+  const changeDraft = (patch: Partial<Pick<typeof draft, 'title' | 'detail' | 'media'>>) => run(() => {
+    const current = latest.current;
+    if (!current || !isCurrent()) return;
+    const next = { ...current.draft, ...patch };
+    current.draft = next;
+    setDraft(next);
+  });
   const runCurrent = (action: () => Promise<void>) => run(async () => {
     if (!canWrite()) return;
     try { await action(); }
@@ -395,11 +402,11 @@ function ItemSheet({ item, tab, onClose }: { item?: Entry; tab: Tab; onClose: ()
           ]}
           value={media}
           disabled={pending}
-          onChange={(value) => run(() => { if (isCurrent()) setDraft(current => ({ ...current, media: value })); })}
+          onChange={(value) => changeDraft({ media: value })}
         />
       )}
-      <Field label="Quoi ?" value={title} maxLength={200} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setDraft(current => ({ ...current, title: value })); })} placeholder={copy.placeholder} />
-      <Field label={copy.detail} value={detail} maxLength={2000} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setDraft(current => ({ ...current, detail: value })); })} placeholder={copy.detailPlaceholder} />
+      <Field label="Quoi ?" value={title} maxLength={200} editable={!pending} onChangeText={(value) => changeDraft({ title: value })} placeholder={copy.placeholder} />
+      <Field label={copy.detail} value={detail} maxLength={2000} editable={!pending} onChangeText={(value) => changeDraft({ detail: value })} placeholder={copy.detailPlaceholder} />
       {unavailable && <T variant="small" muted>Liste indisponible ou article retiré. Ton brouillon est conservé ; recharge la liste avant de continuer.</T>}
       {collection.error && <Button label="Recharger la liste du formulaire" variant="outline" onPress={collection.retry} />}
       <Button label="Enregistrer" disabled={!title.trim() || pending || unavailable} onPress={save} />

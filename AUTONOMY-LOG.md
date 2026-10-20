@@ -1347,3 +1347,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Chaque événement actualise immédiatement la référence lue par la validation et son état affiché sous le verrou existant. Arrondi, bornes, appartenance du payeur et contexte sont conservés ; aucune action de remboursement/suppression modifiée.
 - Preuves : 31 tests du formulaire réussis en 0,969 s ; lint/TypeScript/diff check réussis, diff relu. Revue React : synchronisation dans l’événement, pas d’effet ou de dépendance ajouté.
 - Limites : dépenses fictives et backend doublé uniquement, aucune opération financière, aucun appel serveur ni essai clavier/appareil.
+
+## 2026-10-20 — 21:38 Europe/Brussels — Dernière saisie des listes
+
+- Douze régressions reproduites : titre/détail et type film-série changés juste avant validation étaient perdus ; effacer le titre pouvait fermer la fiche. Quatre rubriques couvertes, création et modification.
+- Synchronisation immédiate du brouillon dans les trois événements de saisie sous le verrou existant ; bases reçues, patch minimal et confidentialité des cadeaux conservés. Aucun changement des mécanismes de suppression, règles ou backend.
+- Preuves : 47 tests du formulaire réussis en 1,325 s ; lint/TypeScript/diff check réussis et diff relu. Revue React : composition des modifications consécutives sur le brouillon courant, pas d’état partagé global ni d’effet ajouté.
+- Limites : tests de composants avec stockage fictif ; aucune garantie de conflit multi-appareils ou de saisie native validée. Les tests de suppression existants ne constituent pas une nouvelle recette sécurité.
