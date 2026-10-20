@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, type AlertButton } from 'react-native';
 
 import { Fonts, useTheme } from '@/constants/theme';
+import { useReducedMotion } from '@/lib/use-reduced-motion';
 
 type Dialog = { title: string; message?: string; buttons: AlertButton[] };
 type Listener = (d: Dialog | null) => void;
@@ -23,6 +24,7 @@ export function showDialog(title: string, message?: string, buttons: AlertButton
 /** À placer une fois, au-dessus des écrans (utile seulement sur le web). */
 export function DialogHost() {
   const t = useTheme();
+  const reducedMotion = useReducedMotion();
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const current = useRef<Dialog | null>(null);
 
@@ -50,7 +52,7 @@ export function DialogHost() {
   const cancel = dialog.buttons.find((b) => b.style === 'cancel');
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={() => choose(cancel)}>
+    <Modal visible transparent animationType={reducedMotion ? 'none' : 'fade'} onRequestClose={() => choose(cancel)}>
       <View style={styles.backdrop}>
         <View style={[styles.box, { backgroundColor: t.background }]} accessibilityRole="alert">
           <ScrollView style={styles.content} contentContainerStyle={{ gap: 10 }}>

@@ -1,6 +1,9 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { DialogHost, showDialog } from '@/components/dialog';
+import { useReducedMotion } from '../use-reduced-motion';
+
+jest.mock('../use-reduced-motion', () => ({ useReducedMotion: jest.fn(() => false) }));
 
 jest.mock('@/constants/theme', () => ({ useTheme: () => ({}), Fonts: {} }));
 jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), {
@@ -11,8 +14,21 @@ jest.mock('react-native', () => Object.create(jest.requireActual('react-native')
 
 let root: ReactTestRenderer;
 const buttons = () => root.root.findAllByType(Pressable);
-beforeEach(async () => { Platform.OS = 'web'; await act(async () => { root = create(<DialogHost />); }); });
+beforeEach(async () => { Platform.OS = 'web'; (useReducedMotion as jest.Mock).mockReturnValue(false); await act(async () => { root = create(<DialogHost />); }); });
 afterEach(async () => { await act(async () => root.unmount()); jest.restoreAllMocks(); });
+
+test('le dialogue web devient statique sans perdre la confirmation courante', async () => {
+  const action = jest.fn();
+  await act(async () => showDialog('Fictif', 'Message conservé', [{ text: 'Confirmer', onPress: action }]));
+  expect(root.root.findByType(Modal).props.animationType).toBe('fade');
+  (useReducedMotion as jest.Mock).mockReturnValue(true);
+  await act(async () => root.update(<DialogHost />));
+  expect(root.root.findByType(Modal).props.animationType).toBe('none');
+  expect(root.root.findAllByType(Text).some(node => node.props.children === 'Message conservé')).toBe(true);
+  await act(async () => buttons()[0].props.onPress());
+  expect(action).toHaveBeenCalledTimes(1);
+  (useReducedMotion as jest.Mock).mockReturnValue(false);
+});
 
 test('un message long dispose d’une zone défilante bornée sans emporter les boutons', async () => {
   const message = 'Texte fictif très long. '.repeat(200);

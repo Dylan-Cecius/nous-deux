@@ -1131,3 +1131,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Réutilisation du hook conservateur existant ; boucle non lancée/arrêtée, échelle neutre et effet de pression sans réduction de taille. Action explicite, confirmation et envoi local simulé inchangés.
 - Preuves : quatre nouveaux tests (deux rouges puis verts, deux contrôles), 65 tests ciblés réussis en 1,917 s ; lint/TypeScript et diff propres. Documentation React Native0.86 AccessibilityInfo/Animated relue. Tests d’animations et d’envoi doublés, aucun cœur ni notification réel envoyé.
 - Limites : autres animations (logos, transitions) encore à examiner ; pas de réglage système essayé sur appareil ni de validation globale. Aucun serveur/règle, build, déploiement ou dépense.
+
+## 2026-10-20 — 17:35 Europe/Brussels — Transitions modales adaptées
+
+- Base : `85ab4b7f200395fc64e3fb5f2d19b576cec33acd`. Deux tests rouges sur Sheet et DialogHost : animations slide/fade encore demandées après activation de la réduction du mouvement.
+- animationType devient none lorsque le hook indique une réduction (y compris avant lecture fiable), sans démonter les champs ni remplacer la confirmation. Alert natif n’est pas remplacé.
+- Preuves : deux régressions vertes avec conservation du champ/message et de la fermeture/confirmation ; lint/TypeScript réussis, 57 suites / 1221 tests réussis en 12,514 s, diff relu/propre. Source : https://reactnative.dev/docs/0.86/modal.
+- Limites : propriétés de composants vérifiées, animation native déjà engagée et focus clavier non essayés sur appareil/navigateur. Aucune build, distribution, dépense ni activation de fonctionnalité payante.

@@ -1,7 +1,10 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Pressable, StyleSheet, Text, TextInput } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextInput } from 'react-native';
 import { Button, Card, Chips, ColorPicker, Empty, Field, IconButton, Screen, SectionTitle, Segmented, Sheet, T } from '@/components/ui';
 import { tap } from '../haptics';
+import { useReducedMotion } from '../use-reduced-motion';
+
+jest.mock('../use-reduced-motion', () => ({ useReducedMotion: jest.fn(() => false) }));
 
 jest.mock('@expo/vector-icons/Ionicons', () => 'icon');
 jest.mock('expo-linear-gradient', () => ({ LinearGradient: 'gradient' }));
@@ -17,8 +20,23 @@ jest.mock('react-native', () => Object.create(jest.requireActual('react-native')
 }));
 
 let root: ReactTestRenderer;
+beforeEach(() => { (useReducedMotion as jest.Mock).mockReturnValue(false); });
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
 const options = [{ value: 'alice', label: 'Alice' }, { value: 'bob', label: 'Bob' }];
+
+test('la feuille suit la réduction du mouvement sans perdre ses enfants ni sa fermeture', async () => {
+  const close = jest.fn();
+  const content = <Sheet visible title="Formulaire fictif" onClose={close}><Field label="Prénom" value="Alice fictive" /></Sheet>;
+  await act(async () => { root = create(content); });
+  expect(root.root.findByType(Modal).props.animationType).toBe('slide');
+  (useReducedMotion as jest.Mock).mockReturnValue(true);
+  await act(async () => root.update(<Sheet visible title="Formulaire fictif" onClose={close}><Field label="Prénom" value="Alice fictive" /></Sheet>));
+  expect(root.root.findByType(Modal).props.animationType).toBe('none');
+  expect(root.root.findByType(TextInput).props.value).toBe('Alice fictive');
+  await act(async () => root.root.findByType(Modal).props.onRequestClose());
+  expect(close).toHaveBeenCalledTimes(1);
+  (useReducedMotion as jest.Mock).mockReturnValue(false);
+});
 
 test('les onglets n’imposent ni hauteur fixe ni troncature à leurs libellés', async () => {
   await act(async () => { root = create(<Segmented options={[{ value: 'todo', label: 'À découvrir ensemble' }, { value: 'done', label: 'Déjà découverts ensemble' }]} value="todo" onChange={() => {}} />); });

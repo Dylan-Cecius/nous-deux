@@ -27,6 +27,7 @@ import { tap } from '@/lib/haptics';
 import { foregroundOnColor } from '@/lib/color-contrast';
 import { useAsyncAction } from '@/lib/use-async-action';
 import { userError } from '@/lib/errors';
+import { useReducedMotion } from '@/lib/use-reduced-motion';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 export { Ionicons };
@@ -598,8 +599,9 @@ export function Sheet({
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType={reducedMotion ? 'none' : 'slide'} transparent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <Pressable style={[StyleSheet.absoluteFill, styles.backdrop]} onPress={onClose} accessibilityLabel="Fermer" />
         <View style={{ flex: 1 }} pointerEvents="none" />
