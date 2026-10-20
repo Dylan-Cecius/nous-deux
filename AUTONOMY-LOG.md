@@ -1159,3 +1159,9 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Palette extraite avec ses noms français, valeurs/ordre strictement conservés et réexport compatibles depuis theme. ColorPicker annonce le nom connu ; valeur inconnue conservée explicitement, casse ignorée pour le nom seulement. Sélection et valeur transmises inchangées.
 - Preuves : sept cas rouges puis verts, trois contrôles de compatibilité ; 115 tests ciblés réussis en 1,816 s, lint/TypeScript et diff propres. Aucun écran à image absente simulé.
 - Limites : propriétés accessibles vérifiées, prononciation/navigation VoiceOver et TalkBack non essayées. Aucune migration, build, distribution, dépense ni donnée utilisateur modifiée.
+
+## 2026-10-20 — 17:50 Europe/Brussels — Recette native des correctifs récents
+
+- Base : `3f72c20a379c938ea2ad34b40ddf73ed056a4b2a`. TESTFLIGHT-REVIEW complété avec six parcours (lecteur d’écran, texte agrandi, contraste, réduction du mouvement, remplacement/partage des invitations), résultats attendus et limites.
+- Scénarios préparés, aucun essai appareil/navigateur ni envoi à un tiers exécuté. Prérequis serveur, coût nul prouvé et données de test exigés ; aucun ancien statut Apple présenté comme actuel.
+- Contrôle : diff documentaire relu et git diff --check réussi. Pas de nouveau test applicatif exécuté pour ce lot de documentation ; dernier contrôle ciblé 115 tests, dernier complet 1237 tests avant les noms des couleurs.

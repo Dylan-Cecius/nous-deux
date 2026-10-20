@@ -82,6 +82,21 @@ Scénarios préparés, **non exécutés sur appareil** et non présents dans la 
 
 Pour chaque essai futur, noter date, plateforme/version système, numéro de build et SHA source, résultat réellement observé et capture anonymisée si nécessaire. Ne cocher aucun de ces parcours sur la seule base des tests automatisés. Les défauts reproduits ici utilisent des données synthétiques ; aucune fuite réelle n'a été constatée.
 
+### Accessibilité et invitations — complément du 20 octobre après-midi
+
+Recette préparée uniquement : **aucun des essais ci-dessous n’a été exécuté sur iPhone, Android ou navigateur réel dans cette session**. Les nouvelles propriétés React, le calcul de contraste et les scénarios simulés ne prouvent pas le rendu natif. Les sept images PNG absentes de la copie de contrôle n’ont pas été remplacées par des images factices ; aucun export visuel ni nouvelle build n’a été produit.
+
+| Parcours | Vérification future sur dispositif de test | Résultat attendu et limite |
+| --- | --- | --- |
+| Lecteur d’écran | Parcourir titres, champs vides puis remplis, choix de membre, date/heure et couleurs. | Titres navigables, noms de champs stables, année/date/heure explicites, choix coché/indisponible annoncé. Couleurs nommées (ex. Orange), pas uniquement un code hexadécimal. Vérifier les focus imbriqués et la prononciation, non prouvés par Jest. |
+| Taille du texte | Augmenter la taille sur le dispositif de test ; vérifier onglets à libellés longs, formulaires et confirmation web longue. | Texte non tronqué dans les onglets corrigés et contenu de confirmation défilable, boutons atteignables. Ne pas généraliser à tous les écrans : vérifier portrait, paysage et clavier ouvert. |
+| Contraste | Comparer thèmes clair/sombre et les sept couleurs de membre, notamment l’orange, sur actions principales, choix et petites initiales. | Premier plan lisible sans changement de couleur enregistrée. Les rapports calculés concernent les couleurs opaques au repos ; atténuation, superposition, dégradés et couleurs inconnues exigent une vérification distincte. |
+| Réduction du mouvement | Activer le réglage avant ouverture puis le modifier pendant l’affichage des logos, du cœur d’accueil, d’une célébration et d’une feuille. | Présentation statique tant que la préférence est inconnue ou active ; arrêt des boucles décoratives concernées, transitions Sheet/DialogHost sans slide/fade, champs conservés. Les animations du système/navigateur et l’assistant désactivé restent hors périmètre. N’envoyer aucun cœur réel à un tiers pour cet essai. |
+| Invitation en cours | Sur environnement de test autorisé, créer puis remplacer un code ; simuler une réponse perdue au remplacement et revenir à l’écran. | Ancien code immédiatement retiré, création/partage simultanés empêchés, aucune remise en circulation du code dont la validité n’est plus certaine. Reprise volontaire seulement ; une requête serveur engagée n’est pas annulée. |
+| Partage et expiration | Ouvrir puis annuler la feuille de partage ; vérifier le texte avec une échéance proche et tenter après expiration. Quitter l’espace pendant un échec simulé. | Échéance exacte avec fuseau, pas de promesse de 24 heures supplémentaires ; code expiré ou remplacé non partagé ; aucun dialogue tardif dans l’autre espace. Ne sélectionner aucun destinataire et n’envoyer aucune invitation à un tiers. La résolution de Share ne prouve pas une livraison. |
+
+Les essais de création d’invitation nécessitent aussi les prérequis serveur, l’environnement autorisé et la preuve d’absence de coût supplémentaire. En leur absence, garder ces lignes non exécutées ; ne pas utiliser des comptes réels ni contourner le blocage des émulateurs de sécurité. Une recette réussie ne constitue pas une approbation Apple.
+
 ## Nettoyage technique : cible et déploiement
 
 `functions/src/retention.ts` prévoit un passage quotidien et au plus 500 documents par collection et par passage :
