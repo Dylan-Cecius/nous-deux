@@ -957,3 +957,9 @@ Preuves : trois régressions rouges puis vertes ; 11 tests de garde réussis (26
 
 Limites : aucun émulateur démarré ni téléchargement retenté, aucun accès cloud ni donnée réelle. L'exécution complète des 67 tests sécurité demeure bloquée par la préparation des émulateurs signalée à 14:32 ; la garde ne contourne pas cette restriction et ne valide pas l'intégration avec leurs SDK. Aucun code serveur métier/règle changé, aucune fusion, build, distribution, activation payante ou dépense. Suite : audit des dernières actions d'accueil puis contrôles des correctifs client utiles.
 
+## 2026-10-20, 15:35 Europe/Brussels — Anciennes actions de Votre histoire
+
+Sept régressions reproduites : ancienne date/cadrage envoyés malgré une saisie plus récente, validation d'une date devenue future contournée, actions de date/photo exécutées depuis le cadrage. Les valeurs courantes sont désormais relues dans l'action et mises à jour dès l'événement, avant le rendu ; les transitions de cadrage invalident immédiatement les actions de l'autre vue. Une ancienne fermeture de cadrage ne peut plus fermer une nouvelle ouverture.
+
+Preuves : sept tests rouges puis verts et trois contrôles supplémentaires sur les transitions sans rendu et anciennes fermetures ; 35 tests CounterSheet réussis en 1,126 s. Lint et TypeScript réussis, diff relu et git diff --check propre. Revue React : références uniquement mises à jour dans les effets/événements, verrou commun conservé, aucun nouveau module ni effet réseau. Dernière suite applicative complète : 1002 tests au checkpoint 808add9, avant ce lot de dix tests. Aucun serveur/règle ni mécanisme de suppression touché ; tests uniquement fictifs. Pas d'essai de cadrage réel, build, déploiement ou dépense. Suite : synchronisation d'une date intacte reçue du partenaire et erreurs du formulaire sans données techniques privées.
+

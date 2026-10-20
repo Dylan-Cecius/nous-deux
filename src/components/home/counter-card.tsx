@@ -20,15 +20,22 @@ function CounterForm({ onClose }: { onClose: () => void }) {
   const [frame, setFrame] = useState(couple?.photoFrame ?? DEFAULT_FRAME);
   const [framing, setFraming] = useState<{ uri: string } | null>(null);
   const context = useMemo(() => ({ backend }), [backend]);
-  const latest = useRef<{ context: typeof context; couple: typeof couple; framing: typeof framing } | null>(null);
+  const latest = useRef<{ context: typeof context; couple: typeof couple; framing: typeof framing; value: string; frame: typeof frame } | null>(null);
   const closed = useRef(false);
   useEffect(() => {
-    latest.current = { context, couple, framing };
+    latest.current = { context, couple, framing, value, frame };
     return () => { latest.current = null; };
-  }, [context, couple, framing]);
+  }, [context, couple, framing, value, frame]);
   const { run, pending: busy } = useAsyncAction((action: () => unknown) => action());
   const isCurrent = () => !closed.current && latest.current?.context === context;
   const canWrite = () => isCurrent() && !!latest.current?.couple;
+  const changeFraming = (next: typeof framing, nextFrame = latest.current?.frame ?? frame) => {
+    if (!latest.current) return;
+    latest.current.framing = next;
+    latest.current.frame = nextFrame;
+    setFrame(nextFrame);
+    setFraming(next);
+  };
   const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
   const runCurrent = (action: () => Promise<void>) => run(async () => {
     if (!canWrite()) return;
@@ -37,22 +44,27 @@ function CounterForm({ onClose }: { onClose: () => void }) {
   });
 
   const changePhoto = () => runCurrent(async () => {
+    if (latest.current?.framing !== null) return;
     const picked = await pickPhoto();
     if (!picked || !canWrite()) return;
     const photoUrl = await backend.uploadPhoto(picked.uri);
     if (!canWrite()) return;
     await backend.updateCouple({ photoUrl, photoFrame: DEFAULT_FRAME });
     if (!isCurrent()) return;
-    setFrame(DEFAULT_FRAME);
-    setFraming({ uri: photoUrl });
+    changeFraming({ uri: photoUrl }, DEFAULT_FRAME);
   });
 
   if (framing) {
     const photoChanged = couple?.photoUrl !== framing.uri;
     return (
-      <Sheet visible title="Cadrer la photo" onClose={() => run(() => { if (isCurrent()) setFraming(null); })}>
+      <Sheet visible title="Cadrer la photo" onClose={() => run(() => {
+        if (isCurrent() && latest.current?.framing === framing) changeFraming(null);
+      })}>
         <PhotoFrameEditor uri={framing.uri} frame={frame} disabled={busy || !couple || photoChanged} onChange={(next) => run(() => {
-          if (canWrite() && latest.current?.framing === framing && latest.current?.couple?.photoUrl === framing.uri) setFrame(next);
+          if (canWrite() && latest.current?.framing === framing && latest.current.couple?.photoUrl === framing.uri) {
+            latest.current.frame = next;
+            setFrame(next);
+          }
         })} />
         {photoChanged && <T>La photo a changé ou sa synchronisation est en cours. Reviens au formulaire puis rouvre le cadrage de la photo actuelle.</T>}
         <Button
@@ -60,8 +72,8 @@ function CounterForm({ onClose }: { onClose: () => void }) {
           disabled={busy || !couple || photoChanged}
           onPress={() => runCurrent(async () => {
             if (latest.current?.framing !== framing || latest.current?.couple?.photoUrl !== framing.uri) return;
-            await backend.updateCouple({ photoFrame: frame });
-            if (isCurrent()) setFraming(null);
+            await backend.updateCouple({ photoFrame: latest.current.frame });
+            if (isCurrent()) changeFraming(null);
           })}
         />
       </Sheet>
@@ -69,16 +81,22 @@ function CounterForm({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Sheet visible title="Votre histoire" onClose={() => run(close)}>
+    <Sheet visible title="Votre histoire" onClose={() => run(() => {
+      if (latest.current?.framing === null) close();
+    })}>
       <DateField label="Date de votre rencontre" value={value} disabled={busy || !couple} onChange={(next) => run(() => {
-        if (canWrite() && latest.current?.framing === null) setValue(next);
+        if (canWrite() && latest.current?.framing === null) {
+          latest.current.value = next;
+          setValue(next);
+        }
       })} maximumDate={new Date()} />
       <Button
         label="Enregistrer la date"
         disabled={value > todayKey() || busy || !couple}
         onPress={() => runCurrent(async () => {
-          if (value > todayKey()) return;
-          await backend.updateCouple({ since: value });
+          const current = latest.current;
+          if (!current || current.framing !== null || current.value > todayKey()) return;
+          await backend.updateCouple({ since: current.value });
           close();
         })}
       />
@@ -92,9 +110,8 @@ function CounterForm({ onClose }: { onClose: () => void }) {
       {!!couple?.photoUrl && (
         <Button label="Repositionner la photo" icon="move-outline" variant="outline" disabled={busy} onPress={() => run(() => {
           const current = latest.current?.couple;
-          if (!canWrite() || !current?.photoUrl) return;
-          setFrame(current.photoFrame ?? DEFAULT_FRAME);
-          setFraming({ uri: current.photoUrl });
+          if (!canWrite() || latest.current?.framing !== null || !current?.photoUrl) return;
+          changeFraming({ uri: current.photoUrl }, current.photoFrame ?? DEFAULT_FRAME);
         })} />
       )}
       {!couple && <T>Votre espace est indisponible. Attends sa synchronisation avant d’enregistrer.</T>}

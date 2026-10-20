@@ -37,6 +37,77 @@ const leave = async (kind: string) => {
   }
 };
 
+test('un ancien bouton enregistre la date courante plutôt que celle de son rendu', async () => {
+  const save = button('Enregistrer la date');
+  await act(async () => root.root.findByType('date' as never).props.onChange('2021-02-03'));
+  await act(async () => save());
+  expect(backend.updateCouple).toHaveBeenCalledWith({ since: '2021-02-03' });
+});
+
+test('un ancien bouton refuse une date devenue future', async () => {
+  const save = button('Enregistrer la date');
+  await act(async () => root.root.findByType('date' as never).props.onChange('2999-01-01'));
+  await act(async () => save());
+  expect(backend.updateCouple).not.toHaveBeenCalled();
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+test('une saisie suivie de sauvegarde sans nouveau rendu utilise la nouvelle date', async () => {
+  const save = button('Enregistrer la date');
+  const change = root.root.findByType('date' as never).props.onChange;
+  await act(async () => { await change('2021-02-03'); await save(); });
+  expect(backend.updateCouple).toHaveBeenCalledWith({ since: '2021-02-03' });
+});
+
+test.each(['date', 'photo'])('une ancienne action %s ne s’exécute pas depuis le cadrage', async (kind) => {
+  const action = button(kind === 'date' ? 'Enregistrer la date' : 'Changer la photo de couple');
+  await act(async () => button('Repositionner la photo')());
+  await act(async () => action());
+  expect(backend.updateCouple).not.toHaveBeenCalled();
+  expect(pickPhoto).not.toHaveBeenCalled();
+});
+
+test.each([true, false])('un ancien bouton lit le cadrage courant (rendu intermédiaire : %s)', async (rerender) => {
+  await act(async () => button('Repositionner la photo')());
+  const save = button('Enregistrer le cadrage');
+  const change = root.root.findByType('editor' as never).props.onChange;
+  const photoFrame = { x: 0.7, y: 0.8, zoom: 1.5 };
+  if (rerender) {
+    await act(async () => change(photoFrame));
+    await act(async () => save());
+  } else await act(async () => { await change(photoFrame); await save(); });
+  expect(backend.updateCouple).toHaveBeenCalledWith({ photoFrame });
+});
+
+test('l’ouverture du cadrage invalide immédiatement les anciennes actions du formulaire', async () => {
+  const save = button('Enregistrer la date');
+  const photo = button('Changer la photo de couple');
+  const close = root.root.findByType('sheet' as never).props.onClose;
+  const frame = button('Repositionner la photo');
+  await act(async () => { await frame(); await save(); await photo(); await close(); });
+  expect(backend.updateCouple).not.toHaveBeenCalled();
+  expect(pickPhoto).not.toHaveBeenCalled();
+  expect(onClose).not.toHaveBeenCalled();
+  expect(root.root.findByType('sheet' as never).props.title).toBe('Cadrer la photo');
+});
+
+test('fermer le cadrage invalide sa sauvegarde avant le rendu', async () => {
+  await act(async () => button('Repositionner la photo')());
+  const save = button('Enregistrer le cadrage');
+  const close = root.root.findByType('sheet' as never).props.onClose;
+  await act(async () => { await close(); await save(); });
+  expect(backend.updateCouple).not.toHaveBeenCalled();
+});
+
+test('une ancienne fermeture de cadrage ne ferme pas un nouveau cadrage', async () => {
+  await act(async () => button('Repositionner la photo')());
+  const close = root.root.findByType('sheet' as never).props.onClose;
+  await act(async () => close());
+  await act(async () => button('Repositionner la photo')());
+  await act(async () => close());
+  expect(root.root.findByType('sheet' as never).props.title).toBe('Cadrer la photo');
+});
+
 test('la date reste figée pendant la sauvegarde et modifiable après échec', async () => {
   const date = () => root.root.findByType('date' as never);
   const change = date().props.onChange;
