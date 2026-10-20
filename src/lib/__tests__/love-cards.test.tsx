@@ -235,3 +235,84 @@ describe('transport des mots doux avec backend simulé', () => {
     expect(fake.call).not.toHaveBeenCalled();
   });
 });
+
+const heart = () => root.root.findByProps({ accessibilityLabel: 'Envoyer « je pense à toi »' });
+
+test('un cœur ne part pas sans partenaire cloud même via une action conservée', async () => {
+  const session = (useSession as jest.Mock)();
+  (useSession as jest.Mock).mockReturnValue({ ...session, partner: undefined });
+  await act(async () => { root = create(<PingCard />); });
+  await act(async () => { await heart().props.onPress(); });
+  expect(sendLoveNote).not.toHaveBeenCalled();
+});
+
+test('un ancien bouton cœur ne contourne pas le délai après envoi', async () => {
+  await act(async () => { root = create(<PingCard />); });
+  const press = heart().props.onPress;
+  await act(async () => { await press(); });
+  await act(async () => { await press(); });
+  expect(sendLoveNote).toHaveBeenCalledTimes(1);
+});
+
+test.each(['partner', 'backend'])('le changement de %s invalide le bouton cœur conservé', async (change) => {
+  await act(async () => { root = create(<PingCard />); });
+  const press = heart().props.onPress;
+  const session = (useSession as jest.Mock)();
+  (useSession as jest.Mock).mockReturnValue({ ...session, ...(change === 'backend' ? { backend: { ...session.backend } } : { partner: undefined }) });
+  await act(async () => { root.update(<PingCard />); });
+  await act(async () => { await press(); });
+  expect(sendLoveNote).not.toHaveBeenCalled();
+});
+
+test('un cœur en attente ne célèbre pas dans le compte suivant', async () => {
+  let finish!: () => void;
+  (sendLoveNote as jest.Mock).mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+  await act(async () => { root = create(<PingCard />); });
+  let pending!: Promise<void>;
+  await act(async () => { pending = heart().props.onPress(); });
+  const session = (useSession as jest.Mock)();
+  (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...session.backend, userId: 'charlie' } });
+  await act(async () => { root.update(<PingCard />); });
+  await act(async () => { finish(); await pending; });
+  expect(text()).not.toContain('Cœur envoyé');
+  expect(jest.requireMock('@/components/celebrate').celebrate).not.toHaveBeenCalled();
+});
+
+test('deux appuis successifs avant rafraîchissement respectent le délai cœur', async () => {
+  await act(async () => { root = create(<PingCard />); });
+  const press = heart().props.onPress;
+  await act(async () => { await press(); await press(); });
+  expect(sendLoveNote).toHaveBeenCalledTimes(1);
+});
+
+test('un échec cœur d’un ancien backend reste silencieux', async () => {
+  let reject!: (error: Error) => void;
+  (sendLoveNote as jest.Mock).mockReturnValue(new Promise<void>((_, no) => { reject = no; }));
+  await act(async () => { root = create(<PingCard />); });
+  let pending!: Promise<void>;
+  await act(async () => { pending = heart().props.onPress(); });
+  const session = (useSession as jest.Mock)();
+  (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...session.backend } });
+  await act(async () => { root.update(<PingCard />); });
+  await act(async () => { reject(new Error('Panne fictive')); await pending; });
+  expect(showDialog).not.toHaveBeenCalled();
+});
+
+test('le délai cœur se termine et le mode local peut enregistrer sans partenaire', async () => {
+  jest.useFakeTimers();
+  try {
+    const session = (useSession as jest.Mock)();
+    (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...session.backend, mode: 'local' }, partner: undefined });
+    await act(async () => { root = create(<PingCard />); });
+    await act(async () => { await heart().props.onPress(); });
+    expect(text()).toContain('Cœur enregistré');
+    expect(heart().props.disabled).toBe(true);
+    await act(async () => { jest.advanceTimersByTime(2500); });
+    expect(heart().props.disabled).toBe(false);
+    await act(async () => { await heart().props.onPress(); });
+    expect(sendLoveNote).toHaveBeenCalledTimes(2);
+    await act(async () => { root.unmount(); });
+  } finally {
+    jest.useRealTimers();
+  }
+});

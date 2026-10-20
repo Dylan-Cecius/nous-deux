@@ -911,3 +911,9 @@ Preuves : 8 tests rouges puis verts ; 23 tests ciblés dont cinq tests du vrai t
 
 Premier checkpoint confirmé sur la référence Git : 89240abb4f34ce0251a4bbdbf472488733ecdbae. La lecture immédiate de la PR conservait l'ancienne tête après update_ref réussi ; vérification directe de la référence confirme le nouveau SHA, aucune seconde écriture ni force. Les checkpoints suivants vérifient directement la référence avec expected_sha.
 
+## 2026-10-20, 13:28 Europe/Brussels — Bouton cœur et retours tardifs
+
+Sept régressions rouges corrigées en deux passes : action sans partenaire cloud, ancien bouton contournant le délai, changement de partenaire/backend, résultat dans le compte suivant, deux appuis successifs avant rafraîchissement et erreur tardive d'un backend remplacé. Garde de session transmis au transport, état isolé par compte/couple/mode, acquittement immédiat avant rendu et minuteur nettoyé au démontage. Le résultat ambigu est signalé sans promettre un échec certain. Contrôle supplémentaire du délai de 2,5 secondes et du mode local sans partenaire avec horloge simulée.
+
+Preuves : 31 tests ciblés réussis en 1,440 s, lint/TypeScript réussis après dernier ajout. Dernière suite complète : 971 tests au checkpoint précédent ; pas présentée comme une suite complète de ce lot. Diff relu et git diff --check propre. Aucun appel réel, serveur/règle modifié, build, déploiement ni dépense. Une opération déjà engagée n'est pas annulée. Suite : confirmations de suppression et saisie pendant l'envoi.
+

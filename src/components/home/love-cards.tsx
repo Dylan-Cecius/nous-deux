@@ -13,12 +13,30 @@ import { useAsyncAction } from '@/lib/use-async-action';
 
 /** Bouton « Je pense à toi » : un appui envoie un cœur et une notification à ta moitié. */
 export function PingCard() {
+  const { backend } = useSession();
+  return <ScopedPingCard key={JSON.stringify([backend.mode, backend.coupleId, backend.userId])} />;
+}
+
+function ScopedPingCard() {
   const t = useTheme();
   const session = useSession();
   const { backend, partner } = session;
   const notes = useCollectionState('notes');
   const beat = useState(() => new Animated.Value(1))[0];
   const [sent, setSent] = useState(false);
+  const partnerId = partner?.id;
+  const context = useMemo(() => ({ backend, partnerId }), [backend, partnerId]);
+  const latest = useRef<{ context: typeof context; sent: boolean } | null>(null);
+  useEffect(() => {
+    latest.current = { context, sent };
+    return () => { latest.current = null; };
+  }, [context, sent]);
+  const isCurrent = () => latest.current?.context === context;
+  useEffect(() => {
+    if (!sent) return;
+    const timer = setTimeout(() => setSent(false), 2500);
+    return () => clearTimeout(timer);
+  }, [sent]);
 
   // Le cœur bat doucement en continu.
   useEffect(() => {
@@ -39,11 +57,18 @@ export function PingCard() {
     .sort((a, b) => b.createdAt - a.createdAt)[0];
 
   const { run: ping, pending } = useAsyncAction(async () => {
-    await sendLoveNote(session, '💗', 'ping');
-    success();
-    celebrate('hearts');
-    setSent(true);
-    setTimeout(() => setSent(false), 2500);
+    if (!isCurrent() || latest.current?.sent || (backend.mode === 'cloud' && !partnerId)) return;
+    try {
+      await sendLoveNote(session, '💗', 'ping', isCurrent);
+      if (!isCurrent() || !latest.current) return;
+      latest.current.sent = true;
+      success();
+      celebrate('hearts');
+      setSent(true);
+    } catch {
+      if (isCurrent()) showDialog('Enregistrement non confirmé', 'Le cœur a peut-être été enregistré, mais sa confirmation n’a pas été reçue. Évite de le renvoyer immédiatement.');
+    }
+
   });
   const waitingForPartner = backend.mode === 'cloud' && !partner;
 
