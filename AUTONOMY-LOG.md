@@ -917,3 +917,9 @@ Sept régressions rouges corrigées en deux passes : action sans partenaire clou
 
 Preuves : 31 tests ciblés réussis en 1,440 s, lint/TypeScript réussis après dernier ajout. Dernière suite complète : 971 tests au checkpoint précédent ; pas présentée comme une suite complète de ce lot. Diff relu et git diff --check propre. Aucun appel réel, serveur/règle modifié, build, déploiement ni dépense. Une opération déjà engagée n'est pas annulée. Suite : confirmations de suppression et saisie pendant l'envoi.
 
+## 2026-10-20, 13:31 Europe/Brussels — Suppression des mots doux
+
+Dix régressions reproduites puis corrigées : confirmation après départ, changement de compte/backend, chargement/panne, retrait/modification/changement d'auteur, confirmation rejouée et ancien appui long pendant une panne. L'action vérifie les données et droits courants avant dialogue et avant suppression, protège chaque confirmation contre le rejeu et verrouille les opérations concurrentes. Trois contrôles supplémentaires couvrent l'échec visible sans erreur brute, la reprise par une nouvelle confirmation, la concurrence et le rejet tardif silencieux après départ.
+
+Preuves : 49 suites / 992 tests applicatifs réussis en 8,132 s ; lint/TypeScript réussis après les derniers tests. Diff relu et espacement vérifié. Aucun compte réel ni donnée réelle supprimée. Cette vérification client ne remplace pas les règles serveur et ne fournit pas de transaction conditionnelle sur la version d'un document modifié simultanément à distance. Aucun serveur/règle changé, aucun build, déploiement, distribution ni dépense. Suite : verrouillage de saisie et acquittement des notes avant rafraîchissement React.
+

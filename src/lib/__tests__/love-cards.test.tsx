@@ -2,6 +2,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { NoteCard, PingCard } from '@/components/home/love-cards';
 import { useCollectionState, useSession } from '../couple-context';
 import { sendLoveNote } from '../assistant';
+import { confirmDelete } from '@/components/ui';
 import { showDialog } from '@/components/dialog';
 
 jest.mock('../couple-context', () => {
@@ -27,7 +28,7 @@ let root: ReactTestRenderer;
 const ready = { items: [], loading: false, error: false, retry: jest.fn() };
 const note = { id: 'note', kind: 'note', from: 'bob', text: 'Mot doux fictif', createdAt: 1 };
 beforeEach(() => {
-  (useSession as jest.Mock).mockReturnValue({ backend: { userId: 'alice', mode: 'cloud', coupleId: 'couple-a' }, partner: { id: 'bob', name: 'Bob' }, nameOf: () => 'Bob', colorOf: () => '#000' });
+  (useSession as jest.Mock).mockReturnValue({ backend: { userId: 'alice', mode: 'cloud', coupleId: 'couple-a', remove: jest.fn().mockResolvedValue(undefined) }, partner: { id: 'bob', name: 'Bob' }, nameOf: () => 'Bob', colorOf: () => '#000' });
   (useCollectionState as jest.Mock).mockReturnValue(ready);
   (sendLoveNote as jest.Mock).mockReset().mockResolvedValue(undefined);
 });
@@ -315,4 +316,86 @@ test('le délai cœur se termine et le mode local peut enregistrer sans partenai
   } finally {
     jest.useRealTimers();
   }
+});
+
+
+const ownNote = { ...note, id: 'own', from: 'alice', text: 'Mon mot fictif' };
+const openHistory = async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [ownNote, note] });
+  await act(async () => { root = create(<NoteCard />); });
+  await act(async () => { root.root.findAllByProps({ hitSlop: 8 })[0].props.onPress(); });
+};
+const longPress = () => root.root.findAll((node) => typeof node.props.onLongPress === 'function')[0].props.onLongPress;
+const confirm = () => (confirmDelete as jest.Mock).mock.calls.at(-1)![1];
+
+test.each(['unmount', 'account', 'backend', 'loading', 'error', 'removed', 'changed', 'owner'])('une confirmation de suppression périmée (%s) n’efface rien', async (change) => {
+  await openHistory();
+  await act(async () => { longPress()(); });
+  const remove = confirm();
+  const session = (useSession as jest.Mock)();
+  if (change === 'unmount') { await act(async () => { root.unmount(); }); }
+  else {
+    if (change === 'account' || change === 'backend') (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...session.backend, ...(change === 'account' ? { userId: 'charlie' } : {}) } });
+    else (useCollectionState as jest.Mock).mockReturnValue({ ...ready, loading: change === 'loading', error: change === 'error', items: change === 'removed' ? [note] : [{ ...ownNote, ...(change === 'changed' ? { text: 'Mot modifié' } : change === 'owner' ? { from: 'bob' } : {}) }, note] });
+    await act(async () => { root.update(<NoteCard />); });
+  }
+  await act(async () => { await remove(); });
+  expect(session.backend.remove).not.toHaveBeenCalled();
+});
+
+test('une confirmation de suppression ne peut être exécutée deux fois', async () => {
+  await openHistory();
+  await act(async () => { longPress()(); });
+  const remove = confirm();
+  await act(async () => { await remove(); await remove(); });
+  expect((useSession as jest.Mock)().backend.remove).toHaveBeenCalledTimes(1);
+});
+
+test('un ancien appui long n’ouvre plus de dialogue pendant une panne', async () => {
+  await openHistory();
+  const press = longPress();
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, error: true, items: [ownNote, note] });
+  await act(async () => { root.update(<NoteCard />); });
+  await act(async () => { press(); });
+  expect(confirmDelete).not.toHaveBeenCalled();
+});
+
+test('une suppression refusée garde le message et propose une vérification avant une nouvelle confirmation', async () => {
+  await openHistory();
+  const session = (useSession as jest.Mock)();
+  session.backend.remove.mockRejectedValueOnce(new Error('Détail fournisseur privé'));
+  await act(async () => { longPress()(); });
+  await act(async () => { await confirm()(); });
+  expect(text()).toContain('Mon mot fictif');
+  expect(showDialog).toHaveBeenCalledWith('Suppression non confirmée', expect.stringContaining('Recharge'));
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('fournisseur');
+  await act(async () => { longPress()(); });
+  await act(async () => { await confirm()(); });
+  expect(session.backend.remove).toHaveBeenCalledTimes(2);
+});
+
+test('deux confirmations concurrentes ne lancent qu’une suppression', async () => {
+  await openHistory();
+  const session = (useSession as jest.Mock)();
+  let finish!: () => void;
+  session.backend.remove.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+  await act(async () => { longPress()(); longPress()(); });
+  const first = (confirmDelete as jest.Mock).mock.calls[0][1];
+  const second = confirm();
+  let actions!: Promise<void>[];
+  await act(async () => { actions = [first(), second()]; });
+  expect(session.backend.remove).toHaveBeenCalledTimes(1);
+  await act(async () => { finish(); await Promise.all(actions); });
+});
+
+test('un échec de suppression tardif après départ ne montre pas de dialogue', async () => {
+  await openHistory();
+  let reject!: (error: Error) => void;
+  (useSession as jest.Mock)().backend.remove.mockReturnValue(new Promise<void>((_, no) => { reject = no; }));
+  await act(async () => { longPress()(); });
+  let pending!: Promise<void>;
+  await act(async () => { pending = confirm()(); });
+  await act(async () => { root.unmount(); });
+  await act(async () => { reject(new Error('Panne fictive')); await pending; });
+  expect(showDialog).not.toHaveBeenCalled();
 });

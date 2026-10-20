@@ -68,7 +68,6 @@ function ScopedPingCard() {
     } catch {
       if (isCurrent()) showDialog('Enregistrement non confirmé', 'Le cœur a peut-être été enregistré, mais sa confirmation n’a pas été reçue. Évite de le renvoyer immédiatement.');
     }
-
   });
   const waitingForPartner = backend.mode === 'cloud' && !partner;
 
@@ -136,6 +135,33 @@ function ScopedNoteCard() {
 
   const written = notes.loading || notes.error ? [] : notes.items.filter((n) => n.kind !== 'ping').sort((a, b) => b.createdAt - a.createdAt);
   const latest = written.find((n) => n.from !== backend.userId) ?? written[0];
+  const ready = !notes.loading && !notes.error;
+  const deleteContext = useMemo(() => ({ context, ready }), [context, ready]);
+  const latestNotes = useRef<{ context: typeof deleteContext; items: typeof notes.items } | null>(null);
+  useEffect(() => {
+    latestNotes.current = { context: deleteContext, items: notes.items };
+    return () => { latestNotes.current = null; };
+  }, [deleteContext, notes.items]);
+  const { run: runDelete, pending: deleting } = useAsyncAction((action: () => Promise<void>) => action());
+  const canRemove = (selected: (typeof notes.items)[number]) => {
+    if (latestNotes.current?.context !== deleteContext || !ready) return false;
+    const current = latestNotes.current.items.find((entry) => entry.id === selected.id);
+    return !!current && current.kind !== 'ping' && (backend.mode === 'local' || current.from === backend.userId) &&
+      current.text === selected.text && current.from === selected.from && current.kind === selected.kind && current.createdAt === selected.createdAt;
+  };
+  const removeNote = (selected: (typeof notes.items)[number]) => {
+    if (deleting || !canRemove(selected)) return;
+    let consumed = false;
+    confirmDelete(selected.text, () => runDelete(async () => {
+      if (consumed || !canRemove(selected)) return;
+      consumed = true;
+      try { await backend.remove('notes', selected.id); }
+      catch {
+        if (canRemove(selected)) showDialog('Suppression non confirmée', 'Recharge les mots doux pour vérifier si le message est encore présent avant de réessayer.');
+      }
+    }));
+  };
+
 
   const { run: send, pending: busy } = useAsyncAction(async () => {
     if (!isCurrent()) return;
@@ -197,7 +223,7 @@ function ScopedNoteCard() {
       )}
       {showAll &&
         written.map((n) => (
-          <Pressable key={n.id} onLongPress={backend.mode === 'local' || n.from === backend.userId ? () => confirmDelete(n.text, () => backend.remove('notes', n.id)) : undefined}>
+          <Pressable key={n.id} onLongPress={backend.mode === 'local' || n.from === backend.userId ? () => removeNote(n) : undefined}>
             <Row style={{ alignItems: 'flex-start', gap: 10 }}>
               <View style={{ marginTop: 7 }}>
                 <Dot color={colorOf(n.from)} />
