@@ -1,6 +1,6 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { View } from 'react-native';
-import { PhotoFrameEditor } from '@/components/framed-photo';
+import { FramedPhoto, PhotoFrameEditor } from '@/components/framed-photo';
 
 jest.mock('expo-image', () => ({ Image: 'image' }));
 jest.mock('@/constants/theme', () => ({ useTheme: () => ({}) }));
@@ -10,6 +10,56 @@ jest.mock('react-native', () => Object.create(jest.requireActual('react-native')
 let root: ReactTestRenderer;
 const frame = { x: 0.5, y: 0.5, zoom: 2 };
 afterEach(async () => { if (root) await act(async () => root.unmount()); });
+
+describe.each(['photo', 'editor'])('dimensions de %s', mode => {
+  const render = (uri: string) => mode === 'photo'
+    ? <FramedPhoto uri={uri} frame={frame} />
+    : <PhotoFrameEditor uri={uri} frame={frame} onChange={jest.fn()} />;
+  const image = () => root.root.findByType('image' as never);
+  const measure = async (width = 100, height = 100) => act(async () => {
+    root.root.findAllByType(View).find(node => node.props.onLayout)!.props.onLayout({ nativeEvent: { layout: { width, height } } });
+  });
+  const load = async (width = 200, height = 100) => act(async () => image().props.onLoad({ source: { width, height } }));
+
+  test('changer de photo retire les anciennes dimensions avant le nouveau chargement', async () => {
+    await act(async () => { root = create(render('fictitious://first')); });
+    await measure(); await load();
+    expect(image().props.style.width).toBe(400);
+    await act(async () => root.update(render('fictitious://second')));
+    expect(image().props.style.width).toBeUndefined();
+    await measure(); await load(100, 200);
+    expect(image().props.style.width).toBe(200);
+    expect(image().props.style.height).toBe(400);
+  });
+
+  test.each([false, true])('un ancien chargement ne remplace pas les dimensions courantes (aller-retour %s)', async roundTrip => {
+    await act(async () => { root = create(render('fictitious://first')); });
+    await measure();
+    const oldLoad = image().props.onLoad;
+    await act(async () => root.update(render('fictitious://second')));
+    if (roundTrip) await act(async () => root.update(render('fictitious://first')));
+    await measure(); await load(100, 200);
+    await act(async () => oldLoad({ source: { width: 200, height: 100 } }));
+    expect(image().props.style.width).toBe(200);
+    expect(image().props.style.height).toBe(400);
+  });
+
+  test.each([0, -1, NaN, Infinity])('une dimension d’image invalide (%s) ne produit pas de style calculé', async value => {
+    await act(async () => { root = create(render('fictitious://first')); });
+    await measure(); await load(value, 100);
+    expect(image().props.style.width).toBeUndefined();
+    await load(100, 200);
+    expect(image().props.style.height).toBe(400);
+  });
+
+  test.each([0, -1, NaN, Infinity])('une dimension du cadre invalide (%s) attend une mesure valide', async value => {
+    await act(async () => { root = create(render('fictitious://first')); });
+    await load(); await measure(100, value);
+    expect(image().props.style.width).toBeUndefined();
+    await measure();
+    expect(image().props.style.width).toBe(400);
+  });
+});
 
 test.each([true, false])('désactivé=%s : commandes et déplacement respectent le verrou', async (disabled) => {
   const onChange = jest.fn();

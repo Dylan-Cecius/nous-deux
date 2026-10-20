@@ -11,6 +11,10 @@ const MAX_ZOOM = 3;
 
 type Size = { w: number; h: number };
 
+function validSize(w: number, h: number): Size | null {
+  return Number.isFinite(w) && w > 0 && Number.isFinite(h) && h > 0 ? { w, h } : null;
+}
+
 /**
  * Position de l'image dans le cadre. zoom = 1 : l'image remplit le cadre (recadrée) ;
  * zoom minimal : l'image entière est visible. x / y choisissent la partie montrée (0 = bord gauche/haut).
@@ -35,14 +39,21 @@ function useFramedLayout(frame: PhotoFrame) {
   const [box, setBox] = useState<Size | null>(null);
   const [natural, setNatural] = useState<Size | null>(null);
   const layout = box && natural ? layoutFor(box, natural, frame) : null;
-  const onLayout = (e: LayoutChangeEvent) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
+  const onLayout = (e: LayoutChangeEvent) => setBox(validSize(e.nativeEvent.layout.width, e.nativeEvent.layout.height));
   const onLoad = (e: { source: { width: number; height: number } }) =>
-    setNatural({ w: e.source.width, h: e.source.height });
+    setNatural(validSize(e.source.width, e.source.height));
   return { box, layout, onLayout, onLoad };
 }
 
 /** Photo affichée selon le cadrage choisi. Remplit son parent. */
-export function FramedPhoto({ uri, frame = DEFAULT_FRAME }: { uri: string; frame?: PhotoFrame }) {
+type FramedPhotoProps = { uri: string; frame?: PhotoFrame };
+
+export function FramedPhoto(props: FramedPhotoProps) {
+  // Chaque source possède ses dimensions ; un ancien chargement ne peut pas les remplacer.
+  return <FramedPhotoContent key={props.uri} {...props} />;
+}
+
+function FramedPhotoContent({ uri, frame = DEFAULT_FRAME }: FramedPhotoProps) {
   const { layout, onLayout, onLoad } = useFramedLayout(frame);
   return (
     <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]} onLayout={onLayout} pointerEvents="none">
@@ -62,19 +73,25 @@ export function FramedPhoto({ uri, frame = DEFAULT_FRAME }: { uri: string; frame
 }
 
 /** Éditeur : glisser pour déplacer la photo, boutons pour zoomer. */
-export function PhotoFrameEditor({
-  uri,
-  frame,
-  onChange,
-  height = 230,
-  disabled = false,
-}: {
+type PhotoFrameEditorProps = {
   uri: string;
   frame: PhotoFrame;
   onChange: (f: PhotoFrame) => void;
   height?: number;
   disabled?: boolean;
-}) {
+};
+
+export function PhotoFrameEditor(props: PhotoFrameEditorProps) {
+  return <PhotoFrameEditorContent key={props.uri} {...props} />;
+}
+
+function PhotoFrameEditorContent({
+  uri,
+  frame,
+  onChange,
+  height = 230,
+  disabled = false,
+}: PhotoFrameEditorProps) {
   const t = useTheme();
   const { box, layout, onLayout, onLoad } = useFramedLayout(frame);
 
