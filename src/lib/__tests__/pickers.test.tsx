@@ -21,6 +21,57 @@ const render = async (os: 'ios' | 'android' | 'web', disabled = false) => {
 };
 const select = () => (DateTimePickerAndroid.open as jest.Mock).mock.calls.at(-1)[0].onValueChange;
 
+test.each(['ios', 'android', 'web'] as const)('%s refuse une date après la borne mais accepte la journée limite entière', async os => {
+  await render(os);
+  await act(async () => root.update(<DateField {...props} maximumDate={new Date(2024, 5, 7, 0, 0)} />));
+  const choose = async (day: number) => act(async () => {
+    if (os === 'ios') root.root.findByType(DateTimePicker).props.onValueChange({}, new Date(2024, 5, day, 23, 59));
+    else if (os === 'android') {
+      root.root.findByType(Pressable).props.onPress(); select()({}, new Date(2024, 5, day, 23, 59));
+    } else root.root.findByType('field' as never).props.onChangeText(`${day}/06/2024`);
+  });
+  await choose(8);
+  expect(onChange).not.toHaveBeenCalled();
+  if (os === 'web') {
+    await act(async () => root.root.findByType('field' as never).props.onBlur());
+    expect(root.root.findByType('field' as never).props.value).toBe('02/01/2020');
+  }
+  await choose(7);
+  expect(onChange).toHaveBeenCalledWith('2024-06-07');
+});
+
+test.each(['ios', 'android', 'web'] as const)('%s invalide une ancienne sélection après changement de date maximale', async os => {
+  await render(os);
+  const renderBound = (day: number) => <DateField {...props} maximumDate={new Date(2024, 5, day)} />;
+  await act(async () => root.update(renderBound(10)));
+  let oldSelect: () => void;
+  if (os === 'ios') {
+    const change = root.root.findByType(DateTimePicker).props.onValueChange;
+    oldSelect = () => change({}, new Date(2024, 5, 8));
+  } else if (os === 'android') {
+    await act(async () => root.root.findByType(Pressable).props.onPress());
+    const change = select(); oldSelect = () => change({}, new Date(2024, 5, 8));
+  } else {
+    const change = root.root.findByType('field' as never).props.onChangeText;
+    oldSelect = () => change('08/06/2024');
+  }
+  await act(async () => root.update(renderBound(7)));
+  await act(async () => oldSelect());
+  await act(async () => root.update(renderBound(10)));
+  await act(async () => oldSelect());
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+test('une nouvelle instance Date pour la même borne ne ferme pas le dialogue Android', async () => {
+  await render('android');
+  await act(async () => root.update(<DateField {...props} maximumDate={new Date(2024, 5, 7, 8)} />));
+  await act(async () => root.root.findByType(Pressable).props.onPress());
+  const change = select();
+  await act(async () => root.update(<DateField {...props} maximumDate={new Date(2024, 5, 7, 9)} />));
+  await act(async () => change({}, new Date(2024, 5, 7)));
+  expect(onChange).toHaveBeenCalledWith('2024-06-07');
+});
+
 test('Android affiche et annonce aussi l’année de la date sélectionnée', async () => {
   await render('android');
   const button = root.root.findByType(Pressable);

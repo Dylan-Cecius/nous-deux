@@ -42,7 +42,10 @@ function PickerField({
 }) {
   const t = useTheme();
   const scheme = useColorScheme();
-  const context = useMemo(() => ({ mode, disabled, value }), [mode, disabled, value]);
+  // Une borne de date s'applique à la journée locale, pas à son heure.
+  const maximumKey = mode === 'date' && maximumDate && Number.isFinite(maximumDate.getTime())
+    ? toKey(maximumDate) : undefined;
+  const context = useMemo(() => ({ mode, disabled, value, maximumKey }), [mode, disabled, value, maximumKey]);
   const request = useRef<object | null>(null);
   const latest = useRef<{ context: typeof context; onChange: typeof onChange } | null>(null);
   useEffect(() => {
@@ -50,9 +53,11 @@ function PickerField({
     return () => { latest.current = null; };
   }, [context, onChange]);
   const isCurrent = () => !disabled && latest.current?.context === context;
-  const change = (next: string) => { if (isCurrent()) latest.current?.onChange(next); };
+  const change = (next: string) => {
+    if (isCurrent() && (!maximumKey || next <= maximumKey)) latest.current?.onChange(next);
+  };
 
-  if (Platform.OS === 'web') return <WebField mode={mode} label={label} value={value} onChange={change} grow={grow} disabled={disabled} canChange={isCurrent} />;
+  if (Platform.OS === 'web') return <WebField mode={mode} label={label} value={value} onChange={change} grow={grow} disabled={disabled} canChange={isCurrent} maximumKey={maximumKey} />;
 
   const display = mode === 'date' ? `${formatLong(value)} ${fromKey(value).getFullYear()}` : value;
 
@@ -130,6 +135,7 @@ function WebField({
   grow,
   disabled,
   canChange,
+  maximumKey,
 }: {
   mode: Mode;
   label: string;
@@ -138,6 +144,7 @@ function WebField({
   grow?: boolean;
   disabled: boolean;
   canChange: () => boolean;
+  maximumKey?: string;
 }) {
   const formatted = mode === 'date' ? toFrenchDate(value) : value;
   const [draft, setDraft] = useState({ value, text: formatted });
@@ -154,7 +161,8 @@ function WebField({
       placeholder={mode === 'date' ? 'JJ/MM/AAAA' : '09:00'}
       onChangeText={(v) => {
         if (disabled || !canChange()) return;
-        const parsed = parse(v);
+        const candidate = parse(v);
+        const parsed = candidate && (!maximumKey || candidate <= maximumKey) ? candidate : null;
         setDraft({ value: parsed ?? value, text: v });
         if (parsed) onChange(parsed);
       }}

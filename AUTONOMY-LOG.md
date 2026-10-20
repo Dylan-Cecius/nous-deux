@@ -1248,3 +1248,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Le glissement possède maintenant un départ optionnel, effacé à la fin/annulation et au changement d’état. Un contexte d’interaction invalide les anciens événements et commandes sans interrompre les rendus ordinaires d’un glissement actif.
 - Preuves : sept cas rouges puis verts et un contrôle de continuité ajouté ; 32 tests ciblés réussis en 0,976 s. npm run lint, tsc --noEmit et git diff --check réussis ; diff relu. Documentation RN 0.86 Gesture Responder System consultée, nettoyage au cycle de vie vérifié.
 - Limites : événements synthétiques, pas de gestes sur appareil ni de garantie d’annulation d’une sauvegarde déjà engagée. IconButton reste protégé de son côté ; ces contrôles vérifient également la frontière propre à l’éditeur. Aucun changement serveur/règle, upload, build ou distribution.
+
+## 2026-10-20 — 19:39 Europe/Brussels — Date maximale cohérente entre plateformes
+
+- Base : `4825492737c3e961f55257a9af99aed25945b4f4`. La borne maximumDate des dates de rencontre/souvenir était ignorée par la saisie web ; les callbacks applicatifs ne revalidaient pas non plus cette borne après changement pendant une sélection native.
+- La borne est désormais normalisée en journée locale, incluse dans le contexte d’interaction et vérifiée avant transmission. La journée limite reste entière ; une nouvelle instance Date du même jour n’invalide pas une sélection ouverte. Sur web, une saisie hors borne reste un brouillon et revient à la valeur contrôlée à la sortie du champ.
+- Preuves : six cas rouges puis verts sur les trois branches simulées et un contrôle de borne équivalente ; 105 tests ciblés (sélecteurs, date du couple, souvenir) réussis en 1,289 s. npm run lint, tsc --noEmit et diff propres. Documentation Expo SDK 57 DateTimePicker consultée.
+- Limites : le contrôle des callbacks natifs est défensif ; aucun dialogue iOS/Android ni clavier web réel essayé. Les validations métier des formulaires restent en place. Aucune écriture réelle, règle, fonction serveur, build ou distribution.
