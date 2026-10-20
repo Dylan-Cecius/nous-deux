@@ -183,3 +183,19 @@ test('une transition bloquée pendant une demande ne perd pas son résultat cour
   expect(next).not.toHaveBeenCalled();
   expect(install).toHaveBeenCalledWith(backend);
 });
+
+test.each([
+  new Error('stockage local:couple — prénom privé fictif'),
+  'stockage local:couple — prénom privé fictif',
+  { toString: () => 'stockage local:couple — prénom privé fictif' },
+])('un rejet du stockage local ne révèle pas son contenu technique (%#)', async rejection => {
+  (createLocalCouple as jest.Mock).mockRejectedValueOnce(rejection);
+  await act(async () => { await form.createLocal(); });
+  expect(showDialog).toHaveBeenCalledWith('Oups', 'L’ouverture de votre espace sur ce téléphone n’a pas pu être confirmée. Réessaie dans un instant. Ta saisie est conservée.');
+  expect(install).not.toHaveBeenCalled();
+  expect(form.name).toBe('Ancien prénom');
+  expect(form.partnerName).toBe('Ancien partenaire');
+  expect(form.busy).toBe(false);
+  await act(async () => { await form.createLocal(); });
+  expect(install).toHaveBeenCalledWith(backend);
+});

@@ -1471,3 +1471,9 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - SignInForm renouvelle un contexte de focus, neutralise les événements hors écran et applique uniquement les résultats du même passage. Le verrou de demande demeure jusqu’à sa fin ; aucune requête déjà envoyée n’est annulée. Backend, SecureSheet, suppression et règles inchangés.
 - API vérifiée dans la documentation officielle Expo SDK 57 : https://docs.expo.dev/versions/v57.0.0/sdk/router/ (useFocusEffect, nettoyage au blur, import expo-router). Preuves : 57 tests connexion/compte réussis en 7,029 s, dont les 12 nouveaux scénarios ; lint, TypeScript et diff check réussis, diff relu.
 - Auth et réinitialisation doublées avec données fictives, aucun e-mail envoyé. Contrôle logique du focus simulé ; parcours sur iPhone et rendu visuel non exécutés. Le retour n’annule pas une authentification distante déjà initiée, il ignore sa conséquence d’interface devenue obsolète.
+
+## 2026-10-20 — 22:41 Europe/Brussels — Message d’échec de l’entrée locale
+
+- Lecture de createLocalCouple : les rejets AsyncStorage peuvent remonter jusqu’au dialogue d’entrée, qui reprenait leur texte brut. Trois tests fictifs (Error, chaîne, objet convertible) reproduisent cet affichage ; aucune fuite réelle observée.
+- Le formulaire intercepte uniquement l’échec de création locale avec un message fixe : ouverture non confirmée, nouvelle tentative possible et saisie conservée. Validations prénom/partenaire inchangées ; le message ne prétend pas que le stockage n’a rien écrit. Aucun changement du backend, de ses écritures ou de la suppression.
+- Preuves : les trois tests passent après correction et vérifient aussi conservation des noms, déverrouillage et reprise volontaire. 40 tests formulaire/action réussis en 0,928 s ; lint, TypeScript et diff check réussis, diff relu. Stockage simulé, aucun profil réel consulté. La politique d’erreurs des autres opérations n’est pas déclarée exhaustive.

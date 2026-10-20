@@ -40,13 +40,19 @@ export function useOnboardingForm(setBackend: (backend: Backend) => void, step: 
       if (values.code.replace(/\s|-/g, '').length !== 10) throw new Error('Renseigne le code d’invitation complet.');
       return joinCloudCouple(values.code, me);
     }),
-    createLocal: () => run(() => {
+    createLocal: () => run(async () => {
       const { values, me } = current();
       if (!values.partnerName.trim()) throw new Error('Renseigne le prénom de ta moitié.');
-      return createLocalCouple(me, {
-        name: values.partnerName.trim(),
-        color: MemberColors.find(c => c !== values.color) ?? MemberColors[1],
-      });
+      try {
+        return await createLocalCouple(me, {
+          name: values.partnerName.trim(),
+          color: MemberColors.find(c => c !== values.color) ?? MemberColors[1],
+        });
+      } catch {
+        // Storage failures may contain serialized profiles or internal keys.
+        // A rejected write does not prove that nothing was stored.
+        throw new Error('L’ouverture de votre espace sur ce téléphone n’a pas pu être confirmée. Réessaie dans un instant. Ta saisie est conservée.');
+      }
     }),
   };
 }
