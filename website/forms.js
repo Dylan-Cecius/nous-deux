@@ -6,7 +6,10 @@ if (form) {
   const preview = document.querySelector('[data-message]');
   const emailLink = document.querySelector('[data-email-link]');
   const copy = document.querySelector('[data-copy]');
+  let revision = 0;
+  let copying = false;
   const invalidate = () => {
+    revision += 1;
     const hadMessage = !result.hidden;
     result.hidden = true;
     emailLink.hidden = true;
@@ -49,12 +52,22 @@ if (form) {
     preview.focus();
   });
   copy.addEventListener('click', async () => {
+    if (result.hidden || copying) return;
+    const copiedRevision = revision;
+    copying = true;
+    copy.disabled = true;
+    status.textContent = 'Copie en cours… Aucune demande n’a été envoyée.';
     try {
       await navigator.clipboard.writeText(preview.value);
+      if (copiedRevision !== revision) return;
       status.textContent = 'Texte copié. Il reste à l’envoyer par e-mail ; aucune demande n’a encore été transmise.';
     } catch {
+      if (copiedRevision !== revision) return;
       preview.focus(); preview.select();
       status.textContent = 'Sélectionne et copie le texte ci-dessus, puis envoie-le depuis ta messagerie.';
+    } finally {
+      copying = false;
+      copy.disabled = false;
     }
   });
 }

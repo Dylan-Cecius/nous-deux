@@ -31,14 +31,20 @@ function mount(kind = 'support', recipient = 'support@example.test') {
   const preview = document.querySelector<HTMLTextAreaElement>('[data-message]')!;
   const link = document.querySelector<HTMLAnchorElement>('[data-email-link]')!;
   const status = document.querySelector<HTMLElement>('[data-status]')!;
+  const copy = document.querySelector<HTMLButtonElement>('[data-copy]')!;
   const submit = () => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
   const change = (name: string, value: string, event = 'input') => {
     const field = form.elements.namedItem(name) as HTMLInputElement;
     field.value = value;
     field.dispatchEvent(new Event(event, { bubbles: true }));
   };
-  return { form, result, preview, link, status, submit, change };
+  return { form, result, preview, link, status, copy, submit, change };
 }
+
+afterEach(() => {
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+  jest.restoreAllMocks();
+});
 
 test.each(['support', 'deletion'])('une saisie modifiée invalide le message préparé (%s)', kind => {
   const page = mount(kind);
@@ -119,4 +125,108 @@ test('sans adresse confirmée, seul le texte est préparé', () => {
   expect(page.link.hidden).toBe(true);
   expect(page.link.hasAttribute('href')).toBe(false);
   expect(page.status.textContent).toContain('aucune demande');
+});
+
+function clipboard() {
+  let succeed!: () => void;
+  let fail!: () => void;
+  const pending = new Promise<void>((resolve, reject) => {
+    succeed = resolve;
+    fail = () => reject(new Error('Échec fictif du presse-papiers'));
+  });
+  const writeText = jest.fn(() => pending);
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+  return { writeText, succeed, fail };
+}
+
+test.each(['edit', 'prepare', 'reset'])('une copie ancienne réussie ne remplace pas le statut après %s', async action => {
+  const page = mount();
+  const pending = clipboard();
+  page.submit();
+  page.copy.click();
+  if (action === 'reset') page.form.reset();
+  else {
+    page.change('message', 'Nouveau texte fictif');
+    if (action === 'prepare') page.submit();
+  }
+  const status = page.status.textContent;
+  pending.succeed();
+  await Promise.resolve();
+  expect(page.status.textContent).toBe(status);
+});
+
+test('une copie ancienne rejetée ne sélectionne pas le nouveau message', async () => {
+  const page = mount();
+  const pending = clipboard();
+  page.submit();
+  page.copy.click();
+  page.change('message', 'Nouveau texte fictif');
+  page.submit();
+  const status = page.status.textContent;
+  const focus = jest.spyOn(page.preview, 'focus');
+  const select = jest.spyOn(page.preview, 'select');
+  pending.fail();
+  await Promise.resolve();
+  expect(page.status.textContent).toBe(status);
+  expect(focus).not.toHaveBeenCalled();
+  expect(select).not.toHaveBeenCalled();
+});
+
+test('les copies sont sérialisées même après une nouvelle préparation', async () => {
+  const page = mount();
+  const pending = clipboard();
+  page.submit();
+  const original = page.preview.value;
+  page.copy.click();
+  expect(page.copy.disabled).toBe(true);
+  page.change('message', 'Autre texte fictif');
+  page.submit();
+  // Force an event even on a disabled button to exercise the handler guard.
+  page.copy.dispatchEvent(new Event('click'));
+  expect(pending.writeText).toHaveBeenCalledTimes(1);
+  expect(pending.writeText).toHaveBeenCalledWith(original);
+  pending.succeed();
+  await Promise.resolve();
+  expect(page.copy.disabled).toBe(false);
+  page.copy.click();
+  await Promise.resolve();
+  expect(pending.writeText).toHaveBeenCalledTimes(2);
+  expect(pending.writeText).toHaveBeenLastCalledWith(page.preview.value);
+});
+
+test.each([false, true])('aucune copie sans résultat actuel (ancienne préparation : %s)', async prepared => {
+  const page = mount();
+  const pending = clipboard();
+  if (prepared) {
+    page.submit();
+    page.change('message', 'Texte modifié');
+  }
+  page.copy.dispatchEvent(new Event('click'));
+  expect(pending.writeText).not.toHaveBeenCalled();
+  pending.succeed();
+  await Promise.resolve();
+});
+
+test('une copie courante réussie copie exactement le texte et libère le bouton', async () => {
+  const page = mount();
+  const pending = clipboard();
+  page.submit();
+  page.copy.click();
+  expect(pending.writeText).toHaveBeenCalledWith(page.preview.value);
+  pending.succeed();
+  await Promise.resolve();
+  expect(page.status.textContent).toContain('Texte copié');
+  expect(page.status.textContent).toContain('aucune demande');
+  expect(page.copy.disabled).toBe(false);
+});
+
+test('sans API clipboard, sélection manuelle proposée sans faux succès', async () => {
+  const page = mount();
+  const select = jest.spyOn(page.preview, 'select');
+  page.submit();
+  page.copy.click();
+  await Promise.resolve();
+  expect(select).toHaveBeenCalledTimes(1);
+  expect(page.status.textContent).toContain('Sélectionne et copie');
+  expect(page.copy.disabled).toBe(false);
 });
