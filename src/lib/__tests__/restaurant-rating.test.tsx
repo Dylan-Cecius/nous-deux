@@ -46,3 +46,49 @@ test('une note désactivée reste sélectionnée sans accepter de changement', a
   await act(async () => root.root.findAllByType(Pressable)[0].props.onPress());
   expect(onChange).toHaveBeenCalledWith(1);
 });
+
+test.each(['disabled', 'reenabled', 'read-only', 'unmount', 'value', 'value-roundtrip'])('un ancien choix ne change plus la note après %s', async (change) => {
+  const onChange = jest.fn();
+  await act(async () => { root = create(<RestaurantRating value={3} onChange={onChange} />); });
+  const oldPress = root.root.findAllByType(Pressable)[2].props.onPress;
+  if (change === 'unmount') await act(async () => root.unmount());
+  else if (change === 'read-only') await act(async () => root.update(<RestaurantRating value={3} />));
+  else if (change === 'value' || change === 'value-roundtrip') {
+    await act(async () => root.update(<RestaurantRating value={4} onChange={onChange} />));
+    if (change === 'value-roundtrip') await act(async () => root.update(<RestaurantRating value={3} onChange={onChange} />));
+  } else {
+    await act(async () => root.update(<RestaurantRating value={3} onChange={onChange} disabled />));
+    if (change === 'reenabled') await act(async () => root.update(<RestaurantRating value={3} onChange={onChange} />));
+  }
+  await act(async () => oldPress());
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+test('un rendu ordinaire conserve le choix mais utilise le gestionnaire courant', async () => {
+  const previous = jest.fn(), current = jest.fn();
+  await act(async () => { root = create(<RestaurantRating value={3} onChange={previous} />); });
+  const press = root.root.findAllByType(Pressable)[3].props.onPress;
+  await act(async () => root.update(<RestaurantRating value={3} onChange={current} />));
+  await act(async () => press());
+  expect(previous).not.toHaveBeenCalled();
+  expect(current).toHaveBeenCalledWith(4);
+});
+
+test('les nouveaux choix respectent la note reçue et permettent encore son retrait', async () => {
+  const onChange = jest.fn();
+  await act(async () => { root = create(<RestaurantRating value={4} onChange={onChange} />); });
+  await act(async () => root.root.findAllByType(Pressable)[2].props.onPress());
+  expect(onChange).toHaveBeenLastCalledWith(3);
+  await act(async () => root.update(<RestaurantRating value={3} onChange={onChange} />));
+  await act(async () => root.root.findAllByType(Pressable)[2].props.onPress());
+  expect(onChange).toHaveBeenLastCalledWith(0);
+});
+
+test('un appui capturé désactivé reste inactif après réactivation', async () => {
+  const onChange = jest.fn();
+  await act(async () => { root = create(<RestaurantRating value={3} onChange={onChange} disabled />); });
+  const disabledPress = root.root.findAllByType(Pressable)[0].props.onPress;
+  await act(async () => root.update(<RestaurantRating value={3} onChange={onChange} />));
+  await act(async () => disabledPress());
+  expect(onChange).not.toHaveBeenCalled();
+});

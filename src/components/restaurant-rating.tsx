@@ -1,9 +1,18 @@
+import { useEffect, useMemo, useRef } from 'react';
 import { Pressable, View } from 'react-native';
 import { Ionicons } from './ui';
 import { useTheme } from '@/constants/theme';
 
 export function RestaurantRating({ value, onChange, size = 18, disabled = false }: { value: number; onChange?: (v: number) => void; size?: number; disabled?: boolean }) {
   const t = useTheme();
+  const editable = !!onChange;
+  // A round trip through another value/state must not revive queued toggle events.
+  const context = useMemo(() => ({ value, disabled, editable }), [value, disabled, editable]);
+  const current = useRef<{ context: typeof context; onChange: typeof onChange } | null>(null);
+  useEffect(() => {
+    current.current = { context, onChange };
+    return () => { current.current = null; };
+  }, [context, onChange]);
   const icon = (i: number) => <Ionicons name={i <= value ? 'heart' : 'heart-outline'} size={size} color={i <= value ? t.primary : t.border} accessible={false} />;
   if (!onChange) {
     return (
@@ -24,7 +33,10 @@ export function RestaurantRating({ value, onChange, size = 18, disabled = false 
           accessibilityLabel={`${i} cœur${i > 1 ? 's' : ''}`}
           accessibilityHint={i === value ? 'Retirer la note' : `Attribuer ${i} sur 5`}
           accessibilityState={{ selected: i === value, disabled }}
-          onPress={() => { if (!disabled) return onChange(i === value ? 0 : i); }}
+          onPress={() => {
+            const latest = current.current;
+            if (!disabled && latest?.context === context) return latest.onChange?.(i === value ? 0 : i);
+          }}
           hitSlop={4}>
           {icon(i)}
         </Pressable>

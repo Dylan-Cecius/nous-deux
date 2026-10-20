@@ -1179,3 +1179,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Premier plan seul remplacé par l’encre de marque #2A1420 ; dégradé, dimensions, libellés et action conservés. Rapports des trois arrêts opaques : 8,78 / 5,74 / 4,56:1. Icône et indicateur partagent cette encre.
 - Preuves : un test rouge puis vert, deux contrôles supplémentaires (202 points sRGB interpolés, couleur de l’attente) ; lint/TypeScript réussis, 59 suites / 1258 tests réussis en 9,357 s, diff relu/propre.
 - Limites : calcul des couleurs au repos et échantillonnage sRGB seulement, pas de capture/native ni garantie d’interpolation propre au système. Opacité des états appuyé/désactivé et fond réel restent à vérifier. Aucun build, déploiement, serveur/règle ou dépense.
+
+## 2026-10-20 — 18:06 Europe/Brussels — Notation de restaurant et événements retardés
+
+- Base : `545b698a147786a781d641295bd246a64a56701f`. Six régressions rouges : un appui retenu sur le choix sélectionné pouvait encore retirer la note après désactivation, réactivation, lecture seule, démontage, changement de valeur ou aller-retour de valeur.
+- Contexte d’interaction mémorisé par valeur/désactivation/mode ; ref actualisée après commit et invalidée au nettoyage. Un rendu ordinaire conserve le choix mais utilise le gestionnaire courant. Aucun changement de persistance, réseau ou règle serveur.
+- Preuves : six cas rouges puis verts et trois contrôles supplémentaires ; 80 tests ciblés réussis en 1,755 s, lint/TypeScript et diff propres. Revue React : hooks inconditionnels, dépendances complètes, refs lues dans l’événement et nettoyage explicite ; aucun ajout de dépendance.
+- Limites : événements React simulés, pas de mesure d’événement tactile natif ni de garantie de concurrence entre appareils. Aucune note réelle modifiée, build ou distribution.
