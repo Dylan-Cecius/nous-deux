@@ -1417,3 +1417,30 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Les quatre champs composent immédiatement leur brouillon courant ; chaque demande relit/revalide les valeurs sous le verrou. Continuer relit le prénom avant navigation. Les fonctions backend, règles, identité et suppression restent inchangées. La référence transitoire est relâchée au démontage.
 - Preuves : 58 tests formulaire/contrôleur/identité d’entrée réussis en 1,038 s ; lint/TypeScript/diff check réussis, nouveau hook et branchement relus. Le premier montage de test nécessitait la doublure AsyncStorage officielle déjà utilisée ailleurs ; les 13 échecs métier ont ensuite été observés avant leurs corrections.
 - Revue React : état local, lecture récente dans les événements, aucun effet de synchronisation à chaque frappe, aucune dépendance ajoutée. Limites : logique testée sans rendu du logo absent, aucune création/jonction réelle ou invitation, aucune recette native. Les callbacks retenus d’une ancienne étape encore montée ne sont pas couverts comme une nouvelle garantie de provenance de navigation.
+
+## 2026-10-20 — 22:07 Europe/Brussels — Contrôle global des quatorze lots de saisie et d’entrée
+
+- Départ observé vers 21:25 ; contrôles finaux à 22:07, soit environ 42 minutes avant la sauvegarde documentaire. Quatorze correctifs successifs et indépendants, chacun diagnostiqué, testé, relu et sauvegardé. 102 scénarios rouges avant correction au total et 108 tests ajoutés ; aucun temps d’attente artificiel pour annoncer une heure.
+- Contrôle final réel sur le code du checkpoint `4fd8c036a716e935bc6c9cf8e89619b376e21357` : `npm test -- --runInBand` réussit, **65 suites / 1512 tests**, 10,499 s ; `npm run lint`, `./node_modules/.bin/tsc --noEmit` et `git diff --check` réussis. Avertissement npm sur sa configuration http-proxy, sans échec. Aucun test de sécurité sur émulateur exécuté durant cette session : ni serveur, règles, ni mécanisme de suppression modifiés.
+- Arbre Git récursif non tronqué : 203 entrées, **178 blobs présents identiques à leur SHA Git**, zéro divergence ; les sept PNG déjà manquants restent absents. Aucune image remplacée ou simulée, aucun export visuel/build native/essai iPhone revendiqué. Le contrôleur d’entrée est testé indépendamment de son décor.
+- Six parcours de recette ajoutés à TESTFLIGHT-REVIEW.md, tous préparés et non exécutés. Révision React appliquée aux changements : états locaux, références mises à jour dans les événements, composition des saisies et nettoyages symétriques, pas de nouvelle dépendance ou persistance de secret.
+- PR #3 relue à 22:07 : ouverte, brouillon, non fusionnée, branche attendue et tête `4fd8c03`. Les sauvegardes utilisent expected_sha et force:false avec relecture ; aucun conflit observé. Aucun déploiement, EAS, runner lancé volontairement, appel payant ou achat ; aucun compte/intimité/photo/e-mail/invitation réel utilisé. Configurations publiques, services désactivés, règles et fonctions comparées au début : inchangées ; publicationStatus=draft et retentionVerified=false.
+- Clôture de ce lot transversal après les contrôles, avant l’objectif indicatif d’une heure : les régressions reproduites de l’audit immédiat sont corrigées ; les suites les plus prioritaires restent la recette native/visuelle avec ressources originales et le protocole photo côté serveur sous tests sécurité autorisés, indisponibles ici. La provenance des callbacks d’une ancienne étape d’entrée encore montée reste une **piste à reproduire**, pas un nouveau défaut affirmé ni une garantie acquise. Reprendre un diagnostic borné au prochain passage sans répéter ces lots.
+- La règle multi-tâches d’AUTONOMY.md était déjà conforme et n’a pas été réécrite. La minute 21:43 de l’entrée agenda désigne son créneau documentaire arrondi, pas une durée de test supplémentaire.
+
+| Lot | Checkpoint GitHub |
+| --- | --- |
+| Saisie souvenir | 56415dc5e7024db42fb40063b8bea3c5b1c6acfe |
+| Photo souvenir reçue | 94cb42d60a02ae73bf9da0b54b3386e774410fac |
+| Retour sans historique | 10a58aca45ed3343378ef32b325d522c34a3cc08 |
+| Saisie dépense | 6a95e4b1631e1799560f8a285338cfe594acba88 |
+| Saisie listes | 9a83e6bdfd6e7b624a1cb10c7c68d2fb213bdef9 |
+| Saisie restaurant | be6c57a3dfb120c020e10549740bf86d98afda56 |
+| Saisie agenda | 7f8b79558b3718dc3ec341c55130205ecf3c2216 |
+| Saisie dates à venir | 1fcb6e594f1747c5de393b803d64bf3a915c9b2d |
+| Prénom du profil | 4103e9cb80725a9537a5776aba0731ee11f21777 |
+| Connexion | fbeb29c31ddbbd533b7b09d5f39e61ed7c692183 |
+| Sécurisation | d566e11e4348fc87862d7ba9b09daf8a0e6d50ec |
+| Demandes d’entrée | 3136b50c027e89e3d412cec4506ac17dd428aa44 |
+| Interactions d’entrée | b6d584692c74e2bce9742fdae53fde448ee428a0 |
+| Saisie d’entrée | 4fd8c036a716e935bc6c9cf8e89619b376e21357 |
