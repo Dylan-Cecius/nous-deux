@@ -152,6 +152,7 @@ export default function Onboarding() {
             <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => form.navigate(() => setStep('local'))} style={{ alignSelf: 'center', padding: 12 }}>
               <T style={{ color: MUTED, fontFamily: Fonts.bodyBold }}>Essayer sans compte (sur ce téléphone)</T>
             </Pressable>
+            <Button label="Modifier mon profil" variant="glass" disabled={busy} onPress={() => form.navigate(() => setStep('profile'))} />
           </View>
         )}
 
@@ -199,7 +200,7 @@ export default function Onboarding() {
               disabled={busy || !partnerName.trim()}
               onPress={form.createLocal}
             />
-            {isFirebaseConfigured && <Button label="Retour" variant="glass" disabled={busy} onPress={() => form.navigate(() => setStep('choice'))} />}
+            <Button label="Retour" variant="glass" disabled={busy} onPress={() => form.navigate(() => setStep(isFirebaseConfigured ? 'choice' : 'profile'))} />
           </GlassCard>
         )}
 

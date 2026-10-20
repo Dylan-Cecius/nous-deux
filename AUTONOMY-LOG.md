@@ -1458,3 +1458,9 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - La transition invalide son contexte immédiatement, sous le verrou commun, puis demande le nouvel état. Les changements d’étape de l’écran utilisent cette transition ; le prochain contexte réactive ses propres actions. Le brouillon est conservé.
 - Preuves : 37 tests formulaire/contrôleur réussis en 0,893 s ; lint, TypeScript, diff check réussis et diff relu. Aucun changement serveur/règles/suppression, aucune création réelle ni rendu natif.
 - La sauvegarde précédente a demandé une seconde relecture de référence : commit 2f99a5e89aa0122e0e1bfa9c8c6dd1396d37b408 retrouvé, parent attendu et tous les blobs locaux concordants. Aucune écriture rejouée ou forcée ; délai de visibilité possible, cause non établie.
+
+## 2026-10-20 — 22:35 Europe/Brussels — Correction du profil avant création
+
+- Défaut de parcours constaté dans les branches rendues : après Continuer, le choix cloud n’offrait aucun retour vers prénom/couleur ; le mode local sans Firebase n’avait aucun Retour. Une faute de saisie obligeait à quitter/recommencer ou créer avant correction.
+- Ajout de Modifier mon profil au choix cloud et d’un Retour toujours disponible dans le formulaire local (choix cloud si configuré, sinon profil). Tous passent par la transition protégée, restent bloqués pendant une demande et conservent les champs du contrôleur.
+- Preuves : chemins conditionnels et diff relus ; lint, TypeScript et diff check réussis. Changement de navigation simple : aucun test recopiant le JSX ajouté, contrôleur de transition/conservation déjà couvert par les 37 tests du lot précédent. Recette visuelle et toucher natif non exécutés, logo toujours absent.
