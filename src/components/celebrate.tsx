@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, Text, View } from 'react-native';
 
 import { Fonts } from '@/constants/theme';
+import { useReducedMotion } from '@/lib/use-reduced-motion';
 
 type Kind = 'hearts' | 'confetti';
 type Listener = (kind: Kind, message?: string) => void;
@@ -18,10 +19,11 @@ export function celebrate(kind: Kind, message?: string) {
 }
 
 /** Bulle de message qui apparaît puis s'efface. */
-function Message({ text }: { text: string }) {
+function Message({ text, animate }: { text: string; animate: boolean }) {
   const progress = useState(() => new Animated.Value(0))[0];
 
   useEffect(() => {
+    if (!animate) return;
     const animation = Animated.sequence([
       Animated.timing(progress, { toValue: 1, duration: 300, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }),
       Animated.delay(2000),
@@ -29,7 +31,7 @@ function Message({ text }: { text: string }) {
     ]);
     animation.start();
     return () => animation.stop();
-  }, [progress]);
+  }, [progress, animate]);
 
   return (
     <Animated.View
@@ -41,8 +43,8 @@ function Message({ text }: { text: string }) {
         paddingVertical: 14,
         paddingHorizontal: 22,
         borderRadius: 999,
-        opacity: progress.interpolate({ inputRange: [0, 1, 2], outputRange: [0, 1, 0] }),
-        transform: [{ scale: progress.interpolate({ inputRange: [0, 1, 2], outputRange: [0.8, 1, 0.95] }) }],
+        opacity: animate ? progress.interpolate({ inputRange: [0, 1, 2], outputRange: [0, 1, 0] }) : 1,
+        transform: animate ? [{ scale: progress.interpolate({ inputRange: [0, 1, 2], outputRange: [0.8, 1, 0.95] }) }] : undefined,
       }}>
       <Text style={{ color: '#fff', fontFamily: Fonts.bodyBold, fontSize: 17 }}>{text}</Text>
     </Animated.View>
@@ -113,6 +115,7 @@ function Piece({ p, kind, height }: { p: Particle; kind: Kind; height: number })
 
 /** À placer une fois, au-dessus des écrans. */
 export function CelebrationLayer() {
+  const reducedMotion = useReducedMotion();
   const [burst, setBurst] = useState<{ key: number; kind: Kind; message?: string; particles: Particle[] } | null>(null);
   const sequence = useRef(0);
   const { height } = Dimensions.get('window');
@@ -135,10 +138,10 @@ export function CelebrationLayer() {
   if (!burst) return null;
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {burst.particles.map((p) => (
+      {!reducedMotion && burst.particles.map((p) => (
         <Piece key={`${burst.key}-${p.id}`} p={p} kind={burst.kind} height={height} />
       ))}
-      {burst.message && <Message key={`msg-${burst.key}`} text={burst.message} />}
+      {burst.message && <Message key={`msg-${burst.key}`} text={burst.message} animate={!reducedMotion} />}
     </View>
   );
 }

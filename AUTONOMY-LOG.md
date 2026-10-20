@@ -1103,3 +1103,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Identifiant monotone par couche au lieu de Date.now, un seul délai remplacé/nettoyé, largeur relue à chaque événement. Séquences et particules arrêtées lors de leur remplacement/démontage. Durées existantes conservées.
 - Preuves : cinq nouveaux tests, quatre rouges puis verts et contrôle de durée nominale ; 99 tests ciblés réussis en1,766s, lint/TypeScript et diff propres. Documentation React Native0.86 Animated consultée.
 - Limites : animations natives simulées, pas de mesure de fluidité/mémoire sur téléphone. Aucun service externe ni contenu réel. Suite : respect du réglage système de réduction du mouvement.
+
+## 2026-10-20 — 17:09 Europe/Brussels — Célébrations sans mouvement imposé
+
+- Base : `5d499b0b8db2e8da97a5a6e8ca7ca0e36ce30cd9`. Huit régressions rouges puis vertes : réglage activé, inconnu, rejeté ou fautif ; changement en direct ; réponse initiale tardive ; réactivation ; nettoyage de l’écoute.
+- Hook conservateur sans mouvement avant lecture fiable, événement système prioritaire sur la requête initiale. Les particules et animations du message sont arrêtées lorsque la réduction est active ; le message reste affiché, durée existante conservée.
+- Preuves : 56 suites / 1178 tests réussis en 8,513 s, lint/TypeScript et diff propres. Documentation React Native0.86 AccessibilityInfo/Animated et implémentation web installée consultées.
+- Limites : doubles de plateforme, pas de test du réglage sur iPhone/Android ; autres animations hors périmètre. Aucun export, build, service payant ni distribution.
