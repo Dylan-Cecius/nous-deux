@@ -10,7 +10,8 @@ export function useOnboardingAction(setBackend: (backend: Backend) => void) {
     active.current = {};
     return () => { active.current = null; };
   }, []);
-  const { run, pending: busy } = useAsyncAction(async (action: () => Promise<Backend>) => {
+  const { run: guarded, pending: busy } = useAsyncAction((action: () => unknown) => action());
+  const run = (action: () => Promise<Backend>) => guarded(async () => {
     const scope = active.current;
     if (!scope) return;
     try {
@@ -20,5 +21,6 @@ export function useOnboardingAction(setBackend: (backend: Backend) => void) {
       if (active.current === scope) showDialog('Oups', e instanceof Error ? e.message : String(e));
     }
   });
-  return { run, busy };
+  const interact = (action: () => void) => guarded(() => { if (active.current) action(); });
+  return { run, busy, interact };
 }

@@ -1403,3 +1403,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Verrou immédiat useAsyncAction réutilisé et résultat rattaché à la durée de vie du montage ; aucun changement des fonctions de création/jonction, des données persistées ou des images. Le branchement dans onboarding.tsx est relu et contrôlé par TypeScript, pas rendu avec un logo factice.
 - Preuves : 39 tests contrôleur/identité d’entrée réussis en 0,871 s ; lint/TypeScript/diff check réussis, diff relu. Une erreur de pureté du montage de test a été corrigée en publiant son état dans un effet, sans désactiver la règle lint.
 - Limites : contrôleur testé avec actions fictives, pas l’écran natif complet ; une opération déjà engagée côté backend n’est pas annulée. Navigation et saisie pendant la demande restent à examiner séparément. Aucun appel Firebase, e-mail ou invitation réel.
+
+## 2026-10-20 — 22:00 Europe/Brussels — Interactions pendant les demandes d’entrée
+
+- Trois cas rouges reproduits sur les callbacks d’interaction sans garde : interaction avant/après le rendu occupé et ancien callback après démontage. Un contrôle vérifie que les interactions ordinaires se composent sans attente artificielle.
+- Les navigations, champs et choix de couleur de l’entrée partagent désormais le verrou des créations/jonctions. Le Retour du mode local est notamment désactivé pendant sa demande. Le formulaire SignInForm conserve son verrou propre ; aucune extension de cette garantie aux appels déjà engagés côté serveur.
+- Preuves : 9 tests du contrôleur réussis en 0,723 s ; lint/TypeScript/diff check réussis, branchements du diff relus. Champs et états d’accessibilité occupés explicites. Aucun changement de backend, suppression ou règles.
+- Limites : contrôleur testé avec actions fictives, pas le rendu complet de l’entrée dont le logo binaire est absent. Aucune création de compte/espace réel, invitation, communication, build ou recette native.

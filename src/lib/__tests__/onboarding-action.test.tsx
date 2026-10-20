@@ -62,3 +62,35 @@ test('un échec courant permet une nouvelle demande volontaire', async () => {
   expect(request).toHaveBeenCalledTimes(2);
   expect(setBackend).toHaveBeenCalledWith(backend);
 });
+
+test.each([false, true])('une interaction est bloquée pendant la demande (rendu : %s)', async rendered => {
+  const interact = action.interact;
+  const change = jest.fn();
+  let finish!: (backend: Backend) => void;
+  const request = () => new Promise<Backend>(resolve => { finish = resolve; });
+  let pending!: Promise<unknown>;
+  await act(async () => {
+    pending = action.run(request);
+    if (!rendered) interact(change);
+  });
+  if (rendered) await act(async () => interact(change));
+  await act(async () => { finish(backend); await pending; });
+  expect(change).not.toHaveBeenCalled();
+  await act(async () => action.interact(change));
+  expect(change).toHaveBeenCalledTimes(1);
+});
+
+test('une interaction conservée après démontage est ignorée', async () => {
+  const interact = action.interact;
+  const change = jest.fn();
+  await act(async () => root.unmount());
+  await act(async () => interact(change));
+  expect(change).not.toHaveBeenCalled();
+});
+
+test('les interactions ordinaires se composent sans rendre le formulaire occupé', async () => {
+  const change = jest.fn();
+  await act(async () => { action.interact(change); action.interact(change); });
+  expect(change).toHaveBeenCalledTimes(2);
+  expect(action.busy).toBe(false);
+});

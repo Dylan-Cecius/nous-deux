@@ -76,7 +76,7 @@ export default function Onboarding() {
   const [color, setColor] = useState(MemberColors[0]);
   const [code, setCode] = useState('');
   const [partnerName, setPartnerName] = useState('');
-  const { run, busy } = useOnboardingAction(setBackend);
+  const { run, busy, interact } = useOnboardingAction(setBackend);
 
   const me = { name: name.trim(), color };
 
@@ -103,24 +103,24 @@ export default function Onboarding() {
             <T variant="h2" color={CREAM}>
               Faisons connaissance
             </T>
-            <Field dark label="Ton prénom" value={name} maxLength={60} onChangeText={setName} placeholder="Ex. Camille" autoComplete="given-name" />
+            <Field dark label="Ton prénom" value={name} maxLength={60} editable={!busy} onChangeText={(value) => interact(() => setName(value))} placeholder="Ex. Camille" autoComplete="given-name" />
             <View style={{ gap: 8 }}>
               <T variant="caption" color={MUTED}>
                 Ta couleur dans l’agenda
               </T>
-              <ColorPicker colors={MemberColors} value={color} onChange={setColor} ringColor={CREAM} />
+              <ColorPicker colors={MemberColors} value={color} disabled={busy} onChange={(value) => interact(() => setColor(value))} ringColor={CREAM} />
             </View>
             <Button
               label="Continuer"
               variant="sunset"
-              disabled={!me.name}
-              onPress={() => setStep(isFirebaseConfigured ? 'choice' : 'local')}
+              disabled={busy || !me.name}
+              onPress={() => interact(() => setStep(isFirebaseConfigured ? 'choice' : 'local'))}
             />
           </GlassCard>
         )}
 
         {step === 'profile' && isFirebaseConfigured && (
-          <Pressable accessibilityRole="button" onPress={() => setStep('signin')} style={{ alignSelf: 'center', padding: 12 }}>
+          <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => interact(() => setStep('signin'))} style={{ alignSelf: 'center', padding: 12 }}>
             <T style={{ color: MUTED, fontFamily: Fonts.bodyBold }}>J’ai déjà un compte</T>
           </Pressable>
         )}
@@ -131,7 +131,7 @@ export default function Onboarding() {
               Te revoilà
             </T>
             <T color={MUTED}>Connecte-toi avec l’e-mail de ton compte pour retrouver votre espace.</T>
-            <SignInForm dark onSignedIn={setBackend} onBack={() => setStep('profile')} />
+            <SignInForm dark onSignedIn={setBackend} onBack={() => interact(() => setStep('profile'))} />
           </GlassCard>
         )}
 
@@ -155,9 +155,9 @@ export default function Onboarding() {
                 J’ai reçu un code
               </T>
               <T color={MUTED}>Ta moitié a déjà créé votre espace ? Entre son code.</T>
-              <Button label="Rejoindre" variant="glass" disabled={busy} onPress={() => setStep('join')} />
+              <Button label="Rejoindre" variant="glass" disabled={busy} onPress={() => interact(() => setStep('join'))} />
             </GlassCard>
-            <Pressable accessibilityRole="button" disabled={busy} onPress={() => setStep('local')} style={{ alignSelf: 'center', padding: 12 }}>
+            <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => interact(() => setStep('local'))} style={{ alignSelf: 'center', padding: 12 }}>
               <T style={{ color: MUTED, fontFamily: Fonts.bodyBold }}>Essayer sans compte (sur ce téléphone)</T>
             </Pressable>
           </View>
@@ -172,7 +172,8 @@ export default function Onboarding() {
               dark
               label="Code d’invitation"
               value={code}
-              onChangeText={(v) => setCode(v.toUpperCase())}
+              editable={!busy}
+              onChangeText={(v) => interact(() => setCode(v.toUpperCase()))}
               placeholder="ABCD234567"
               autoCapitalize="characters"
               autoCorrect={false}
@@ -185,7 +186,7 @@ export default function Onboarding() {
               disabled={busy || code.replace(/\s|-/g, '').length !== 10}
               onPress={() => run(() => joinCloudCouple(code, me))}
             />
-            <Button label="Retour" variant="glass" disabled={busy} onPress={() => setStep('choice')} />
+            <Button label="Retour" variant="glass" disabled={busy} onPress={() => interact(() => setStep('choice'))} />
           </GlassCard>
         )}
 
@@ -199,7 +200,7 @@ export default function Onboarding() {
                 ? 'Les données resteront sur ce téléphone, sans synchronisation.'
                 : 'La synchronisation entre vos deux téléphones n’est pas encore activée : pour l’instant, tout reste sur ce téléphone.'}
             </T>
-            <Field dark label="Son prénom" value={partnerName} maxLength={60} onChangeText={setPartnerName} placeholder="Ex. Alex" />
+            <Field dark label="Son prénom" value={partnerName} maxLength={60} editable={!busy} onChangeText={(value) => interact(() => setPartnerName(value))} placeholder="Ex. Alex" />
             <Button
               label="C’est parti"
               variant="sunset"
@@ -213,12 +214,12 @@ export default function Onboarding() {
                 )
               }
             />
-            {isFirebaseConfigured && <Button label="Retour" variant="glass" onPress={() => setStep('choice')} />}
+            {isFirebaseConfigured && <Button label="Retour" variant="glass" disabled={busy} onPress={() => interact(() => setStep('choice'))} />}
           </GlassCard>
         )}
 
         {busy && <ActivityIndicator color={PINK} />}
-        <Pressable accessibilityRole="button" onPress={() => router.push('/aide')} style={{ alignSelf: 'center', padding: 12 }}>
+        <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => interact(() => router.push('/aide'))} style={{ alignSelf: 'center', padding: 12 }}>
           <T variant="small" color={MUTED}>Aide et confidentialité</T>
         </Pressable>
       </ScrollView>
