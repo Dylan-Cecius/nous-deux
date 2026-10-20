@@ -1,5 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Pressable, Switch } from 'react-native';
+import { AppState, type AppStateStatus, Pressable, Switch } from 'react-native';
 import Home from '@/app/(tabs)/index';
 import { useCollectionState, useSession } from '../couple-context';
 import { confirmDelete } from '@/components/ui';
@@ -32,7 +32,7 @@ beforeEach(() => {
   (useSession as jest.Mock).mockReturnValue(session);
   (useCollectionState as jest.Mock).mockImplementation((name) => name === 'dates' ? dates : { ...ready, items: [] });
 });
-afterEach(async () => { if (root) await act(async () => root.unmount()); });
+afterEach(async () => { if (root) await act(async () => root.unmount()); jest.restoreAllMocks(); jest.useRealTimers(); });
 const button = (label: string) => root.root.findByProps({ label }).props.onPress;
 const sheet = () => root.root.findByType('sheet' as never);
 const field = () => root.root.findByProps({ label: 'Quoi ?' });
@@ -44,6 +44,37 @@ const ask = async () => {
   await act(async () => root.root.findAllByType(Pressable).find((node) => node.props.onLongPress)!.props.onLongPress());
   return (confirmDelete as jest.Mock).mock.calls.at(-1)[1];
 };
+
+test('le retour le lendemain actualise agenda et compte à rebours sans perdre le formulaire', async () => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(new Date(2026, 9, 20, 23));
+  let stateChanged!: (state: AppStateStatus) => void;
+  jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, listener) => {
+    stateChanged = listener;
+    return { remove: jest.fn() };
+  });
+  dates = { ...ready, items: [{ ...date, date: '2026-10-21' }] };
+  const events = [
+    { id: 'old', date: '2026-10-20', title: 'Ancien horaire fictif', start: '08:00', end: '09:00', who: 'alice' },
+    { id: 'new', date: '2026-10-21', title: 'Nouvel horaire fictif', start: '08:00', end: '09:00', who: 'alice' },
+  ];
+  (useCollectionState as jest.Mock).mockImplementation((name) => name === 'dates' ? dates : { ...ready, items: events });
+  await mount();
+  const visibleText = () => root.root.findAllByType('t' as never).map(node => node.props.children).flat().join(' ');
+  expect(visibleText()).toContain('Ancien horaire fictif');
+  expect(visibleText()).toContain('J-1');
+  await fill();
+  await act(async () => stateChanged('background'));
+  jest.setSystemTime(new Date(2026, 9, 21, 8));
+  await act(async () => stateChanged('active'));
+  const text = visibleText();
+  expect(text).toContain('Nouvel horaire fictif');
+  expect(text).not.toContain('Ancien horaire fictif');
+  expect(text).toContain('Jour J');
+  expect(field().props.value).toBe(' Brouillon fictif ');
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(backend.remove).not.toHaveBeenCalled();
+});
 
 test.each(['unmount', 'backend', 'member', 'loading', 'error', 'removed'])('confirmation de date ignorée après %s', async (kind) => {
   await mount();

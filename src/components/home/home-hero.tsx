@@ -9,7 +9,8 @@ import { CounterSheet } from '@/components/home/counter-card';
 import { Ionicons, Row, T } from '@/components/ui';
 import { Fonts } from '@/constants/theme';
 import { useSession } from '@/lib/couple-context';
-import { daysBetween, formatLong, formatNumber, fromKey, nextMilestone, todayKey } from '@/lib/dates';
+import { daysBetween, formatLong, formatNumber, fromKey, nextMilestone } from '@/lib/dates';
+import { useToday } from '@/lib/use-today';
 
 const CREAM = '#FBF6F1';
 const PINK = '#FF8FB8';
@@ -56,7 +57,7 @@ export function HomeHero() {
   const { couple, me, partner } = useSession();
   const [open, setOpen] = useState(false);
 
-  const today = todayKey();
+  const today = useToday();
   const together = couple?.since ? daysBetween(couple.since, today) : null;
   const milestone = together !== null ? nextMilestone(together) : null;
   const photo = couple?.photoUrl;

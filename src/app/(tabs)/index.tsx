@@ -12,6 +12,7 @@ import { cardShadow, useTheme } from '@/constants/theme';
 import { useCollectionState, useSession } from '@/lib/couple-context';
 import { daysBetween, fromKey, nextOccurrence, todayKey } from '@/lib/dates';
 import { useAsyncAction } from '@/lib/use-async-action';
+import { useToday } from '@/lib/use-today';
 
 export default function Home() {
   const { backend } = useSession();
@@ -44,7 +45,7 @@ function HomeContent() {
     }));
   };
 
-  const today = todayKey();
+  const today = useToday();
   const todayEvents = events.items.filter((e) => e.date === today).sort((a, b) => a.start.localeCompare(b.start));
   const upcoming = dates.items
     .map((d) => {

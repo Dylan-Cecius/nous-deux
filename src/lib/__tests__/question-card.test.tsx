@@ -9,6 +9,9 @@ jest.mock('../couple-context', () => {
   const state = jest.fn();
   return { useCollection: () => state().items, useCollectionState: state, useSession: jest.fn() };
 });
+jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), {
+  AppState: { value: { currentState: 'active', addEventListener: jest.fn(() => ({ remove: jest.fn() })) } },
+}));
 jest.mock('../dates', () => ({ todayKey: jest.fn() }));
 jest.mock('../questions', () => ({ questionFor: () => 'Question de test' }));
 jest.mock('../assistant', () => ({ notifyPartner: jest.fn() }));
@@ -71,6 +74,36 @@ test('une ancienne action relit le brouillon courant', async () => {
   expect(backend.add).toHaveBeenCalledWith('answers', expect.objectContaining({ text: 'Nouvelle réponse' }));
 });
 
+test('le changement de jour refuse l’ancienne réponse même avant un nouveau rendu', async () => {
+  await fill();
+  const save = submit();
+  (todayKey as jest.Mock).mockReturnValue('2026-10-16');
+  await act(async () => save());
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(notifyPartner).not.toHaveBeenCalled();
+});
+
+test('le passage au lendemain actualise la question sans changement de collection', async () => {
+  jest.useFakeTimers();
+  await fill();
+  (todayKey as jest.Mock).mockReturnValue('2026-10-16');
+  await act(async () => jest.advanceTimersByTime(61_000));
+  expect(fields()[0].props.value).toBe('');
+  expect(backend.add).not.toHaveBeenCalled();
+});
+
+test('une réponse tardive du jour précédent ne notifie pas le partenaire', async () => {
+  await fill();
+  let finish!: () => void;
+  backend.add.mockReturnValueOnce(new Promise<void>((resolve) => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = submit()(); });
+  (todayKey as jest.Mock).mockReturnValue('2026-10-16');
+  await act(async () => { finish(); await pending; });
+  expect(notifyPartner).not.toHaveBeenCalled();
+  expect(showDialog).not.toHaveBeenCalled();
+});
+
 test('une réponse vidée ensuite ne part pas depuis une ancienne action', async () => {
   await fill(); const save = submit();
   await act(async () => fields()[0].props.onChangeText('  '));
@@ -88,7 +121,7 @@ test.each(['success', 'error'])('retour %s après départ sans notification ni d
   expect(notifyPartner).not.toHaveBeenCalled();
   expect(showDialog).not.toHaveBeenCalled();
 });
-afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
+afterEach(async () => { if (root) await act(async () => root.unmount()); jest.useRealTimers(); jest.clearAllMocks(); });
 
 test.each(['loading', 'error'])('la question en %s ne propose pas de réponse et n’invente pas de statut', async (status) => {
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, loading: status === 'loading', error: status === 'error' });

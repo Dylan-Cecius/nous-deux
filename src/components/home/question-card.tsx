@@ -8,6 +8,7 @@ import { notifyPartner } from '@/lib/assistant';
 import type { Backend } from '@/lib/backend';
 import { useCollectionState, useSession } from '@/lib/couple-context';
 import { todayKey } from '@/lib/dates';
+import { useToday } from '@/lib/use-today';
 import { success } from '@/lib/haptics';
 import { questionFor } from '@/lib/questions';
 import type { Member } from '@/lib/types';
@@ -22,7 +23,7 @@ const writeAnswer = (backend: Backend, date: string, from: string, text: string)
  */
 export function QuestionCard() {
   const { backend } = useSession();
-  const today = todayKey();
+  const today = useToday();
   // Les brouillons survivent à une reprise, mais ne passent pas à une autre session/question.
   return <DailyQuestion key={JSON.stringify([backend.mode, backend.coupleId, backend.userId, today])} today={today} />;
 }
@@ -45,7 +46,7 @@ function DailyQuestion({ today }: { today: string }) {
     latest.current = { context, drafts, answers };
     return () => { latest.current = null; };
   }, [context, drafts, answers]);
-  const isCurrent = () => latest.current?.context === context;
+  const isCurrent = () => latest.current?.context === context && today === todayKey();
   const canAnswerNow = (id: string) => isCurrent() && ready && members.some((m) => m.id === id) &&
     (backend.mode === 'local' || id === backend.userId) &&
     !latest.current?.answers.some((a) => a.date === today && a.from === id) && !recorded.current.get(backend)?.has(id);

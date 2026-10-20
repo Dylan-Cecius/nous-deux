@@ -10,6 +10,7 @@ import { useCollectionState, useSession } from '@/lib/couple-context';
 import { fromKey, todayKey } from '@/lib/dates';
 import { success } from '@/lib/haptics';
 import { pickPhoto } from '@/lib/photos';
+import { useToday } from '@/lib/use-today';
 
 /** Ajoute une photo aux souvenirs (utilisé ici et sur l'écran Souvenirs). */
 export function useAddMemory(available: boolean) {
@@ -72,7 +73,7 @@ export function MemoriesStrip() {
   const t = useTheme();
   const memories = useCollectionState('memories');
   const { add, busy } = useAddMemory(!memories.loading && !memories.error);
-  const today = todayKey();
+  const today = useToday();
   const sorted = [...memories.items].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
   const onThisDay = sorted.find((m) => m.date.slice(5) === today.slice(5) && m.date < today);
   const yearsAgo = onThisDay ? Number(today.slice(0, 4)) - Number(onThisDay.date.slice(0, 4)) : 0;
