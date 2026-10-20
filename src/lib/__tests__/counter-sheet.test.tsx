@@ -252,6 +252,66 @@ test('un ancien éditeur ne modifie pas un cadrage rouvert', async () => {
   expect(root.root.findByType('editor' as never).props.frame).toEqual(couple.photoFrame);
 });
 
+test.each(['selection', 'upload', 'save'])('un résultat %s ne reprend pas après perte puis retour de la fiche', async stage => {
+  let finish!: (value: unknown) => void;
+  const operation = new Promise(resolve => { finish = resolve; });
+  if (stage === 'selection') (pickPhoto as jest.Mock).mockReturnValueOnce(operation);
+  else if (stage === 'upload') backend.uploadPhoto.mockReturnValueOnce(operation);
+  else backend.updateCouple.mockReturnValueOnce(operation);
+  let pending!: Promise<void>;
+  await act(async () => { pending = button('Changer la photo de couple')(); });
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: null });
+  await refresh();
+  (useSession as jest.Mock).mockReturnValue(session);
+  await refresh();
+  // Le verrou reste acquis tant que l’ancienne opération n’a pas fini.
+  expect(root.root.findByProps({ label: 'Changer la photo de couple' }).props.disabled).toBe(true);
+  await act(async () => { finish(stage === 'selection' ? { uri: 'fictitious://old' } : 'fictitious://old-upload'); await pending; });
+  expect(backend.uploadPhoto).toHaveBeenCalledTimes(stage === 'selection' ? 0 : 1);
+  expect(backend.updateCouple).toHaveBeenCalledTimes(stage === 'save' ? 1 : 0);
+  expect(root.root.findByType('sheet' as never).props.title).toBe('Votre histoire');
+  expect(showDialog).not.toHaveBeenCalled();
+  expect(root.root.findByProps({ label: 'Changer la photo de couple' }).props.disabled).toBe(false);
+});
+
+test.each(['selection', 'upload', 'date', 'frame'])('un échec %s avant une coupure ne notifie pas la fiche reprise', async stage => {
+  let reject!: (error: Error) => void;
+  const operation = new Promise((_, fail) => { reject = fail; });
+  if (stage === 'selection') (pickPhoto as jest.Mock).mockReturnValueOnce(operation);
+  else if (stage === 'upload') backend.uploadPhoto.mockReturnValueOnce(operation);
+  else backend.updateCouple.mockReturnValueOnce(operation);
+  if (stage === 'date') await act(async () => root.root.findByType('date' as never).props.onChange('2021-02-03'));
+  if (stage === 'frame') {
+    await act(async () => button('Repositionner la photo')());
+    await act(async () => root.root.findByType('editor' as never).props.onChange({ ...couple.photoFrame, x: 0.3 }));
+  }
+  let pending!: Promise<void>;
+  await act(async () => { pending = button(stage === 'date' ? 'Enregistrer la date' : stage === 'frame' ? 'Enregistrer le cadrage' : 'Changer la photo de couple')(); });
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: null });
+  await refresh();
+  (useSession as jest.Mock).mockReturnValue(session);
+  await refresh();
+  await act(async () => { reject(new Error('ancienne opération fictive')); await pending; });
+  expect(showDialog).not.toHaveBeenCalled();
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+test('une sauvegarde de date engagée ne ferme pas la fiche après reprise de lecture', async () => {
+  let finish!: () => void;
+  backend.updateCouple.mockReturnValueOnce(new Promise<void>(resolve => { finish = resolve; }));
+  await act(async () => root.root.findByType('date' as never).props.onChange('2021-02-03'));
+  let pending!: Promise<void>;
+  await act(async () => { pending = button('Enregistrer la date')(); });
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: null });
+  await refresh();
+  (useSession as jest.Mock).mockReturnValue(session);
+  await refresh();
+  await act(async () => { finish(); await pending; });
+  expect(backend.updateCouple).toHaveBeenCalledTimes(1);
+  expect(onClose).not.toHaveBeenCalled();
+  expect(root.root.findByType('date' as never).props.value).toBe('2021-02-03');
+});
+
 test.each(['unmount', 'backend'])('sélecteur tardif après %s : aucun upload', async (kind) => {
   let finish!: (result: unknown) => void;
   (pickPhoto as jest.Mock).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));

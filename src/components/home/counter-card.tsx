@@ -38,7 +38,9 @@ function CounterForm({ onClose }: { onClose: () => void }) {
   if (framing && couple?.photoUrl === framing.uri && !sameFrame(frameDraft.base, receivedFrame)) {
     setFrameDraft({ base: receivedFrame, value: sameFrame(frame, frameDraft.base) ? receivedFrame : frame });
   }
-  const context = useMemo(() => ({ backend }), [backend]);
+  const available = !!couple;
+  // Une reprise de lecture ne doit pas réactiver une opération de l'ancienne fiche.
+  const context = useMemo(() => ({ backend, available }), [backend, available]);
   const latest = useRef<{ context: typeof context; couple: typeof couple; framing: typeof framing; value: string; frame: typeof frame } | null>(null);
   const closed = useRef(false);
   useEffect(() => {
