@@ -84,6 +84,19 @@ test('un refus serveur est visible et autorise une nouvelle tentative', async ()
   expect(write).toHaveBeenCalledTimes(2);
 });
 
+test('une erreur malformée affiche un repli sans rejeter l’action et libère le verrou', async () => {
+  const write = jest.fn().mockRejectedValueOnce({ message: 42 }).mockResolvedValue(undefined);
+  let action!: ReturnType<typeof useAsyncAction>;
+  function Form() { action = useAsyncAction(write); return null; }
+  await act(async () => { root = create(<Form />); });
+  await act(async () => { await action.run(); });
+  expect(showDialog).toHaveBeenCalledWith('Action impossible', expect.any(String));
+  expect(action.pending).toBe(false);
+  expect(write).toHaveBeenCalledTimes(1);
+  await act(async () => { await action.run(); });
+  expect(write).toHaveBeenCalledTimes(2);
+});
+
 test('une erreur asynchrone ne rouvre pas de dialogue après démontage', async () => {
   let reject!: (error: Error) => void;
   const write = jest.fn(() => new Promise<void>((_resolve, no) => { reject = no; }));
