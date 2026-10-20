@@ -51,6 +51,16 @@ export function HomeHero() {
   const today = useToday();
   const together = couple?.since ? daysBetween(couple.since, today) : null;
   const milestone = together !== null ? nextMilestone(together) : null;
+  const dayUnit = together !== null && together > 1 ? 'jours ensemble' : 'jour ensemble';
+  const sinceLabel = couple?.since
+    ? `Depuis le ${fromKey(couple.since).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`
+    : null;
+  const milestoneLabel = milestone
+    ? `Cap des ${formatNumber(milestone.next)} jours dans ${milestone.left} jour${milestone.left > 1 ? 's' : ''}`
+    : null;
+  const storyLabel = together !== null && milestone
+    ? `Votre histoire. ${formatNumber(together)} ${dayUnit}. ${sinceLabel}. ${milestoneLabel}.`
+    : 'Votre histoire. Date de rencontre non renseignée.';
   const photo = couple?.photoUrl;
 
   return (
@@ -97,7 +107,7 @@ export function HomeHero() {
           )}
         </Text>
 
-        <Pressable accessibilityRole="button" accessibilityLabel="Votre histoire : date de rencontre et photo" onPress={() => setOpen(true)} style={{ gap: 10, paddingTop: 6 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel={storyLabel} accessibilityHint="Ouvre les réglages de votre date de rencontre et de votre photo de couple." onPress={() => setOpen(true)} style={{ gap: 10, paddingTop: 6 }}>
           {together !== null && milestone ? (
             <>
               <Row style={{ alignItems: 'baseline', gap: 10 }}>
@@ -105,11 +115,11 @@ export function HomeHero() {
                   {formatNumber(together)}
                 </Text>
                 <Text style={{ fontFamily: Fonts.displayItalic, fontSize: 22, color: PINK }}>
-                  {together > 1 ? 'jours ensemble' : 'jour ensemble'}
+                  {dayUnit}
                 </Text>
               </Row>
               <T variant="small" color={MUTED}>
-                Depuis le {fromKey(couple!.since!).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {sinceLabel}
               </T>
               <View style={styles.track}>
                 <View style={{ width: `${Math.max(4, milestone.progress * 100)}%`, height: '100%', borderRadius: 4, overflow: 'hidden' }}>
@@ -117,7 +127,7 @@ export function HomeHero() {
                 </View>
               </View>
               <T variant="small" color={MUTED}>
-                Cap des {formatNumber(milestone.next)} jours dans {milestone.left} jour{milestone.left > 1 ? 's' : ''}
+                {milestoneLabel}
               </T>
             </>
           ) : (

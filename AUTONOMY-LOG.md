@@ -1302,3 +1302,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Preuves : 17 tests rouges avant correction ; 28 tests ciblés verts en 0,867 s, dont refus courant, succès, configuration privée, relance après refus, rendu ordinaire et retour sans historique. Lint/TypeScript/diff check réussis ; diff relu.
 - Documentation consultée : https://docs.expo.dev/versions/v57.0.0/ ; https://docs.expo.dev/versions/v57.0.0/sdk/router/ (useFocusEffect) ; https://reactnative.dev/docs/0.86/linking (openURL et rejet). Revue React : callback de focus stable, nettoyage symétrique, références transitoires, verrou existant réutilisé sans nouvelle dépendance.
 - Limites : focus, navigation et ouverture système simulés ; aucun navigateur/messagerie lancé, aucune suppression demandée, aucun envoi ni essai VoiceOver/appareil. Une ouverture système déjà demandée n’est pas annulable par ce garde.
+
+## 2026-10-20 — 20:50 Europe/Brussels — Annonce du compteur de l’accueil
+
+- Défaut reproduit : le libellé accessible fixe du bouton Votre histoire masquait le compteur, la date de rencontre et le prochain cap présents visuellement. L’absence de date n’était pas explicitée non plus.
+- Le libellé reprend maintenant ces trois informations ; l’indication d’action explique l’ouverture des réglages. Les textes de date/cap sont partagés avec l’affichage pour éviter une divergence et le résumé suit la journée courante sans effet supplémentaire.
+- Preuves : six tests rouges puis verts et un contrôle d’ouverture/fermeture ; sept tests réussis en 0,880 s, lint/TypeScript/diff check réussis. Diff relu. Documentation React Native 0.86 accessibilityLabel/accessibilityHint consultée : https://reactnative.dev/docs/0.86/accessibility .
+- Limites : propriétés accessibles vérifiées dans le renderer, pas de parcours VoiceOver/TalkBack exécuté. Les tests utilisent uniquement la branche photo avec une URI fictive et un double du composant photo ; aucun PNG absent créé/remplacé et aucun export visuel revendiqué. Revue React : valeurs dérivées au rendu, aucune dépendance ou sous-composant imbriqué ajouté.
