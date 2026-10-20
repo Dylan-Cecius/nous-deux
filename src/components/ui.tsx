@@ -14,6 +14,7 @@ import {
   View,
   type StyleProp,
   type TextInputProps,
+  type TextProps,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
@@ -64,6 +65,7 @@ export function T({
   children,
   numberOfLines,
   selectable,
+  accessibilityRole,
 }: {
   variant?: Variant;
   muted?: boolean;
@@ -72,10 +74,12 @@ export function T({
   children: ReactNode;
   numberOfLines?: number;
   selectable?: boolean;
+  accessibilityRole?: TextProps['accessibilityRole'];
 }) {
   const t = useTheme();
   return (
     <Text
+      accessibilityRole={accessibilityRole}
       numberOfLines={numberOfLines}
       selectable={selectable}
       style={[variants[variant], { color: color ?? (muted ? t.textSecondary : t.text) }, style]}>
@@ -141,7 +145,7 @@ export function Screen({
         <View style={styles.header}>
           <View style={{ flex: 1, gap: 4 }}>
             {overline ? <T variant="caption" muted>{overline}</T> : null}
-            <T variant="title">{title}</T>
+            <T variant="title" accessibilityRole={title == null ? undefined : 'header'}>{title}</T>
           </View>
           {right}
           {assistant && (
@@ -198,7 +202,7 @@ export function SectionTitle({ title, action, onAction }: { title: string; actio
   const t = useTheme();
   return (
     <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-      <T variant="h2">{title}</T>
+      <T variant="h2" accessibilityRole="header">{title}</T>
       {action && onAction ? (
         <Pressable onPress={onAction} hitSlop={10} accessibilityRole="button" accessibilityLabel={`${action} — ${title}`}>
           <Text style={{ fontFamily: Fonts.bodyMedium, fontSize: 15, color: t.primary }}>{action}</Text>
@@ -215,7 +219,7 @@ export function Empty({ icon, title, text }: { icon: IconName; title: string; te
       <View style={[styles.emptyIcon, { backgroundColor: t.primarySoft }]}>
         <Ionicons name={icon} size={30} color={t.primary} />
       </View>
-      <T variant="h2" style={{ textAlign: 'center' }}>
+      <T variant="h2" accessibilityRole="header" style={{ textAlign: 'center' }}>
         {title}
       </T>
       <T muted style={{ textAlign: 'center' }}>
@@ -601,7 +605,7 @@ export function Sheet({
         <View style={[styles.sheet, Platform.OS === 'web' && styles.sheetWeb, { backgroundColor: t.background, paddingBottom: insets.bottom + Spacing.three }]}>
           <View style={[styles.grabber, { backgroundColor: t.border }]} />
           <Row style={{ justifyContent: 'space-between' }}>
-            <T variant="h2" style={{ flex: 1 }}>
+            <T variant="h2" accessibilityRole="header" style={{ flex: 1 }}>
               {title}
             </T>
             <IconButton icon="close" label="Fermer" onPress={onClose} size={38} />

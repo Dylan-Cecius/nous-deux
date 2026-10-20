@@ -1,6 +1,6 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Pressable, TextInput } from 'react-native';
-import { Button, Card, Chips, ColorPicker, Field, IconButton, SectionTitle, Segmented } from '@/components/ui';
+import { Pressable, Text, TextInput } from 'react-native';
+import { Button, Card, Chips, ColorPicker, Empty, Field, IconButton, Screen, SectionTitle, Segmented, Sheet, T } from '@/components/ui';
 import { tap } from '../haptics';
 
 jest.mock('@expo/vector-icons/Ionicons', () => 'icon');
@@ -13,11 +13,34 @@ jest.mock('../haptics', () => ({ tap: jest.fn() }));
 jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), {
   Pressable: { value: 'pressable' },
   TextInput: { value: 'text-input' },
+  Modal: { value: 'modal' },
 }));
 
 let root: ReactTestRenderer;
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
 const options = [{ value: 'alice', label: 'Alice' }, { value: 'bob', label: 'Bob' }];
+
+test.each(['screen', 'section', 'sheet', 'empty'])('%s : le titre est repérable comme en-tête accessible', async (kind) => {
+  const title = 'Titre fictif';
+  const content = kind === 'screen' ? <Screen title={title}><T>Contenu</T></Screen>
+    : kind === 'section' ? <SectionTitle title={title} />
+      : kind === 'sheet' ? <Sheet visible title={title} onClose={() => {}}><T>Contenu</T></Sheet>
+        : <Empty title={title} text="Description fictive" icon="heart" />;
+  await act(async () => { root = create(content); });
+  const headings = root.root.findAllByType(Text).filter(node => node.props.accessibilityRole === 'header');
+  expect(headings).toHaveLength(1);
+  expect(headings[0].props.children).toBe(title);
+});
+
+test('un texte seulement stylé en h2 ne devient pas automatiquement un titre', async () => {
+  await act(async () => { root = create(<T variant="h2">42</T>); });
+  expect(root.root.findByType(Text).props.accessibilityRole).toBeUndefined();
+});
+
+test('un écran sans titre ne crée pas d’en-tête vide', async () => {
+  await act(async () => { root = create(<Screen><T>Contenu</T></Screen>); });
+  expect(root.root.findAllByType(Text).filter(node => node.props.accessibilityRole === 'header')).toHaveLength(0);
+});
 
 test('un champ sans titre garde son nom accessible après saisie', async () => {
   await act(async () => { root = create(<Field placeholder="Ton message" value="texte fictif" />); });

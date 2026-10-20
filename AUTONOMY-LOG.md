@@ -1068,3 +1068,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - onPrimary sombre devient #160E12 (couleur de fond sombre existante), sans changer les fonds ni les quatre accents. Boutons et boutons icône utilisant déjà ce jeton en bénéficient ; Fab et son indicateur utilisent maintenant le même jeton. Contraste calculé entre 6,53:1 et 8,82:1 sur les fonds sombres concernés ; thèmes clairs inchangés.
 - Preuves : 55 suites / 1154 tests réussis en 9,262 s, dont neuf tests de contraste/connexion au composant ; lint/TypeScript et diff propres. Références : https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html et https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html.
 - Limites : calcul sur couleurs opaques au repos, pas certification globale WCAG ni recette native (états pressés, dégradés et autres pastilles hors périmètre). Aucun service/build lancé. Les heures des deux entrées précédentes ont été corrigées d’après les horodatages réels des checkpoints : 16:46 et 16:48, sans changer leurs résultats.
+
+## 2026-10-20 — 16:53 Europe/Brussels — Titres navigables par lecteur d’écran
+
+- Base : `db66e56f7a10267b89dce4e6e783d2b5533c4cbd`. Quatre cas rouges : titres de Screen, SectionTitle, Sheet et Empty sans sémantique d’en-tête.
+- T transmet désormais accessibilityRole lorsqu’il est explicitement fourni. Les quatre vrais titres reçoivent header ; les nombres ou textes seulement stylés h2 ne deviennent pas automatiquement des titres. Écran sans titre fourni sans en-tête vide.
+- Preuves : quatre cas rouges puis verts et deux contrôles ; lint/TypeScript réussis ; 55 suites / 1160 tests réussis en 9,847 s. Diff relu/propre, documentation React Native0.86 accessibilité consultée.
+- Limites : propriétés de composants testées, navigation réelle au rotor VoiceOver/TalkBack non essayée ; pas de certification ni de build. Aucune modification serveur ni activation de fonctions payantes.
