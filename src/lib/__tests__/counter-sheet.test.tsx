@@ -181,16 +181,60 @@ test.each(['closed', 'framing', 'backend', 'unavailable'])('une ancienne saisie 
   expect(root.root.findByType('date' as never).props.value).toBe(couple.since);
 });
 
+test('un cadrage intact suit celui reçu du partenaire sans réécriture', async () => {
+  await act(async () => button('Repositionner la photo')());
+  const save = button('Enregistrer le cadrage');
+  const photoFrame = { x: 0.3, y: 0.4, zoom: 1.5 };
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: { ...couple, photoFrame } });
+  await refresh();
+  expect(root.root.findByType('editor' as never).props.frame).toEqual(photoFrame);
+  await act(async () => save());
+  expect(backend.updateCouple).not.toHaveBeenCalled();
+  expect(root.root.findByType('sheet' as never).props.title).toBe('Votre histoire');
+});
+
+test('un cadrage inchangé se ferme sans écriture', async () => {
+  await act(async () => button('Repositionner la photo')());
+  await act(async () => button('Enregistrer le cadrage')());
+  expect(backend.updateCouple).not.toHaveBeenCalled();
+  expect(root.root.findByType('sheet' as never).props.title).toBe('Votre histoire');
+});
+
+test('un cadrage modifié reste une transformation cohérente après modification distante', async () => {
+  await act(async () => button('Repositionner la photo')());
+  const photoFrame = { ...couple.photoFrame, x: 0.7 };
+  await act(async () => root.root.findByType('editor' as never).props.onChange(photoFrame));
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: { ...couple, photoFrame: { ...couple.photoFrame, zoom: 1 } } });
+  await refresh();
+  expect(root.root.findByType('editor' as never).props.frame).toEqual(photoFrame);
+  await act(async () => button('Enregistrer le cadrage')());
+  expect(backend.updateCouple).toHaveBeenCalledWith({ photoFrame });
+});
+
+test.each([true, false])('le cadrage reçu après reprise préserve seulement une modification locale (%s)', async (dirty) => {
+  await act(async () => button('Repositionner la photo')());
+  const local = { x: 0.7, y: 0.2, zoom: 2 };
+  if (dirty) await act(async () => root.root.findByType('editor' as never).props.onChange(local));
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: null });
+  await refresh();
+  const received = { x: 0.3, y: 0.4, zoom: 1.5 };
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: { ...couple, photoFrame: received } });
+  await refresh();
+  expect(root.root.findByType('editor' as never).props.frame).toEqual(dirty ? local : received);
+});
+
 test('le cadrage ne change pas pendant la sauvegarde puis reprend après échec', async () => {
   await act(async () => button('Repositionner la photo')());
   const editor = () => root.root.findByType('editor' as never);
+  const initialEdit = { ...couple.photoFrame, x: 0.2 };
+  await act(async () => editor().props.onChange(initialEdit));
   const change = editor().props.onChange;
   const nextFrame = { x: 0.7, y: 0.8, zoom: 1.5 };
   let reject!: (error: Error) => void;
   backend.updateCouple.mockReturnValueOnce(new Promise<void>((_, fail) => { reject = fail; }));
   let pending!: Promise<void>;
   await act(async () => { pending = button('Enregistrer le cadrage')(); await change(nextFrame); });
-  expect(editor().props.frame).toEqual(couple.photoFrame);
+  expect(editor().props.frame).toEqual(initialEdit);
   expect(editor().props.disabled).toBe(true);
   await act(async () => { reject(new Error('Échec fictif')); await pending; });
   expect(editor().props.disabled).toBe(false);
@@ -272,7 +316,10 @@ test.each(['selection', 'upload', 'association', 'date', 'frame'])('une erreur %
   else if (stage === 'upload') backend.uploadPhoto.mockRejectedValueOnce(error);
   else backend.updateCouple.mockRejectedValueOnce(error);
   if (stage === 'date') await act(async () => root.root.findByType('date' as never).props.onChange('2021-02-03'));
-  if (stage === 'frame') await act(async () => button('Repositionner la photo')());
+  if (stage === 'frame') {
+    await act(async () => button('Repositionner la photo')());
+    await act(async () => root.root.findByType('editor' as never).props.onChange({ ...couple.photoFrame, x: 0.3 }));
+  }
   await act(async () => button(stage === 'date' ? 'Enregistrer la date' : stage === 'frame' ? 'Enregistrer le cadrage' : 'Changer la photo de couple')());
   expect(showDialog).toHaveBeenCalledTimes(1);
   expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('private-token');

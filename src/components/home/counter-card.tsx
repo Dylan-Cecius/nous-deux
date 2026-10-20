@@ -9,6 +9,9 @@ import { todayKey } from '@/lib/dates';
 import { pickPhoto } from '@/lib/photos';
 import { useAsyncAction } from '@/lib/use-async-action';
 import { useSharedDraft } from '@/lib/use-shared-draft';
+import type { PhotoFrame } from '@/lib/types';
+
+const sameFrame = (a: PhotoFrame, b: PhotoFrame) => a.x === b.x && a.y === b.y && a.zoom === b.zoom;
 
 /** Réglages de la carte « Ensemble depuis » : date de rencontre et photo de couple. */
 export function CounterSheet({ onClose }: { onClose: () => void }) {
@@ -23,8 +26,18 @@ function CounterForm({ onClose }: { onClose: () => void }) {
     couple ? { since: couple.since ?? todayKey() } : null,
   );
   const value = values.since;
-  const [frame, setFrame] = useState(couple?.photoFrame ?? DEFAULT_FRAME);
+  const [frameDraft, setFrameDraft] = useState(() => {
+    const initial = couple?.photoFrame ?? DEFAULT_FRAME;
+    return { base: initial, value: initial };
+  });
+  const frame = frameDraft.value;
   const [framing, setFraming] = useState<{ uri: string } | null>(null);
+  const receivedFrame = couple?.photoFrame ?? DEFAULT_FRAME;
+  // A framing is one coherent transformation, not three independently merged
+  // fields. Only an untouched transformation follows the partner's changes.
+  if (framing && couple?.photoUrl === framing.uri && !sameFrame(frameDraft.base, receivedFrame)) {
+    setFrameDraft({ base: receivedFrame, value: sameFrame(frame, frameDraft.base) ? receivedFrame : frame });
+  }
   const context = useMemo(() => ({ backend }), [backend]);
   const latest = useRef<{ context: typeof context; couple: typeof couple; framing: typeof framing; value: string; frame: typeof frame } | null>(null);
   const closed = useRef(false);
@@ -39,7 +52,7 @@ function CounterForm({ onClose }: { onClose: () => void }) {
     if (!latest.current) return;
     latest.current.framing = next;
     latest.current.frame = nextFrame;
-    setFrame(nextFrame);
+    setFrameDraft({ base: nextFrame, value: nextFrame });
     setFraming(next);
   };
   const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
@@ -89,7 +102,7 @@ function CounterForm({ onClose }: { onClose: () => void }) {
         <PhotoFrameEditor uri={framing.uri} frame={frame} disabled={busy || !couple || photoChanged} onChange={(next) => run(() => {
           if (canWrite() && latest.current?.framing === framing && latest.current.couple?.photoUrl === framing.uri) {
             latest.current.frame = next;
-            setFrame(next);
+            setFrameDraft(previous => ({ ...previous, value: next }));
           }
         })} />
         {photoChanged && <T>La photo a changé ou sa synchronisation est en cours. Reviens au formulaire puis rouvre le cadrage de la photo actuelle.</T>}
@@ -98,6 +111,10 @@ function CounterForm({ onClose }: { onClose: () => void }) {
           disabled={busy || !couple || photoChanged}
           onPress={() => runCurrent(async () => {
             if (latest.current?.framing !== framing || latest.current?.couple?.photoUrl !== framing.uri) return;
+            if (sameFrame(latest.current.frame, latest.current.couple.photoFrame ?? DEFAULT_FRAME)) {
+              changeFraming(null);
+              return;
+            }
             await backend.updateCouple({ photoFrame: latest.current.frame });
             if (isCurrent()) changeFraming(null);
           })}
