@@ -21,6 +21,32 @@ const render = async (os: 'ios' | 'android' | 'web', disabled = false) => {
 };
 const select = () => (DateTimePickerAndroid.open as jest.Mock).mock.calls.at(-1)[0].onValueChange;
 
+test('Android affiche et annonce aussi l’année de la date sélectionnée', async () => {
+  await render('android');
+  const button = root.root.findByType(Pressable);
+  expect(button.props.accessibilityLabel).toContain('2020');
+  expect(button.findByType('text' as never).props.children).toContain('2020');
+  await act(async () => root.update(<DateField {...props} value="2024-06-07" />));
+  expect(root.root.findByType(Pressable).props.accessibilityLabel).toContain('2024');
+});
+
+test('le sélecteur iOS conserve le contexte de son champ pour le lecteur d’écran', async () => {
+  await render('ios');
+  expect(root.root.findByType(DateTimePicker).props.accessibilityLabel).toBe('Date fictive');
+  expect(root.root.findByType(DateTimePicker).props.accessibilityState).toEqual({ disabled: false });
+  await act(async () => root.update(<DateField {...props} disabled />));
+  expect(root.root.findByType(DateTimePicker).props.accessibilityState).toEqual({ disabled: true });
+});
+
+test('le sélecteur iOS d’heure est nommé sans remplacer sa valeur native', async () => {
+  await render('ios');
+  await act(async () => root.update(<TimeField label="Heure du rendez-vous" value="13:45" onChange={onChange} />));
+  const picker = root.root.findByType(DateTimePicker);
+  expect(picker.props.accessibilityLabel).toBe('Heure du rendez-vous');
+  expect(picker.props.value.getHours()).toBe(13);
+  expect(picker.props.value.getMinutes()).toBe(45);
+});
+
 test.each(['ios', 'android', 'web'] as const)('%s refuse la saisie quand désactivé puis la réactive', async (os) => {
   await render(os, true);
   if (os === 'ios') {

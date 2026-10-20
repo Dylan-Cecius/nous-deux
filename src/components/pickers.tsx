@@ -54,7 +54,7 @@ function PickerField({
 
   if (Platform.OS === 'web') return <WebField mode={mode} label={label} value={value} onChange={change} grow={grow} disabled={disabled} canChange={isCurrent} />;
 
-  const display = mode === 'date' ? formatLong(value) : value;
+  const display = mode === 'date' ? `${formatLong(value)} ${fromKey(value).getFullYear()}` : value;
 
   return (
     <View style={[{ gap: 6 }, grow && { flex: 1 }]}>
@@ -65,6 +65,8 @@ function PickerField({
         // Sur iPhone : le bouton compact d'Apple, qui ouvre le calendrier ou la roue des heures.
         <Row style={{ minHeight: 50 }}>
           <DateTimePicker
+            accessibilityLabel={label}
+            accessibilityState={{ disabled }}
             mode={mode}
             display="compact"
             value={toDate(mode, value)}

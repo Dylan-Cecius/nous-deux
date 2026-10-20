@@ -1054,3 +1054,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Le dialogue courant est actualisé dès sa réception puis consommé avant l’appel du callback. Remplacement, fermeture (avec ou sans annulation) et démontage invalident les événements retenus. Une action ouvrant un second dialogue le conserve. Alert natif reste inchangé.
 - Preuves : dix tests nouveaux, dont six rouges puis verts ; 56 tests ciblés, lint et TypeScript réussis. Contrôle transversal : 54 suites / 1142 tests réussis en 8,613 s. Diff relu et sans erreur d’espacement.
 - Limites : tests de composants et callbacks fictifs, pas de clic navigateur ni d’alerte native réellement essayés. Aucune écriture serveur, build, distribution ou dépense. La garde de confirmation ne remplace pas les vérifications métier au moment de l’écriture.
+
+## 2026-10-20 — 16:52 Europe/Brussels — Dates complètes et contexte accessible
+
+- Base : `1f369687caa8a3e66ecba6fe7c0b0836517d7aae`. Trois cas rouges : année absente du bouton Android et champs date/heure iOS sans nom explicite.
+- Le bouton Android affiche et annonce le jour, le mois et l’année. Le sélecteur iOS reçoit le titre du champ et son état disabled, sans remplacer sa valeur native ni modifier la sélection.
+- Preuves : trois régressions vertes, 98 tests ciblés (sélecteurs, histoire, souvenir), lint et TypeScript réussis, diff relu/propre. Documentation Expo57 date-time-picker (version recommandée9.1.0), README et transmission des props de la version installée consultés.
+- Limites : contrats natifs simulés ; rendu compact, VoiceOver, TalkBack et lisibilité à grande taille à vérifier sur appareils. Aucun export visuel/build/distribution. Dernier contrôle transversal : 1142 tests avant ce lot ; pas de nouvelle preuve de tests serveur.
