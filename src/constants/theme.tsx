@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 
 const base = {
@@ -80,19 +80,31 @@ const PrefsContext = createContext<{ accent: AccentId; setAccent: (a: AccentId) 
 /** Préférences propres à ce téléphone (thème de couleur). */
 export function PrefsProvider({ children }: { children: ReactNode }) {
   const [accent, setAccentState] = useState<AccentId>('framboise');
+  const chosen = useRef(false);
+  const mounted = useRef(true);
+  const saves = useRef(Promise.resolve());
 
   useEffect(() => {
-    AsyncStorage.getItem('prefs:accent').then((v) => {
-      if (v && v in AccentThemes) setAccentState(v);
+    let active = true;
+    mounted.current = true;
+    void Promise.resolve().then(() => AsyncStorage.getItem('prefs:accent')).then((v) => {
+      if (active && !chosen.current && typeof v === 'string' && Object.hasOwn(AccentThemes, v)) setAccentState(v);
+    }).catch(() => {
+      // A cosmetic preference must not prevent startup if local storage fails.
     });
+    return () => { active = false; mounted.current = false; };
   }, []);
 
-  const setAccent = (a: AccentId) => {
+  const setAccent = useCallback((a: AccentId) => {
+    if (!mounted.current || !Object.hasOwn(AccentThemes, a)) return;
+    chosen.current = true;
     setAccentState(a);
-    AsyncStorage.setItem('prefs:accent', a);
-  };
+    // Preserve selection order within this provider. A failed save keeps the
+    // in-memory choice usable, without promising persistence after a restart.
+    saves.current = saves.current.then(() => AsyncStorage.setItem('prefs:accent', a)).catch(() => {});
+  }, []);
 
-  return createElement(PrefsContext.Provider, { value: { accent, setAccent } }, children);
+  return <PrefsContext.Provider value={{ accent, setAccent }}>{children}</PrefsContext.Provider>;
 }
 
 export function usePrefs() {
