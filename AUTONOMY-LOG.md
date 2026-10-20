@@ -1396,3 +1396,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - SecureSheet relit les trois valeurs courantes et revalide leur cohérence au moment de l’action. Champs/verrou coordonnés et fermeture immédiatement invalidante ; référence transitoire relâchée à la sortie. Mécanismes de suppression, backend et règles inchangés.
 - Preuves : 45 tests sécurisation/connexion réussis en 1,048 s ; lint/TypeScript/diff check réussis, diff relu. Revue React : synchronisation dans les événements, nettoyage à la sortie, aucune nouvelle persistance de coordonnées ou de secrets.
 - Limites : secureAccount et tous les services de compte doublés, aucune authentification, association de compte, suppression ni communication réelle. Les contrôles de suppression préexistants de la suite ne valent pas tests sécurité sur émulateurs.
+
+## 2026-10-20 — 21:56 Europe/Brussels — Demandes de l’écran d’entrée
+
+- Logique de demande extraite à l’identique dans useOnboardingAction pour la tester sans charger/remplacer le logo absent. Quatre cas rouges observés avant correction : deux demandes concurrentes, succès/erreur après démontage et ancien callback lançant une demande après sortie. Un contrôle de reprise volontaire ajouté.
+- Verrou immédiat useAsyncAction réutilisé et résultat rattaché à la durée de vie du montage ; aucun changement des fonctions de création/jonction, des données persistées ou des images. Le branchement dans onboarding.tsx est relu et contrôlé par TypeScript, pas rendu avec un logo factice.
+- Preuves : 39 tests contrôleur/identité d’entrée réussis en 0,871 s ; lint/TypeScript/diff check réussis, diff relu. Une erreur de pureté du montage de test a été corrigée en publiant son état dans un effet, sans désactiver la règle lint.
+- Limites : contrôleur testé avec actions fictives, pas l’écran natif complet ; une opération déjà engagée côté backend n’est pas annulée. Navigation et saisie pendant la demande restent à examiner séparément. Aucun appel Firebase, e-mail ou invitation réel.

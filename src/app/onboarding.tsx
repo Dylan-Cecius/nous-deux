@@ -7,12 +7,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, ColorPicker, Field, T } from '@/components/ui';
 import { SignInForm } from '@/components/account';
-import { showDialog } from '@/components/dialog';
 import { Fonts, MemberColors } from '@/constants/theme';
-import { createCloudCouple, createLocalCouple, joinCloudCouple, type Backend } from '@/lib/backend';
+import { createCloudCouple, createLocalCouple, joinCloudCouple } from '@/lib/backend';
 import { useCouple } from '@/lib/couple-context';
 import { isFirebaseConfigured } from '@/lib/firebase';
 import { useFloatingHeartMotion } from '@/lib/use-floating-heart-motion';
+import { useOnboardingAction } from '@/lib/use-onboarding-action';
 
 type Step = 'profile' | 'choice' | 'join' | 'local' | 'signin';
 
@@ -76,20 +76,9 @@ export default function Onboarding() {
   const [color, setColor] = useState(MemberColors[0]);
   const [code, setCode] = useState('');
   const [partnerName, setPartnerName] = useState('');
-  const [busy, setBusy] = useState(false);
+  const { run, busy } = useOnboardingAction(setBackend);
 
   const me = { name: name.trim(), color };
-
-  const run = async (action: () => Promise<Backend>) => {
-    setBusy(true);
-    try {
-      setBackend(await action());
-    } catch (e) {
-      showDialog('Oups', e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
