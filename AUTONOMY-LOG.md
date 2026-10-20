@@ -1340,3 +1340,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Le bouton revient à l’écran précédent si possible ; sinon il remplace la route par l’accueil, comme le parcours d’aide existant. Aucune modification des actions de dépense, marques ou suppressions.
 - Preuves : 26 tests d’écrans réussis en 1,219 s ; lint/TypeScript/diff check réussis, diff relu. Documentation Expo Router SDK 57 canGoBack/back/replace consultée : https://docs.expo.dev/versions/v57.0.0/sdk/router/ .
 - Revue React appliquée : dérivation simple dans l’événement, aucune nouvelle dépendance, effet, sous-composant imbriqué ou état de navigation dupliqué. Limites : routeur doublé, pas d’essai de lien universel sur téléphone ni de navigateur réel.
+
+## 2026-10-20 — 21:36 Europe/Brussels — Dernière saisie de dépense
+
+- Défaut reproduit : titre, montant et payeur changés puis validés avant le rendu utilisaient leurs anciennes valeurs ; une nouvelle saisie invalide pouvait également être ignorée. Sept régressions rouges avant correction.
+- Chaque événement actualise immédiatement la référence lue par la validation et son état affiché sous le verrou existant. Arrondi, bornes, appartenance du payeur et contexte sont conservés ; aucune action de remboursement/suppression modifiée.
+- Preuves : 31 tests du formulaire réussis en 0,969 s ; lint/TypeScript/diff check réussis, diff relu. Revue React : synchronisation dans l’événement, pas d’effet ou de dépendance ajouté.
+- Limites : dépenses fictives et backend doublé uniquement, aucune opération financière, aucun appel serveur ni essai clavier/appareil.

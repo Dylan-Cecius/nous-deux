@@ -195,6 +195,13 @@ function ExpenseSheet({ onClose }: { onClose: () => void }) {
   const value = Number(amount.replace(',', '.'));
   const valid = !!title.trim() && Number.isFinite(value) && value >= 0.01 && value <= 100000 && members.some((member) => member.id === paidBy);
   const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
+  const change = (key: 'title' | 'amount' | 'paidBy', next: string) => run(() => {
+    if (!isCurrent() || !latest.current) return;
+    latest.current[key] = next;
+    if (key === 'title') setTitle(next);
+    else if (key === 'amount') setAmount(next);
+    else setPaidBy(next);
+  });
   const save = () => run(async () => {
     const current = latest.current;
     if (!isCurrent() || !current || current.collection.loading || current.collection.error) return;
@@ -216,15 +223,15 @@ function ExpenseSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <Sheet visible title="Nouvelle dépense" onClose={() => run(close)}>
-      <Field label="Quoi ?" value={title} maxLength={200} editable={!pending} onChangeText={(next) => run(() => { if (isCurrent()) setTitle(next); })} placeholder="Courses, resto, billets de train…" />
-      <Field label="Montant (€)" value={amount} editable={!pending} onChangeText={(next) => run(() => { if (isCurrent()) setAmount(next); })} placeholder="42,50" keyboardType="decimal-pad" />
+      <Field label="Quoi ?" value={title} maxLength={200} editable={!pending} onChangeText={(next) => change('title', next)} placeholder="Courses, resto, billets de train…" />
+      <Field label="Montant (€)" value={amount} editable={!pending} onChangeText={(next) => change('amount', next)} placeholder="42,50" keyboardType="decimal-pad" />
       {!!amount && (!Number.isFinite(value) || value < 0.01 || value > 100000) && <T variant="small">Entre un montant entre 0,01 € et 100 000 €.</T>}
       <Chips
         label="Payé par"
         options={members.map((m) => ({ value: m.id, label: m.name, color: m.color }))}
         value={paidBy}
         disabled={pending}
-        onChange={(next) => run(() => { if (isCurrent()) setPaidBy(next); })}
+        onChange={(next) => change('paidBy', next)}
       />
       {!members.some((member) => member.id === paidBy) && <T variant="small">Choisis un membre actuel pour cette dépense.</T>}
       {unavailable && <T variant="small" muted>Dépenses indisponibles. Ton brouillon est conservé ; recharge les dépenses avant de continuer.</T>}

@@ -33,6 +33,36 @@ const mount = async () => {
 };
 const refresh = async () => { await act(async () => root.update(<Depenses />)); };
 
+test.each(['title', 'amount', 'payer', 'all'])('la validation immédiate conserve la dernière saisie : %s', async (kind) => {
+  await mount();
+  const submit = save();
+  await act(async () => {
+    if (kind === 'title' || kind === 'all') field('Quoi ?').props.onChangeText(' Dernier titre ');
+    if (kind === 'amount' || kind === 'all') field('Montant (€)').props.onChangeText('17,239');
+    if (kind === 'payer' || kind === 'all') field('Payé par').props.onChange('bob');
+    await submit();
+  });
+  expect(backend.add).toHaveBeenCalledTimes(1);
+  expect(backend.add).toHaveBeenCalledWith('expenses', expect.objectContaining({
+    title: kind === 'title' || kind === 'all' ? 'Dernier titre' : 'Dépense fictive',
+    amount: kind === 'amount' || kind === 'all' ? 17.24 : 42.5,
+    paidBy: kind === 'payer' || kind === 'all' ? 'bob' : 'alice',
+  }));
+});
+
+test.each(['title', 'amount', 'payer'])('une saisie devenue invalide avant le rendu bloque l’ajout : %s', async (kind) => {
+  await mount();
+  const submit = save();
+  await act(async () => {
+    if (kind === 'title') field('Quoi ?').props.onChangeText('  ');
+    if (kind === 'amount') field('Montant (€)').props.onChangeText('100001');
+    if (kind === 'payer') field('Payé par').props.onChange('stranger');
+    await submit();
+  });
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(root.root.findAllByType('sheet' as never)).toHaveLength(1);
+});
+
 test.each(['closed', 'reopened', 'backend', 'member', 'loading', 'error'])('création de dépense bloquée après %s', async (kind) => {
   await mount(); const oldSave = save();
   if (kind === 'closed' || kind === 'reopened') {
