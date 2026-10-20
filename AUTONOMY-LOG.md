@@ -933,3 +933,13 @@ Durée observée à cette entrée : environ 18 minutes depuis 13:14, pas une heu
 
 Aucune modification serveur/règles/configuration native/EAS ou activation payante. Pas de build native, export visuel, déploiement, distribution TestFlight ou relecture de validation Apple. Sept PNG toujours indisponibles localement ; aucun substitut créé. Aucun contenu intime réel, opération sur compte réel, message à un tiers, paiement ni dépense.
 
+## 2026-10-20, 14:32 Europe/Brussels — Reprise d'ajout photo après panne de lecture
+
+PR #3 ouverte/brouillon, tête initiale 2ab831f955da06926b04da29e5da7ddd55152f4f. Consignes relues via GitHub ; 152 fichiers texte concordent avec les SHA distants, sept PNG absents, aucun changement local initial. Le verrou de useAddMemory était recréé au retour de disponibilité, permettant de rouvrir le sélecteur alors qu'une sélection, un upload ou un ajout était toujours engagé. Trois régressions rouges puis vertes : verrou désormais conservé par backend jusqu'à la résolution de l'opération, indépendamment de la disponibilité de lecture. Les étapes suivantes de l'ancien contexte restent abandonnées ; un nouveau compte indépendant garde son fonctionnement.
+
+Preuves : 20 tests ciblés réussis ; lint/TypeScript réussis ; 49 suites / 998 tests applicatifs en 8,373 s. Diff relu, git diff --check propre. Aucun upload réel, aucune ressource factice, aucune annulation ou suppression compensatoire d'upload. Verrou limité à cette instance du hook ; pas d'idempotence ni de verrou entre plusieurs appareils.
+
+Contrôle de sécurité tenté via npm run test:security : compilation functions réussie, CLI annonce explicitement demo-nous-deux-security, puis téléchargement de cloud-firestore-emulator-v1.19.8.jar. Le contrôle automatique d'approbation a rejeté la poursuite, motif : connexion Firebase publique avec risque de toucher un environnement réel/transmettre des données. Cache des émulateurs vide ; aucun test de sécurité lancé ou déclaré réussi, aucune nouvelle tentative de téléchargement par un autre moyen. Le fichier de tests exige les trois variables EMULATOR_HOST mais ne vérifie actuellement que leur présence. Dernière preuve de sécurité reste historique (67 tests le 15 octobre), notamment pour le lot de suppression précédent ; aucune fusion/distribution permise sur cette seule preuve historique. Ce blocage n'empêche pas les tâches client et les contrôles locaux.
+
+Suite : améliorer les messages des étapes photo sans exposer d'erreurs techniques brutes ; durcir les préconditions locales du banc de sécurité, puis poursuivre les tâches prêtes sans cloud réel. Aucun build, déploiement, service payant ni dépense.
+

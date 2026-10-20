@@ -188,3 +188,28 @@ test('un rejet de création ne prétend pas que la photo est absente et invite �
   expect(backend.uploadPhoto).toHaveBeenCalledTimes(1);
   expect(backend.add).toHaveBeenCalledTimes(1);
 });
+
+test.each(['picker', 'upload', 'save'])('la reprise de lecture attend la fin du travail %s déjà engagé', async (stage) => {
+  let finish!: (value?: unknown) => void;
+  const pendingStage = new Promise(resolve => { finish = resolve; });
+  if (stage === 'picker') (pickPhoto as jest.Mock).mockReturnValueOnce(pendingStage);
+  else if (stage === 'upload') backend.uploadPhoto.mockReturnValueOnce(pendingStage);
+  else backend.add.mockReturnValueOnce(pendingStage);
+  let pending!: Promise<void>;
+  await act(async () => { pending = action.add(); });
+  available = false;
+  await act(async () => { root.update(<Consumer />); });
+  available = true;
+  await act(async () => { root.update(<Consumer />); });
+  const busyDuringRecovery = action.busy;
+  await act(async () => { await action.add(); });
+  const callsDuringRecovery = (pickPhoto as jest.Mock).mock.calls.length;
+  await act(async () => { finish(stage === 'picker' ? { uri: 'fictitious://old' } : 'fictitious://saved'); await pending; });
+  expect(busyDuringRecovery).toBe(true);
+  expect(callsDuringRecovery).toBe(1);
+  expect(action.busy).toBe(false);
+  expect(success).not.toHaveBeenCalled();
+  await act(async () => { await action.add(); });
+  expect(pickPhoto).toHaveBeenCalledTimes(2);
+  expect(success).toHaveBeenCalledTimes(1);
+});

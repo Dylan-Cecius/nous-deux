@@ -15,7 +15,13 @@ import { pickPhoto } from '@/lib/photos';
 export function useAddMemory(available: boolean) {
   const { backend } = useSession();
   const context = useMemo(() => ({ backend, available }), [backend, available]);
-  const [progress, setProgress] = useState<{ context: typeof context; busy: boolean } | null>(null);
+  const [pendingBackends, setPendingBackends] = useState<(typeof backend)[]>([]);
+  const lockedBackends = useRef(new Set<typeof backend>());
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const scopeRef = useRef<{ context: typeof context; active: boolean; sending: boolean } | null>(null);
   useEffect(() => {
     const scope = { context, active: context.available, sending: false };
@@ -24,9 +30,10 @@ export function useAddMemory(available: boolean) {
   }, [context]);
   const add = async () => {
     const scope = scopeRef.current;
-    if (!scope?.active || scope.context !== context || scope.sending) return;
+    if (!scope?.active || scope.context !== context || scope.sending || lockedBackends.current.has(backend)) return;
     scope.sending = true;
-    setProgress({ context, busy: true });
+    lockedBackends.current.add(backend);
+    setPendingBackends((previous) => [...previous, backend]);
     let saving = false;
     try {
       const picked = await pickPhoto();
@@ -51,10 +58,11 @@ export function useAddMemory(available: boolean) {
       }
     } finally {
       scope.sending = false;
-      if (scope.active) setProgress({ context, busy: false });
+      lockedBackends.current.delete(backend);
+      if (mounted.current) setPendingBackends((previous) => previous.filter((entry) => entry !== backend));
     }
   };
-  return { add, busy: progress?.context === context && progress.busy };
+  return { add, busy: pendingBackends.includes(backend) };
 }
 
 /** Souvenirs sur l'accueil : « Il y a un an… » et les dernières photos. */
