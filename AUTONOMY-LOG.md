@@ -1048,16 +1048,23 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Preuves : lint et TypeScript réussis ; 53 suites / 1132 tests réussis en 9,183 s ; diff relu et `git diff --check` propre. Documentation Expo57/React Native0.86 et implémentation TextInput installée consultées. Tests uniquement fictifs et contrats de composants.
 - Limites : aucune preuve VoiceOver/TalkBack réelle ni aperçu complet (sept PNG absents), aucune build/distribution/validation Apple. Serveur et règles inchangés ; aucun émulateur ni service réel appelé. Suite : audit ciblé des confirmations web et accessibilité des contrôles.
 
-## 2026-10-20 — 16:48 Europe/Brussels — Confirmation web consommée une seule fois
+## 2026-10-20 — 16:46 Europe/Brussels — Confirmation web consommée une seule fois
 
 - Base : `593a67845195d65e1ba546e1a62938bc54aeff56`. Six cas rouges reproduits dans DialogHost : double validation/annulation, anciennes validation/fermeture après remplacement, et action après démontage.
 - Le dialogue courant est actualisé dès sa réception puis consommé avant l’appel du callback. Remplacement, fermeture (avec ou sans annulation) et démontage invalident les événements retenus. Une action ouvrant un second dialogue le conserve. Alert natif reste inchangé.
 - Preuves : dix tests nouveaux, dont six rouges puis verts ; 56 tests ciblés, lint et TypeScript réussis. Contrôle transversal : 54 suites / 1142 tests réussis en 8,613 s. Diff relu et sans erreur d’espacement.
 - Limites : tests de composants et callbacks fictifs, pas de clic navigateur ni d’alerte native réellement essayés. Aucune écriture serveur, build, distribution ou dépense. La garde de confirmation ne remplace pas les vérifications métier au moment de l’écriture.
 
-## 2026-10-20 — 16:52 Europe/Brussels — Dates complètes et contexte accessible
+## 2026-10-20 — 16:48 Europe/Brussels — Dates complètes et contexte accessible
 
 - Base : `1f369687caa8a3e66ecba6fe7c0b0836517d7aae`. Trois cas rouges : année absente du bouton Android et champs date/heure iOS sans nom explicite.
 - Le bouton Android affiche et annonce le jour, le mois et l’année. Le sélecteur iOS reçoit le titre du champ et son état disabled, sans remplacer sa valeur native ni modifier la sélection.
 - Preuves : trois régressions vertes, 98 tests ciblés (sélecteurs, histoire, souvenir), lint et TypeScript réussis, diff relu/propre. Documentation Expo57 date-time-picker (version recommandée9.1.0), README et transmission des props de la version installée consultés.
 - Limites : contrats natifs simulés ; rendu compact, VoiceOver, TalkBack et lisibilité à grande taille à vérifier sur appareils. Aucun export visuel/build/distribution. Dernier contrôle transversal : 1142 tests avant ce lot ; pas de nouvelle preuve de tests serveur.
+
+## 2026-10-20 — 16:50 Europe/Brussels — Contraste des actions principales sombres
+
+- Base : `8030604d9e48fc41a197faed7f0e33966d0b927f`. Mesure sRGB des quatre thèmes sombres : texte blanc entre 2,15:1 et 2,91:1 sur primary ; cinq tests rouges, quatre contrôles clairs déjà verts.
+- onPrimary sombre devient #160E12 (couleur de fond sombre existante), sans changer les fonds ni les quatre accents. Boutons et boutons icône utilisant déjà ce jeton en bénéficient ; Fab et son indicateur utilisent maintenant le même jeton. Contraste calculé entre 6,53:1 et 8,82:1 sur les fonds sombres concernés ; thèmes clairs inchangés.
+- Preuves : 55 suites / 1154 tests réussis en 9,262 s, dont neuf tests de contraste/connexion au composant ; lint/TypeScript et diff propres. Références : https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html et https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html.
+- Limites : calcul sur couleurs opaques au repos, pas certification globale WCAG ni recette native (états pressés, dégradés et autres pastilles hors périmètre). Aucun service/build lancé. Les heures des deux entrées précédentes ont été corrigées d’après les horodatages réels des checkpoints : 16:46 et 16:48, sans changer leurs résultats.

@@ -574,7 +574,7 @@ export function Fab({ onPress, label = 'Ajouter' }: { onPress: () => void; label
           transform: [{ scale: pressed ? 0.94 : 1 }],
         },
       ]}>
-      {pending ? <ActivityIndicator color="#fff" /> : <Ionicons name="add" size={30} color="#fff" />}
+      {pending ? <ActivityIndicator color={t.onPrimary} /> : <Ionicons name="add" size={30} color={t.onPrimary} />}
     </Pressable>
   );
 }
