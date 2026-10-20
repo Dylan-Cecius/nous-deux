@@ -1,9 +1,9 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { useEffect } from 'react';
-import { ActivityIndicator, useColorScheme } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AccentThemes, PrefsProvider, useTheme } from '@/constants/theme';
-import { Fab } from '@/components/ui';
+import { Chips, Fab } from '@/components/ui';
 
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(), setItem: jest.fn() }));
 jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), { useColorScheme: { value: jest.fn() } }));
@@ -32,6 +32,14 @@ beforeEach(() => { jest.clearAllMocks(); (AsyncStorage.setItem as jest.Mock).moc
 afterEach(async () => { if (root) await act(async () => root.unmount()); });
 
 describe.each(['light', 'dark'])('contraste du thème %s', (scheme) => {
+  test.each(Object.keys(AccentThemes))('%s : choix sélectionné lisible et icône contrastée', async (accent) => {
+    (useColorScheme as jest.Mock).mockReturnValue(scheme);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(accent);
+    await act(async () => { root = create(<PrefsProvider><Probe /><Chips value="a" onChange={() => {}} options={[{ value: 'a', label: 'Choix fictif', icon: 'heart' }]} /></PrefsProvider>); });
+    const label = root.root.findAllByType(Text).find(node => node.props.children === 'Choix fictif')!;
+    expect(contrast(StyleSheet.flatten(label.props.style).color, palette.primary)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(root.root.findByType('icon' as never).props.color, palette.primary)).toBeGreaterThanOrEqual(3);
+  });
   test.each(Object.keys(AccentThemes))('%s : texte principal au moins 4,5:1 sur son bouton', async (accent) => {
     (useColorScheme as jest.Mock).mockReturnValue(scheme);
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(accent);

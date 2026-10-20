@@ -1110,3 +1110,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Hook conservateur sans mouvement avant lecture fiable, événement système prioritaire sur la requête initiale. Les particules et animations du message sont arrêtées lorsque la réduction est active ; le message reste affiché, durée existante conservée.
 - Preuves : 56 suites / 1178 tests réussis en 8,513 s, lint/TypeScript et diff propres. Documentation React Native0.86 AccessibilityInfo/Animated et implémentation web installée consultées.
 - Limites : doubles de plateforme, pas de test du réglage sur iPhone/Android ; autres animations hors périmètre. Aucun export, build, service payant ni distribution.
+
+## 2026-10-20 — 17:12 Europe/Brussels — Choix sélectionnés du thème sombre
+
+- Base : `35c71b48547cbd1874d74830c29f85b2fd035ee4`. Huit nouveaux cas de contraste calculé sur les choix Chips : quatre thèmes clairs déjà verts et quatre thèmes sombres rouges (2,15–2,91:1).
+- Les choix utilisant primary reprennent onPrimary pour texte et icône, au lieu du blanc imposé ; couleurs personnalisées inchangées et encore à auditer. Les états et actions restent inchangés.
+- Preuves : huit cas verts après correctif, 61 tests ciblés réussis en 1,494 s, lint/TypeScript et diff propres. Même formule sRGB et référence WCAG que le lot précédent de contraste.
+- Limites : couleurs opaques au repos seulement, pas de certification globale ni d’essai natif. Aucun service, build ou distribution.

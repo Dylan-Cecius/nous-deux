@@ -484,6 +484,7 @@ export function Chips<V extends string>({
         {options.map((o) => {
           const active = o.value === value;
           const accent = o.color ?? t.primary;
+          const selectedForeground = accent === t.primary ? t.onPrimary : '#fff';
           return (
             <Pressable
               key={o.value}
@@ -501,8 +502,8 @@ export function Chips<V extends string>({
                 { opacity: disabled ? 0.5 : 1 },
                 { borderColor: active ? accent : t.border, backgroundColor: active ? accent : t.card },
               ]}>
-              {o.icon ? <Ionicons name={o.icon} size={16} color={active ? '#fff' : t.textSecondary} /> : null}
-              <Text style={{ color: active ? '#fff' : t.text, fontFamily: Fonts.bodyMedium, fontSize: 15 }}>{o.label}</Text>
+              {o.icon ? <Ionicons name={o.icon} size={16} color={active ? selectedForeground : t.textSecondary} /> : null}
+              <Text style={{ color: active ? selectedForeground : t.text, fontFamily: Fonts.bodyMedium, fontSize: 15 }}>{o.label}</Text>
             </Pressable>
           );
         })}
