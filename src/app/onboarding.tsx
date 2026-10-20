@@ -112,7 +112,7 @@ export default function Onboarding() {
         )}
 
         {step === 'profile' && isFirebaseConfigured && (
-          <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => interact(() => setStep('signin'))} style={{ alignSelf: 'center', padding: 12 }}>
+          <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => form.navigate(() => setStep('signin'))} style={{ alignSelf: 'center', padding: 12 }}>
             <T style={{ color: MUTED, fontFamily: Fonts.bodyBold }}>J’ai déjà un compte</T>
           </Pressable>
         )}
@@ -123,7 +123,7 @@ export default function Onboarding() {
               Te revoilà
             </T>
             <T color={MUTED}>Connecte-toi avec l’e-mail de ton compte pour retrouver votre espace.</T>
-            <SignInForm dark onSignedIn={setBackend} onBack={() => interact(() => setStep('profile'))} />
+            <SignInForm dark onSignedIn={setBackend} onBack={() => form.navigate(() => setStep('profile'))} />
           </GlassCard>
         )}
 
@@ -147,9 +147,9 @@ export default function Onboarding() {
                 J’ai reçu un code
               </T>
               <T color={MUTED}>Ta moitié a déjà créé votre espace ? Entre son code.</T>
-              <Button label="Rejoindre" variant="glass" disabled={busy} onPress={() => interact(() => setStep('join'))} />
+              <Button label="Rejoindre" variant="glass" disabled={busy} onPress={() => form.navigate(() => setStep('join'))} />
             </GlassCard>
-            <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => interact(() => setStep('local'))} style={{ alignSelf: 'center', padding: 12 }}>
+            <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => form.navigate(() => setStep('local'))} style={{ alignSelf: 'center', padding: 12 }}>
               <T style={{ color: MUTED, fontFamily: Fonts.bodyBold }}>Essayer sans compte (sur ce téléphone)</T>
             </Pressable>
           </View>
@@ -178,7 +178,7 @@ export default function Onboarding() {
               disabled={busy || code.replace(/\s|-/g, '').length !== 10}
               onPress={form.join}
             />
-            <Button label="Retour" variant="glass" disabled={busy} onPress={() => interact(() => setStep('choice'))} />
+            <Button label="Retour" variant="glass" disabled={busy} onPress={() => form.navigate(() => setStep('choice'))} />
           </GlassCard>
         )}
 
@@ -199,7 +199,7 @@ export default function Onboarding() {
               disabled={busy || !partnerName.trim()}
               onPress={form.createLocal}
             />
-            {isFirebaseConfigured && <Button label="Retour" variant="glass" disabled={busy} onPress={() => interact(() => setStep('choice'))} />}
+            {isFirebaseConfigured && <Button label="Retour" variant="glass" disabled={busy} onPress={() => form.navigate(() => setStep('choice'))} />}
           </GlassCard>
         )}
 

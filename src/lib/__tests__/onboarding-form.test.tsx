@@ -148,3 +148,38 @@ test('une transition conserve les champs et permet une nouvelle action courante'
   await act(async () => { form.changePartnerName('Nouveau fictif'); await form.createLocal(); });
   expect(createLocalCouple).toHaveBeenCalledWith({ name: 'Ancien prénom', color: MemberColors[0] }, { name: 'Nouveau fictif', color: MemberColors[1] });
 });
+
+test.each(['navigate', 'continueProfile'] as const)('%s invalide la saisie et la demande avant le prochain rendu', async navigation => {
+  const previous = form;
+  const next = jest.fn(() => root.update(<Harness step="local" />));
+  await act(async () => {
+    previous[navigation](next);
+    previous.changeName('Événement retardé');
+    await previous.createCloud();
+  });
+  expect(next).toHaveBeenCalledTimes(1);
+  expect(form.name).toBe('Ancien prénom');
+  expect(createCloudCouple).not.toHaveBeenCalled();
+  await act(async () => { form.changePartnerName('Alex fictif'); await form.createLocal(); });
+  expect(createLocalCouple).toHaveBeenCalledTimes(1);
+});
+
+test('deux navigations rapprochées ne changent pas deux fois de destination', async () => {
+  const previous = form;
+  const first = jest.fn(() => root.update(<Harness step="local" />));
+  const second = jest.fn(() => root.update(<Harness step="signin" />));
+  await act(async () => { previous.navigate(first); previous.navigate(second); });
+  expect(first).toHaveBeenCalledTimes(1);
+  expect(second).not.toHaveBeenCalled();
+});
+
+test('une transition bloquée pendant une demande ne perd pas son résultat courant', async () => {
+  let finish!: (value: Backend) => void;
+  (createCloudCouple as jest.Mock).mockImplementationOnce(() => new Promise<Backend>(resolve => { finish = resolve; }));
+  let pending!: Promise<unknown>;
+  const next = jest.fn();
+  await act(async () => { pending = form.createCloud(); form.navigate(next); });
+  await act(async () => { finish(backend); await pending; });
+  expect(next).not.toHaveBeenCalled();
+  expect(install).toHaveBeenCalledWith(backend);
+});

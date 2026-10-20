@@ -22,5 +22,11 @@ export function useOnboardingAction(setBackend: (backend: Backend) => void, cont
     }
   });
   const interact = (action: () => void) => guarded(() => { if (active.current === scope) action(); });
-  return { run, busy, interact };
+  const transition = (action: () => void) => guarded(() => {
+    if (active.current !== scope) return;
+    // The following render may be deferred: invalidate before requesting it.
+    active.current = null;
+    action();
+  });
+  return { run, busy, interact, transition };
 }

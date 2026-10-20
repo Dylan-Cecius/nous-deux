@@ -15,7 +15,7 @@ export function useOnboardingForm(setBackend: (backend: Backend) => void, step: 
     latest.current = emptyDraft();
     return () => { latest.current = null; };
   }, []);
-  const { run, busy, interact } = useOnboardingAction(setBackend, step);
+  const { run, busy, interact, transition } = useOnboardingAction(setBackend, step);
   const change = (patch: Partial<Draft>) => interact(() => {
     if (!latest.current) return;
     const next = { ...latest.current, ...patch };
@@ -28,8 +28,8 @@ export function useOnboardingForm(setBackend: (backend: Backend) => void, step: 
     return { values, me: { name: values.name.trim(), color: values.color } };
   };
   return {
-    ...draft, busy, interact,
-    continueProfile: (next: () => void) => interact(() => { if (latest.current?.name.trim()) next(); }),
+    ...draft, busy, interact, navigate: transition,
+    continueProfile: (next: () => void) => { if (latest.current?.name.trim()) return transition(next); },
     changeName: (value: string) => change({ name: value }),
     changeColor: (value: string) => change({ color: value }),
     changeCode: (value: string) => change({ code: value.toUpperCase() }),
