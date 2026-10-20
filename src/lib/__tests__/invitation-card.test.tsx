@@ -142,6 +142,7 @@ test('un code expiré depuis le rendu ne peut être partagé', async () => {
   await act(async () => share());
   expect(Share.share).not.toHaveBeenCalled();
   expect(text()).not.toContain(invitation.code);
+  expect(text()).toContain('Cette invitation a expiré');
 });
 
 test('la reprise après expiration retire le code sans nouveau clic ni appel', async () => {
@@ -163,6 +164,7 @@ test('la reprise après expiration retire le code sans nouveau clic ni appel', a
     jest.setSystemTime(invitation.expiresAt + 1000);
     await act(async () => onState?.('active'));
     expect(text()).not.toContain(invitation.code);
+    expect(text()).toContain('Cette invitation a expiré');
     expect(Share.share).not.toHaveBeenCalled();
     expect(createCoupleInvitation).toHaveBeenCalledTimes(1);
     expect(jest.getTimerCount()).toBe(0);
@@ -201,6 +203,24 @@ test('une échéance distante ne déborde pas le délai du minuteur', async () =
     await act(async () => pending);
     await act(async () => jest.advanceTimersByTime(10));
     expect(text()).toContain(invitation.code);
+  } finally {
+    await act(async () => root?.unmount());
+    jest.useRealTimers();
+  }
+});
+
+test('après expiration, créer un nouveau code retire le conseil périmé', async () => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(invitation.expiresAt - 1000);
+  (createCoupleInvitation as jest.Mock).mockResolvedValueOnce(invitation).mockResolvedValueOnce({ code: 'EFGH234567', expiresAt: invitation.expiresAt + 60_000 });
+  try {
+    const { pending } = await start();
+    await act(async () => pending);
+    await act(async () => jest.advanceTimersByTime(1000));
+    expect(text()).toContain('Cette invitation a expiré');
+    await act(async () => root.root.findByProps({ label: 'Créer une invitation' }).props.onPress());
+    expect(text()).not.toContain('Cette invitation a expiré');
+    expect(text()).toContain('EFGH234567');
   } finally {
     await act(async () => root?.unmount());
     jest.useRealTimers();

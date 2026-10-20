@@ -25,6 +25,7 @@ export function InvitationCard() {
 function InvitationForm() {
   const { backend } = useSession();
   const [invitation, setInvitation] = useState<Invitation | null>(null);
+  const [expired, setExpired] = useState(false);
   const [busy, setBusy] = useState<'create' | 'share' | null>(null);
   const locked = useRef(false);
   const currentInvitation = useRef<Invitation | null>(null);
@@ -46,6 +47,7 @@ function InvitationForm() {
       if (remaining <= 0) {
         currentInvitation.current = null;
         setInvitation(null);
+        setExpired(true);
       } else if (foreground) {
         // Recheck the wall clock; a delayed timer or a clock change is not expiry.
         timer = setTimeout(refresh, Math.min(60_000, remaining));
@@ -62,6 +64,7 @@ function InvitationForm() {
     if (!active.current || locked.current) return;
     locked.current = true;
     setBusy('create');
+    setExpired(false);
     // A replacement may succeed even when its response is lost: do not keep sharing the old code.
     currentInvitation.current = null;
     setInvitation(null);
@@ -88,6 +91,7 @@ function InvitationForm() {
     if (invitation.expiresAt <= Date.now()) {
       currentInvitation.current = null;
       setInvitation(null);
+      setExpired(true);
       return;
     }
     locked.current = true;
@@ -107,8 +111,9 @@ function InvitationForm() {
       <T variant="h3">Invite ta moitié</T>
       <T>Crée un code privé à transmettre à la personne qui partagera ton espace.</T>
       <T variant="small" muted>Nous Deux doit déjà être installée sur son téléphone. Le code se saisit dans l’app, dans « Rejoindre ».</T>
+      {expired && <T>Cette invitation a expiré. Crée un nouveau code pour continuer.</T>}
       {invitation && <>
-        <T variant="h2" style={{ textAlign: 'center', letterSpacing: 3 }}>{invitation.code}</T>
+        <T variant="h2" selectable style={{ textAlign: 'center', letterSpacing: 3 }}>{invitation.code}</T>
         <T variant="small" muted>Expire le {new Date(invitation.expiresAt).toLocaleString('fr-FR')}. Usage unique.</T>
         <Button label="Partager l’invitation" icon="share-outline" disabled={busy !== null} onPress={share} />
       </>}
