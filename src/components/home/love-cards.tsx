@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, View } from 'react-native';
 
 import { celebrate } from '@/components/celebrate';
@@ -89,26 +89,41 @@ export function PingCard() {
 
 /** Dernier mot doux reçu, champ pour en écrire un, historique. */
 export function NoteCard() {
+  const { backend } = useSession();
+  return <ScopedNoteCard key={JSON.stringify([backend.mode, backend.coupleId, backend.userId])} />;
+}
+
+function ScopedNoteCard() {
   const t = useTheme();
   const session = useSession();
   const { backend, partner, nameOf, colorOf } = session;
   const notes = useCollectionState('notes');
   const [note, setNote] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const partnerId = partner?.id;
+  const context = useMemo(() => ({ backend, partnerId }), [backend, partnerId]);
+  const latestDraft = useRef<{ context: typeof context; note: string } | null>(null);
+  useEffect(() => {
+    latestDraft.current = { context, note };
+    return () => { latestDraft.current = null; };
+  }, [context, note]);
+  const isCurrent = () => latestDraft.current?.context === context;
 
   const written = notes.loading || notes.error ? [] : notes.items.filter((n) => n.kind !== 'ping').sort((a, b) => b.createdAt - a.createdAt);
   const latest = written.find((n) => n.from !== backend.userId) ?? written[0];
 
   const { run: send, pending: busy } = useAsyncAction(async () => {
-    const text = note.trim();
-    if (!text) return;
+    if (!isCurrent()) return;
+    const text = latestDraft.current?.note.trim() ?? '';
+    if (!text || text.length > 4000) return;
     try {
-      await sendLoveNote(session, text);
+      await sendLoveNote(session, text, 'note', isCurrent);
+      if (!isCurrent()) return;
       setNote('');
       bump();
       celebrate('hearts');
     } catch {
-      showDialog('Mot doux non envoyé', 'Ton texte est conservé. Vérifie ta connexion et réessaie.');
+      if (isCurrent()) showDialog('Enregistrement non confirmé', 'Ton texte est conservé. Recharge les mots doux pour vérifier si le message a été enregistré avant de réessayer.');
     }
   });
 
@@ -139,14 +154,14 @@ export function NoteCard() {
           value={note}
           maxLength={4000}
           editable={!busy}
-          onChangeText={setNote}
+          onChangeText={(value) => { if (isCurrent() && !busy) setNote(value); }}
           placeholder={partner ? `Un petit mot pour ${partner.name}…` : 'Un petit mot…'}
           grow
           onSubmitEditing={send}
           returnKeyType="send"
           style={{ borderColor: 'transparent' }}
         />
-        <IconButton icon="arrow-forward" label="Envoyer" variant="primary" onPress={send} size={50} />
+        <IconButton icon="arrow-forward" label="Envoyer" variant="primary" onPress={send} disabled={busy || !note.trim()} size={50} />
       </Row>
       {written.length > 1 && (
         <Pressable onPress={() => setShowAll(!showAll)} hitSlop={8}>
