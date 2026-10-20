@@ -144,6 +144,18 @@ Parcours préparés, **non exécutés sur appareil**. Utiliser un environnement 
 | Échec local et explications d’invitation | Faire rejeter le stockage doublé avec un contenu technique fictif, puis reprendre. Lire les conseils de reconnexion locale et synchronisée ; inspecter le texte de partage sans le transmettre. | Message générique d’ouverture non confirmée, saisie conservée ; aucun détail brut du rejet. Parcours prénom → Continuer → Rejoindre explicite et distinction avec l’accès TestFlight. Aucun statut d’acceptation Apple déduit. |
 | Noms longs et texte agrandi | Utiliser des prénoms fictifs longs dans les choix de membre de l’agenda/dépenses et agrandir le texte système ; vérifier aussi Souvenirs/Tout voir et À venir/Ajouter en largeur réduite. | Choix contenus dans la largeur disponible, libellés lisibles sur plusieurs lignes, action de rubrique accessible après retour à la ligne. Vérifier pixels, toucher, VoiceOver/TalkBack et paysage : tests de composants et styles ne valident pas ce rendu. |
 
+## Recette complémentaire — agenda et comptes à rebours (20 octobre, 23 h)
+
+Préparée seulement, **aucun essai visuel ou natif réalisé**. Utiliser des données fictives en mode local et les ressources originales, dans un environnement de test autorisé. Les prérequis de coût, serveur et distribution restent inchangés ; ne pas modifier l’horloge d’un téléphone utilisé pour des données réelles.
+
+| Parcours | Manipulation prévue | Résultat attendu et limite |
+| --- | --- | --- |
+| Agenda au changement de journée | Avec une horloge de test contrôlée, rester sur une autre journée de la semaine jusqu’à minuit, puis tester une reprise après arrière-plan. | Le repère du jour avance, sans déplacer le jour consulté. Le test React contrôle l’horloge ; il ne prouve pas le réveil de l’application sur appareil. |
+| Retour au jour courant | Parcourir plusieurs semaines vers le passé et le futur puis toucher Revenir à aujourd’hui. Refaire au changement dimanche/lundi. | Semaine courante affichée, bonne journée sélectionnée, horaires inchangés. Vérifier la disposition du bouton en portrait/paysage et avec texte agrandi. |
+| Date passée et reprise | Dans Nouvelle date, choisir hier sans répétition, puis un anniversaire ancien avec répétition ; retirer ensuite la répétition. Corriger une date refusée puis valider. | Date passée non annuelle expliquée et refusée, brouillon conservé ; anniversaire annuel et date corrigée acceptés. Un ancien appui à minuit doit aussi expliquer le refus, sans écriture. |
+| Contraste des comptes à rebours | Afficher au moins deux dates à venir dans chacun des quatre thèmes, en modes clair et sombre. | Tous les nombres suivent le thème choisi et restent lisibles ; plus de bleu fixe sur une carte sur deux. Les ratios sont calculés sur couleurs opaques ; rendu réel à vérifier. |
+| Conseil de rappel | Lire la carte vide À venir et retrouver Nous → Notifications. Sur un appareil de test autorisé seulement, vérifier séparément autorisation refusée et accordée. | Conseil d’activation explicite, aucune promesse de livraison inconditionnelle. Les rappels effectifs et les permissions natives ne sont pas validés par la seule lecture du texte. |
+
 ## Nettoyage technique : cible et déploiement
 
 `functions/src/retention.ts` prévoit un passage quotidien et au plus 500 documents par collection et par passage :

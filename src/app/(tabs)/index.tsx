@@ -108,7 +108,7 @@ function HomeContent() {
           <Row style={{ gap: 12 }}>
             <Ionicons name="hourglass-outline" size={22} color={t.primary} />
             <T muted style={{ flex: 1 }}>
-              Vacances, anniversaire, concert… ajoutez les dates que vous attendez. Vous recevrez un rappel la veille.
+              Vacances, anniversaire, concert… ajoutez les dates que vous attendez. Pour recevoir des rappels sur ton téléphone, active-les dans Nous → Notifications.
             </T>
           </Row>
         </Card>
