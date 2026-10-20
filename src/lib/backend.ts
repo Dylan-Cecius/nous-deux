@@ -28,6 +28,7 @@ import { Platform } from 'react-native';
 import { firebase, isFirebaseConfigured } from './firebase';
 import { clearReminders } from './notifications';
 import { toCompactDataUri } from './photos';
+import { authMessage, functionMessage } from './service-errors';
 import {
   PRIVATE_COLLECTIONS,
   type Answer,
@@ -118,32 +119,6 @@ function readAsBlob(uri: string): Promise<PhotoBlob> {
     xhr.timeout = 60_000;
     xhr.send(null);
   });
-}
-
-/**
- * Messages lisibles pour les appels aux Cloud Functions (assistant, recherche de restos).
- * Les erreurs volontaires du serveur (HttpsError) ont déjà un message en français : on le garde.
- */
-function functionMessage(e: unknown): string {
-  const { code = '', message = '' } = (e as { code?: string; message?: string }) ?? {};
-  switch (code) {
-    case 'functions/not-found':
-      return 'Cette fonction n’est pas encore disponible. Réessaie après la mise à jour du service.';
-    case 'functions/internal':
-      return 'L’opération n’a pas abouti. Réessaie dans un instant.';
-    case 'functions/unavailable':
-    case 'functions/deadline-exceeded':
-      return 'Le service ne répond pas pour le moment. Vérifie ta connexion et réessaie.';
-    case 'functions/failed-precondition':
-    case 'functions/already-exists':
-    case 'functions/unauthenticated':
-    case 'functions/resource-exhausted':
-    case 'functions/invalid-argument':
-    case 'functions/permission-denied':
-      return message || 'Demande impossible pour le moment.';
-    default:
-      return 'Une erreur est survenue. Réessaie dans un instant.';
-  }
 }
 
 export class CloudOnlyError extends Error {
@@ -512,23 +487,6 @@ async function saveCloudSession(coupleId: string, userId: string) {
 export function currentAccount(): { email: string | null; anonymous: boolean } | null {
   const user = firebase().auth.currentUser;
   return user ? { email: user.email, anonymous: user.isAnonymous } : null;
-}
-
-/** Messages lisibles pour les erreurs de connexion les plus courantes. */
-function authMessage(e: unknown): string {
-  const code = (e as { code?: string })?.code ?? '';
-  const messages: Record<string, string> = {
-    'auth/email-already-in-use': 'Cette adresse e-mail est déjà utilisée par un autre compte.',
-    'auth/invalid-email': 'Cette adresse e-mail n’est pas valide.',
-    'auth/weak-password': 'Le mot de passe doit faire au moins 6 caractères.',
-    'auth/invalid-credential': 'E-mail ou mot de passe incorrect.',
-    'auth/wrong-password': 'E-mail ou mot de passe incorrect.',
-    'auth/user-not-found': 'Aucun compte avec cette adresse e-mail.',
-    'auth/too-many-requests': 'Trop de tentatives. Réessaie dans quelques minutes.',
-    'auth/network-request-failed': 'Pas de connexion Internet.',
-    'auth/requires-recent-login': 'Par sécurité, déconnecte-toi puis reconnecte-toi avant de supprimer ton compte.',
-  };
-  return messages[code] ?? 'Une erreur est survenue. Réessaie.';
 }
 
 /**
