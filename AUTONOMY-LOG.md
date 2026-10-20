@@ -1216,3 +1216,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Réutilisation de foregroundOnColor pour le titre et les horaires, désormais opaques ; couleur du membre, contenu, disposition et actions conservés. Aucun changement des données enregistrées.
 - Preuves : six cas rouges puis verts, quatorze contrôles de couleur au total ; 124 tests ciblés agenda/contraste réussis en 2,199 s. Lint et TypeScript réussis, diff relu/propre. Expo 57, index Expo, RN 0.86 Text Style Props et WCAG 2.2 consultés avant correction.
 - Revue React utilisée : calcul pur local sans nouvel état/effet ni dépendance, couleur de fond partagée avec le calcul du premier plan. Limites : contraste sRGB calculé au repos et composants simulés, pas de rendu natif, VoiceOver, taille de texte ou état de pression validé ; formats personnalisés non opaques gardent le repli historique sans garantie.
+
+## 2026-10-20 — 18:42 Europe/Brussels — Dernière heure libre dans la grille d’agenda
+
+- Base : `b46723af9d65622c8d139010461da3c7a12d9a50`. Trois régressions structurelles reproduites : des plages libres jusqu’à 23 h dépassaient de 40 points le conteneur à overflow hidden, borné à 22 h. Exemple : bas de plage à 600 pour une hauteur de 560.
+- La fin de la grille inclut maintenant les fins des plages libres déjà calculées, en plus des événements. Aucune modification des disponibilités métier, événements ou écritures ; hauteur par défaut inchangée sans disponibilité affichée.
+- Preuves : trois tests rouges puis verts et trois contrôles de bornes (jour vide, membre seul, événement tardif) ; 88 tests ciblés agenda réussis en 2,924 s. Lint, TypeScript et diff propres. Documentation Layout Props RN 0.86 consultée ; calcul dérivé sans état supplémentaire.
+- Limites : assertions géométriques sur les styles du rendu React simulé, pas de mesure native ni capture réelle. La recette visuelle reste à exécuter ; aucun build, déploiement, serveur/règle ou dépense.

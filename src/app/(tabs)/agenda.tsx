@@ -66,9 +66,9 @@ function AgendaContent() {
   const free = members.length === 2 && ofDay.length > 0 ? freeSlots(ofDay) : [];
   const bestSlot = free.reduce<[number, number] | null>((best, s) => (!best || s[1] - s[0] > best[1] - best[0] ? s : best), null);
 
-  // Plage affichée : 8h–22h par défaut, élargie pour contenir tous les horaires du jour.
+  // Plage affichée : 8h–22h par défaut, élargie pour les horaires et plages libres.
   const startHour = Math.min(8, ...ofDay.map((e) => Math.floor(toMin(e.start) / 60)));
-  const endHour = Math.max(22, ...ofDay.map((e) => Math.ceil(endMin(e) / 60)));
+  const endHour = Math.max(22, ...ofDay.map((e) => Math.ceil(endMin(e) / 60)), ...free.map(([, end]) => Math.ceil(end / 60)));
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
   const top = (min: number) => ((min - startHour * 60) / 60) * HOUR_H;
   const height = hours.length * HOUR_H;

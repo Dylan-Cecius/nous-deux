@@ -1,4 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { StyleSheet, View } from 'react-native';
 import Agenda from '@/app/(tabs)/agenda';
 import Home from '@/app/(tabs)/index';
 import { useCollectionState, useSession } from '../couple-context';
@@ -23,7 +24,7 @@ jest.mock('@/components/home/home-hero', () => ({ HomeHero: () => null }));
 jest.mock('@/components/home/love-cards', () => ({ NoteCard: () => null, PingCard: () => null }));
 jest.mock('@/components/home/memories-strip', () => ({ MemoriesStrip: () => null }));
 jest.mock('@/components/home/question-card', () => ({ QuestionCard: () => null }));
-jest.mock('@/constants/theme', () => ({ useTheme: () => ({}), cardShadow: () => ({}), Fonts: {}, Spacing: {} }));
+jest.mock('@/constants/theme', () => ({ useTheme: () => ({ successSoft: '#ddffee' }), cardShadow: () => ({}), Fonts: {}, Spacing: {} }));
 jest.mock('@/components/pickers', () => ({ TimeField: 'time', DateField: () => null }));
 jest.mock('@/components/ui', () => {
   const React = jest.requireActual('react');
@@ -67,6 +68,32 @@ describe.each(MemberColors)('bloc agenda sur %s', color => {
     expect(node).toBeTruthy();
     expect(contrast(node.props.color, color)).toBeGreaterThanOrEqual(4.5);
   });
+});
+
+test.each([['09:00', '12:00'], ['06:00', '07:00'], ['08:00', '22:00']])('la plage libre tient dans la grille après un événement %s–%s', async (start, end) => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...event, start, end }] });
+  await act(async () => { root = create(<Agenda />); });
+  const grid = root.root.findAllByType(View).find(node => {
+    const style = StyleSheet.flatten(node.props.style);
+    return style?.overflow === 'hidden' && style?.borderRadius === 18 && typeof style.height === 'number';
+  })!;
+  const height = StyleSheet.flatten(grid.props.style).height as number;
+  const slots = grid.findAllByType(View).map(node => StyleSheet.flatten(node.props.style))
+    .filter(style => style?.position === 'absolute' && style.backgroundColor === '#ddffee');
+  expect(slots.length).toBeGreaterThan(0);
+  for (const slot of slots) {
+    expect(slot.top).toBeGreaterThanOrEqual(0);
+    expect((slot.top as number) + (slot.height as number)).toBeLessThanOrEqual(height);
+  }
+});
+
+test.each([['empty', 560], ['alone', 560], ['late', 640]] as const)('les bornes habituelles de la grille restent conservées : %s', async (scenario, height) => {
+  if (scenario !== 'empty') (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...event, end: scenario === 'late' ? '23:30' : '12:00' }] });
+  if (scenario === 'alone') (useSession as jest.Mock).mockReturnValue({ ...session, members: [session.members[0]] });
+  await act(async () => { root = create(<Agenda />); });
+  const grid = root.root.findAllByType(View).map(node => StyleSheet.flatten(node.props.style))
+    .find(style => style?.overflow === 'hidden' && style?.borderRadius === 18 && typeof style.height === 'number')!;
+  expect(grid.height).toBe(height);
 });
 
 const seriesEvent = { ...event, seriesId: 'series' };
