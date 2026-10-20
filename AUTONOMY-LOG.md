@@ -1382,3 +1382,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Le bouton relit le prénom courant dans la référence contextualisée ; la saisie actualise cette référence immédiatement sous le verrou prénom/couleur existant. Synchronisation des champs intacts et conservation des brouillons maintenues.
 - Preuves : 21 tests profil réussis en 0,953 s ; lint/TypeScript/diff check réussis, diff relu. Revue React : référence nettoyée avec le contexte, aucune persistance supplémentaire ou dépendance ajoutée.
 - Limites : profils fictifs et backend doublé ; pas de conflit transactionnel entre appareils ni de recette clavier natif. Aucune modification des déconnexions, suppressions ou règles.
+
+## 2026-10-20 — 21:48 Europe/Brussels — Coordonnées courantes de connexion
+
+- Douze régressions rouges : anciennes actions réutilisant une adresse/mot de passe remplacés ou effacés, champs modifiables pendant une demande et ancienne action encore active juste après Retour.
+- Connexion et demande de réinitialisation lisent les coordonnées courantes ; saisie et navigation partagent le verrou. Retour invalide immédiatement le formulaire, la référence transitoire est relâchée à la fermeture/démontage. Champs désactivés pendant la demande, repris après échec.
+- Preuves : 21 tests connexion réussis en 0,847 s ; lint/TypeScript/diff check réussis, diff relu. Les doublures vérifient les coordonnées fictives transmises et l’absence d’appel après sortie. Revue React : nettoyages symétriques, état local uniquement, aucune persistance/trace des mots de passe ajoutée.
+- Limites : aucun compte réel, aucun e-mail envoyé, aucune authentification distante ni validation sécurité serveur exécutée. Une demande déjà envoyée ne peut pas être annulée par ce garde. SecureSheet et suppression inchangés dans ce lot.

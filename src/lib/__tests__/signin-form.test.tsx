@@ -26,6 +26,53 @@ beforeEach(async () => {
 });
 afterEach(async () => { await act(async () => { root.unmount(); }); jest.resetAllMocks(); });
 
+describe.each([false, true])('connexion, rendu intermédiaire : %s', rendered => {
+  test.each(['signin', 'reset'])('l’action %s utilise les coordonnées actuellement saisies', async action => {
+    const submit = button(action === 'signin' ? 'Me connecter' : 'Mot de passe oublié ?').props.onPress;
+    const change = () => {
+      button('E-mail').props.onChangeText('bob@example.test');
+      button('Mot de passe').props.onChangeText('new-fictitious-password');
+    };
+    if (rendered) await act(async () => change());
+    await act(async () => { if (!rendered) change(); await submit(); });
+    if (action === 'signin') expect(signInWithEmail).toHaveBeenCalledWith('bob@example.test', 'new-fictitious-password');
+    else expect(resetPassword).toHaveBeenCalledWith('bob@example.test');
+  });
+  test.each(['signin', 'reset'])('l’action %s ne réutilise pas l’adresse effacée', async action => {
+    const submit = button(action === 'signin' ? 'Me connecter' : 'Mot de passe oublié ?').props.onPress;
+    if (rendered) await act(async () => button('E-mail').props.onChangeText(''));
+    await act(async () => { if (!rendered) button('E-mail').props.onChangeText(''); await submit(); });
+    expect(signInWithEmail).not.toHaveBeenCalled();
+    expect(resetPassword).not.toHaveBeenCalled();
+  });
+});
+
+test.each(['signin', 'reset'])('la demande %s bloque les coordonnées jusqu’à sa réponse', async action => {
+  let finish!: (value: unknown) => void;
+  const deferred = new Promise(resolve => { finish = resolve; });
+  ((action === 'signin' ? signInWithEmail : resetPassword) as jest.Mock).mockReturnValueOnce(deferred);
+  const email = button('E-mail').props.onChangeText, password = button('Mot de passe').props.onChangeText;
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = button(action === 'signin' ? 'Me connecter' : 'Mot de passe oublié ?').props.onPress();
+    email('ignored@example.test'); password('ignored-fictitious-password');
+  });
+  const fields = [button('E-mail').props, button('Mot de passe').props];
+  await act(async () => { finish(backend); await pending; });
+  expect(fields.map(field => field.editable)).toEqual([false, false]);
+  expect(fields.map(field => field.value)).toEqual(['alice@example.test', 'fictitious-password']);
+  expect(button('E-mail').props.editable).toBe(true);
+});
+
+test.each(['signin', 'reset'])('le retour neutralise immédiatement une ancienne action %s', async action => {
+  const submit = button(action === 'signin' ? 'Me connecter' : 'Mot de passe oublié ?').props.onPress;
+  const back = button('Retour').props.onPress;
+  await act(async () => { await back(); await submit(); await back(); });
+  expect(onBack).toHaveBeenCalledTimes(1);
+  expect(signInWithEmail).not.toHaveBeenCalled();
+  expect(resetPassword).not.toHaveBeenCalled();
+});
+
 test.each(['signin', 'reset'])('le verrou %s empêche une autre action et le retour dans le même tour', async (first) => {
   let finish!: (value: unknown) => void;
   const pending = new Promise((resolve) => { finish = resolve; });

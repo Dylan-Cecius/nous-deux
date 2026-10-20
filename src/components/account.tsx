@@ -151,14 +151,25 @@ export function SignInForm({
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const latest = useRef<{ email: string; password: string } | null>({ email: '', password: '' });
   const active = useRef(true);
   useEffect(() => {
     active.current = true;
-    return () => { active.current = false; };
+    latest.current = { email: '', password: '' };
+    return () => { active.current = false; latest.current = null; };
   }, []);
   const { run, pending: busy } = useAsyncAction((action: () => void | Promise<void>) => action());
 
+  const change = (key: 'email' | 'password', value: string) => run(() => {
+    if (!active.current || !latest.current) return;
+    latest.current[key] = value;
+    if (key === 'email') setEmail(value);
+    else setPassword(value);
+  });
+
   const submit = () => run(async () => {
+    if (!active.current || !latest.current) return;
+    const { email, password } = latest.current;
     if (!email.trim() || !password) return;
     try {
       const backend = await signInWithEmail(email, password);
@@ -169,6 +180,8 @@ export function SignInForm({
   });
 
   const forgot = () => run(async () => {
+    if (!active.current || !latest.current) return;
+    const { email } = latest.current;
     if (!email.includes('@')) return showDialog('Mot de passe oublié', 'Entre d’abord ton adresse e-mail.');
     try {
       await resetPassword(email);
@@ -180,11 +193,16 @@ export function SignInForm({
 
   return (
     <View style={{ gap: 16 }}>
-      <Field dark={dark} label="E-mail" value={email} onChangeText={setEmail} placeholder="toi@exemple.fr" keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-      <Field dark={dark} label="Mot de passe" value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" />
+      <Field dark={dark} label="E-mail" value={email} editable={!busy} onChangeText={(value) => change('email', value)} placeholder="toi@exemple.fr" keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
+      <Field dark={dark} label="Mot de passe" value={password} editable={!busy} onChangeText={(value) => change('password', value)} secureTextEntry autoComplete="current-password" />
       <Button label="Me connecter" variant={dark ? 'sunset' : 'primary'} disabled={busy || !email || !password} onPress={submit} />
       <Button label="Mot de passe oublié ?" variant={dark ? 'glass' : 'ghost'} small disabled={busy} onPress={forgot} />
-      <Button label="Retour" variant={dark ? 'glass' : 'ghost'} disabled={busy} onPress={() => run(onBack)} />
+      <Button label="Retour" variant={dark ? 'glass' : 'ghost'} disabled={busy} onPress={() => run(() => {
+        if (!active.current) return;
+        active.current = false;
+        latest.current = null;
+        onBack();
+      })} />
     </View>
   );
 }
