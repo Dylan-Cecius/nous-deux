@@ -6,6 +6,15 @@ import { createCoupleInvitation, type Invitation } from '@/lib/backend';
 import { useSession } from '@/lib/couple-context';
 import { userError } from '@/lib/errors';
 
+function verifiedInvitation(value: unknown): Invitation | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const { code, expiresAt } = value as Partial<Invitation>;
+  if (typeof code !== 'string' || !/^[A-HJ-NP-Z2-9]{10}$/.test(code) ||
+      typeof expiresAt !== 'number' || !Number.isSafeInteger(expiresAt) ||
+      !Number.isFinite(new Date(expiresAt).getTime()) || expiresAt <= Date.now()) return null;
+  return { code, expiresAt };
+}
+
 export function InvitationCard() {
   const { backend, partner } = useSession();
   if (backend.mode !== 'cloud' || partner) return null;
@@ -42,8 +51,13 @@ function InvitationForm() {
     try {
       const result = await createCoupleInvitation(backend);
       if (active.current) {
-        currentInvitation.current = result;
-        setInvitation(result);
+        const verified = verifiedInvitation(result);
+        if (!verified) {
+          showDialog('Invitation indisponible', 'La réponse du service n’a pas pu être vérifiée. Crée une nouvelle invitation.');
+          return;
+        }
+        currentInvitation.current = verified;
+        setInvitation(verified);
       }
     } catch (error) {
       if (active.current) showDialog('Invitation indisponible', userError(error));

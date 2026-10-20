@@ -19,7 +19,7 @@ jest.mock('@/components/ui', () => {
 
 let root: ReactTestRenderer;
 const backend = { mode: 'cloud', coupleId: 'space-a', userId: 'alice' };
-const invitation = { code: 'FICTIF-A', expiresAt: Date.now() + 60_000 };
+const invitation = { code: 'ABCD234567', expiresAt: Date.now() + 60_000 };
 beforeEach(() => { (useSession as jest.Mock).mockReturnValue({ backend }); });
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.restoreAllMocks(); jest.resetAllMocks(); });
 const text = () => root.root.findAllByType('t' as never).map((node) => node.children.join('')).join('\n');
@@ -29,6 +29,23 @@ const start = async () => {
   await act(async () => { pending = root.root.findByProps({ label: 'Créer une invitation' }).props.onPress(); });
   return { pending };
 };
+
+test.each([
+  null, {}, { ...invitation, code: { secret: 'valeur fictive' } },
+  { ...invitation, code: 'ABC' }, { ...invitation, code: 'ABCD012345' },
+  { ...invitation, expiresAt: String(invitation.expiresAt) },
+  { ...invitation, expiresAt: NaN }, { ...invitation, expiresAt: 9e15 },
+  { ...invitation, expiresAt: 0 },
+])('une réponse d’invitation invalide est refusée sans affichage ni partage : %#', async result => {
+  (createCoupleInvitation as jest.Mock).mockResolvedValueOnce(result).mockResolvedValueOnce(invitation);
+  const { pending } = await start();
+  await act(async () => pending);
+  expect(root.root.findAllByProps({ label: 'Partager l’invitation' })).toHaveLength(0);
+  expect(showDialog).toHaveBeenCalledWith('Invitation indisponible', expect.stringContaining('vérifiée'));
+  expect(Share.share).not.toHaveBeenCalled();
+  await act(async () => root.root.findByProps({ label: 'Créer une invitation' }).props.onPress());
+  expect(text()).toContain(invitation.code);
+});
 
 test('deux anciennes actions de création lancées avant rendu ne créent qu’un code', async () => {
   let resolve!: (value: typeof invitation) => void;
@@ -50,7 +67,7 @@ test('une création retenue après démontage ne contacte pas le backend', async
 });
 
 test.each(['unmount', 'replace'])('une action de partage retenue est ignorée après %s', async (change) => {
-  (createCoupleInvitation as jest.Mock).mockResolvedValueOnce(invitation).mockResolvedValueOnce({ ...invitation, code: 'FICTIF-B' });
+  (createCoupleInvitation as jest.Mock).mockResolvedValueOnce(invitation).mockResolvedValueOnce({ ...invitation, code: 'EFGH234567' });
   const { pending } = await start();
   await act(async () => pending);
   const oldShare = root.root.findByProps({ label: 'Partager l’invitation' }).props.onPress;
@@ -58,7 +75,7 @@ test.each(['unmount', 'replace'])('une action de partage retenue est ignorée ap
   else await act(async () => root.root.findByProps({ label: 'Remplacer cette invitation' }).props.onPress());
   await act(async () => oldShare());
   expect(Share.share).not.toHaveBeenCalled();
-  if (change === 'replace') expect(text()).toContain('FICTIF-B');
+  if (change === 'replace') expect(text()).toContain('EFGH234567');
 });
 
 test('remplacement en cours : ancien code retiré et ancien partage bloqué, même après échec ambigu', async () => {
@@ -69,12 +86,12 @@ test('remplacement en cours : ancien code retiré et ancien partage bloqué, mê
   const oldShare = root.root.findByProps({ label: 'Partager l’invitation' }).props.onPress;
   let replacing!: Promise<void>;
   await act(async () => { replacing = root.root.findByProps({ label: 'Remplacer cette invitation' }).props.onPress(); void oldShare(); });
-  expect(text()).not.toContain('FICTIF-A');
+  expect(text()).not.toContain('ABCD234567');
   expect(Share.share).not.toHaveBeenCalled();
   await act(async () => { reject(new Error('Réponse fictive perdue')); await replacing; });
   await act(async () => oldShare());
   expect(Share.share).not.toHaveBeenCalled();
-  expect(text()).not.toContain('FICTIF-A');
+  expect(text()).not.toContain('ABCD234567');
 });
 
 test('un échec du partage après départ ne montre pas de dialogue dans le nouvel espace', async () => {
@@ -157,14 +174,14 @@ test.each(['space', 'member', 'partner'])('un code déjà chargé est effacé au
   (createCoupleInvitation as jest.Mock).mockResolvedValue(invitation);
   const { pending } = await start();
   await act(async () => { await pending; });
-  expect(text()).toContain('FICTIF-A');
+  expect(text()).toContain('ABCD234567');
   (useSession as jest.Mock).mockReturnValue(change === 'partner' ? { backend, partner: { id: 'bob' } } : { backend: { ...backend, ...(change === 'space' ? { coupleId: 'space-b' } : { userId: 'bob' }) } });
   await act(async () => { root.update(<InvitationCard />); });
-  expect(text()).not.toContain('FICTIF-A');
+  expect(text()).not.toContain('ABCD234567');
   if (change === 'partner') {
     (useSession as jest.Mock).mockReturnValue({ backend });
     await act(async () => { root.update(<InvitationCard />); });
-    expect(text()).not.toContain('FICTIF-A');
+    expect(text()).not.toContain('ABCD234567');
   }
 });
 
@@ -176,7 +193,7 @@ test.each(['success', 'failure'])('un retour tardif (%s) ne contamine pas le nou
   (useSession as jest.Mock).mockReturnValue({ backend: { ...backend, coupleId: 'space-b' } });
   await act(async () => { root.update(<InvitationCard />); });
   await act(async () => { if (result === 'success') resolve(invitation); else reject(new Error('Ancien espace')); await pending; });
-  expect(text()).not.toContain('FICTIF-A');
+  expect(text()).not.toContain('ABCD234567');
   expect(showDialog).not.toHaveBeenCalled();
   expect(root.root.findByProps({ label: 'Créer une invitation' }).props.disabled).toBe(false);
 });
@@ -187,7 +204,7 @@ test('une erreur courante reste visible et permet une nouvelle tentative volonta
   await act(async () => { await pending; });
   expect(showDialog).toHaveBeenCalledWith('Invitation indisponible', 'Échec fictif');
   await act(async () => { await root.root.findByProps({ label: 'Créer une invitation' }).props.onPress(); });
-  expect(text()).toContain('FICTIF-A');
+  expect(text()).toContain('ABCD234567');
   expect(createCoupleInvitation).toHaveBeenCalledTimes(2);
 });
 
@@ -198,6 +215,6 @@ test('le même contexte conserve sa requête même si l’objet backend est reco
   (useSession as jest.Mock).mockReturnValue({ backend: { ...backend } });
   await act(async () => { root.update(<InvitationCard />); });
   await act(async () => { resolve(invitation); await pending; });
-  expect(text()).toContain('FICTIF-A');
+  expect(text()).toContain('ABCD234567');
   expect(root.root.findByProps({ label: 'Remplacer cette invitation' }).props.disabled).toBe(false);
 });
