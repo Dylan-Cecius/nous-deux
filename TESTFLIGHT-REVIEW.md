@@ -169,6 +169,17 @@ Préparée seulement, **aucun essai visuel ou natif exécuté**. Utiliser un esp
 | Historiques à minuit | Dans un montage à horloge contrôlée, afficher mot, cœur reçu fictif et dépense du jour à 23:59 ; garder un brouillon ouvert et franchir minuit, puis tester une reprise après arrière-plan. | Aujourd’hui devient hier sans émission de collection, brouillons conservés. Un cœur reçu peut être fourni par un double de collection : aucun envoi à un tiers nécessaire. Les tests React ne valident pas le cycle de vie natif. |
 | Souvenirs et attentes de rappel | Lire les deux états vides de Souvenirs puis afficher une photo fictive d’une année passée à la même date dans le montage de test. | Le texte décrit la carte sur l’accueil, sans promettre une notification annuelle. L’image et son cadrage doivent être contrôlés avec les ressources originales. |
 
+## Recette complémentaire — invitations (21 octobre, 01 h)
+
+Préparée seulement, **non exécutée sur appareil**. Utiliser un montage autorisé avec backend/Share doublés, codes fictifs et horloge contrôlée. Ne pas créer d’invitation réelle, modifier l’horloge d’un téléphone personnel ni transmettre un message. Ressources originales, build et prérequis de coût/distribution toujours requis pour une recette native.
+
+| Parcours | Manipulation prévue | Résultat attendu et limite |
+| --- | --- | --- |
+| Réponse incorrecte et reprise | Faire retourner null, un code objet ou une date invalide au double de création ; recommencer avec une réponse valide fictive. | Message de réponse non vérifiée, aucun code inutilisable partagé ni écran en erreur ; nouvelle tentative possible. Une forme valide n’atteste pas la validité serveur. |
+| Échéance et changement d’horloge | Afficher un code fictif, passer en arrière-plan jusqu’après expiration puis reprendre. Refaire avec horloge reculée dans le montage, et avec un partage lancé après expiration. | Code expiré retiré avec explication ; code encore valide conservé après recul. Aucun appel serveur automatique. Vérifier le cycle de vie réel séparément ; le serveur reste l’autorité sur l’échéance. |
+| Correction de saisie | Essayer un code de dix caractères contenant 0/1, I/O ou ponctuation ; corriger avec le code fictif du montage, en minuscules puis avec séparateur. | Conseil visible et bouton désactivé pour une forme invalide ; pas de jonction déclenchée. Saisie valide normalisée avant le double de jonction. Aucun compte réel. |
+| Sélection et renouvellement | Sélectionner le code fictif dans la carte ; faire expirer puis créer une nouvelle invitation via le double. | Sélection native utilisable pour copie manuelle ; message d’expiration retiré lors du renouvellement et nouveau code affiché. Ne rien transmettre ni coller dans un service tiers ; la propriété selectable seule ne valide pas le geste natif. |
+
 ## Nettoyage technique : cible et déploiement
 
 `functions/src/retention.ts` prévoit un passage quotidien et au plus 500 documents par collection et par passage :
