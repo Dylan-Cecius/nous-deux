@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, Text, TextInput } from 'react-native';
 import { Button, Card, Chips, ColorPicker, Empty, Field, IconButton, Screen, SectionTitle, Segmented, Sheet, T } from '@/components/ui';
 import { tap } from '../haptics';
 import { useReducedMotion } from '../use-reduced-motion';
+import { MemberColors } from '@/constants/member-colors';
 
 jest.mock('../use-reduced-motion', () => ({ useReducedMotion: jest.fn(() => false) }));
 
@@ -242,6 +243,32 @@ test('les choix radio exposent un état coché et un libellé explicite', async 
 test('les choix sans titre gardent le nom de chaque option', async () => {
   await act(async () => { root = create(<Chips options={options} value="bob" onChange={jest.fn()} />); });
   expect(root.root.findAllByType(Pressable).map((b) => b.props.accessibilityLabel)).toEqual(['Alice', 'Bob']);
+});
+
+test.each([
+  ['#C8385A', 'Rose framboise'], ['#2F5D9E', 'Bleu'], ['#1F7A55', 'Vert'],
+  ['#C26A1B', 'Orange'], ['#6D4AB0', 'Violet'], ['#B03C8C', 'Rose mauve'], ['#1D7C86', 'Bleu canard'],
+])('la pastille %s annonce le nom %s et garde sa valeur enregistrée', async (color, name) => {
+  const onChange = jest.fn();
+  await act(async () => { root = create(<ColorPicker colors={[color]} value={color} onChange={onChange} />); });
+  const button = root.root.findByType(Pressable);
+  expect(button.props.accessibilityLabel).toBe(`Couleur : ${name}`);
+  expect(button.props.accessibilityState.checked).toBe(true);
+  await act(async () => button.props.onPress());
+  expect(onChange).toHaveBeenCalledWith(color);
+});
+
+test('les valeurs et l’ordre historiques de la palette restent inchangés', () => {
+  expect(MemberColors).toEqual(['#C8385A', '#2F5D9E', '#1F7A55', '#C26A1B', '#6D4AB0', '#B03C8C', '#1D7C86']);
+});
+
+test.each([['#c26a1b', 'Orange'], ['#123456', '#123456']])('le nom de %s ne modifie pas sa valeur brute', async (color, label) => {
+  const onChange = jest.fn();
+  await act(async () => { root = create(<ColorPicker colors={[color]} value={color} onChange={onChange} />); });
+  const button = root.root.findByType(Pressable);
+  expect(button.props.accessibilityLabel).toBe(`Couleur : ${label}`);
+  await act(async () => button.props.onPress());
+  expect(onChange).toHaveBeenCalledWith(color);
 });
 
 test('les pastilles annoncent leur état occupé et indisponible pendant la sauvegarde', async () => {

@@ -127,7 +127,7 @@ export const Fonts = {
 };
 
 /** Couleurs proposées pour chaque membre du couple (agenda, messages…). */
-export const MemberColors = ['#C8385A', '#2F5D9E', '#1F7A55', '#C26A1B', '#6D4AB0', '#B03C8C', '#1D7C86'];
+export { MemberColors } from './member-colors';
 
 /** Couleur des événements « nous deux ». */
 export const BothColor = '#E07B39';

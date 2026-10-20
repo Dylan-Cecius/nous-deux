@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAssistant } from './assistant-context';
 import { showDialog } from './dialog';
 import { cardShadow, Fonts, Radius, Spacing, useTheme } from '@/constants/theme';
+import { MemberColorOptions } from '@/constants/member-colors';
 import { tap } from '@/lib/haptics';
 import { foregroundOnColor } from '@/lib/color-contrast';
 import { useAsyncAction } from '@/lib/use-async-action';
@@ -537,7 +538,7 @@ export function ColorPicker({
         <Pressable
           key={c}
           accessibilityRole="radio"
-          accessibilityLabel={`Couleur ${c}`}
+          accessibilityLabel={`Couleur : ${MemberColorOptions.find(option => option.value === c.toUpperCase())?.label ?? c}`}
           accessibilityState={{ checked: value === c, disabled: disabled || pending, busy: pending }}
           disabled={disabled || pending}
           onPress={() => run(c)}

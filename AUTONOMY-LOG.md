@@ -1152,3 +1152,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Verrou synchrone partagé création/partage, identité du code courant et présence de l’écran revalidées. Retrait immédiat de l’ancien code au remplacement, même si la réponse échoue ; nouvelle tentative volontaire disponible. Texte partagé avec échéance réelle et fuseau. Erreurs fournisseur codées converties par userError, sans revendiquer une anonymisation des erreurs métier sans code.
 - Preuves : sept cas rouges puis verts, quatre contrôles supplémentaires, dix-huit tests invitation ; lint/TypeScript réussis, 58 suites / 1237 tests réussis en 9,791 s ; diff relu/propre. Share et backend simulés, aucune invitation créée/envoyée. Source : https://reactnative.dev/docs/0.86/share.
 - Limites : callbacks et propriétés React vérifiés, aucun partage natif ni livraison à un destinataire prouvés. Une opération serveur déjà engagée n’est pas annulée. Aucun serveur/règle, build, distribution, déploiement ou dépense.
+
+## 2026-10-20 — 17:47 Europe/Brussels — Noms accessibles des couleurs
+
+- Base : `2846b0bec03e12da442f63fe28b9ba2efadcf3a1`. Les sept pastilles de membre annonçaient uniquement un code hexadécimal, peu utile au lecteur d’écran ; sept assertions de noms compréhensibles rouges avant correction.
+- Palette extraite avec ses noms français, valeurs/ordre strictement conservés et réexport compatibles depuis theme. ColorPicker annonce le nom connu ; valeur inconnue conservée explicitement, casse ignorée pour le nom seulement. Sélection et valeur transmises inchangées.
+- Preuves : sept cas rouges puis verts, trois contrôles de compatibilité ; 115 tests ciblés réussis en 1,816 s, lint/TypeScript et diff propres. Aucun écran à image absente simulé.
+- Limites : propriétés accessibles vérifiées, prononciation/navigation VoiceOver et TalkBack non essayées. Aucune migration, build, distribution, dépense ni donnée utilisateur modifiée.
