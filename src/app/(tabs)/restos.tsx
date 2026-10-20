@@ -211,7 +211,7 @@ function RestoSheet({
   const collection = useCollectionState('restaurants');
   const received = !collection.loading && !collection.error && resto
     ? collection.items.find((entry) => entry.id === resto.id) : undefined;
-  const { base, values, setValues } = useSharedDraft(
+  const { base, values, setValues: setRenderedValues } = useSharedDraft(
     restaurantFields(resto, defaultStatus), received ? restaurantFields(received, defaultStatus) : null,
   );
   const { name, cuisine, place, status, rating, note } = values;
@@ -231,6 +231,13 @@ function RestoSheet({
   }, [context, collection, base, values]);
   const { run, pending } = useAsyncAction((action: () => unknown) => action());
   const isCurrent = () => !closed.current && latest.current?.context === context;
+  const setValues = (update: (previous: typeof values) => typeof values) => {
+    const current = latest.current;
+    if (!current || !isCurrent()) return;
+    const next = update(current.values);
+    current.values = next;
+    setRenderedValues(() => next);
+  };
   const containsResto = (state: typeof collection) => !resto || state.items.some((entry) => entry.id === resto.id);
   const unavailable = collection.loading || collection.error || !containsResto(collection);
   const canWrite = () => {

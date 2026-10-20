@@ -1354,3 +1354,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Synchronisation immédiate du brouillon dans les trois événements de saisie sous le verrou existant ; bases reçues, patch minimal et confidentialité des cadeaux conservés. Aucun changement des mécanismes de suppression, règles ou backend.
 - Preuves : 47 tests du formulaire réussis en 1,325 s ; lint/TypeScript/diff check réussis et diff relu. Revue React : composition des modifications consécutives sur le brouillon courant, pas d’état partagé global ni d’effet ajouté.
 - Limites : tests de composants avec stockage fictif ; aucune garantie de conflit multi-appareils ou de saisie native validée. Les tests de suppression existants ne constituent pas une nouvelle recette sécurité.
+
+## 2026-10-20 — 21:40 Europe/Brussels — Dernière saisie des restaurants
+
+- Neuf défauts de scénario reproduits : quatre textes, statut, note en cœurs, saisies cumulées en création/modification et nom effacé, validés avant le rendu. Les deux scénarios de choix ont d’abord nécessité la correction de leur montage de test, puis échoué sur la valeur réellement perdue.
+- Les mises à jour de valeurs synchronisent immédiatement la référence de sauvegarde avant la mise à jour du brouillon partagé. Les bases reçues et patchs minimaux restent inchangés ; aucune modification de suppression ou activation Places.
+- Preuves : 60 tests restaurant/brouillon partagé réussis en 1,403 s ; lint/TypeScript/diff check réussis, diff relu. Revue React : mises à jour composées sur les dernières valeurs, synchronisation dans les événements, aucun effet/dependance ajouté.
+- Limites : stockage simulé, absence d’appel Places vérifiée ; pas de recette de saisie/notation native ni résolution serveur des conflits sur le même champ.

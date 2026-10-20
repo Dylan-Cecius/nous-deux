@@ -44,6 +44,49 @@ const refresh = async () => { await act(async () => root.update(<Restos />)); };
 const field = (label: string) => root.root.findByProps({ label });
 const edit = async (label: string, value: string) => { await act(async () => field(label).props.onChangeText(value)); };
 
+test.each([['Nom', 'name'], ['Cuisine', 'cuisine'], ['Ville / quartier', 'place'], ['Notes', 'note']])('dernière saisie du restaurant avant rendu : %s', async (label, key) => {
+  await open();
+  const submit = button('Enregistrer');
+  await act(async () => { field(label).props.onChangeText(' Dernière valeur '); await submit(); });
+  expect(backend.update).toHaveBeenCalledWith('restaurants', resto.id, { [key]: 'Dernière valeur' });
+});
+
+test.each(['status', 'rating'])('dernier choix du restaurant avant rendu : %s', async (kind) => {
+  await open();
+  if (kind === 'rating') await act(async () => field('Liste').props.onChange('favori'));
+  const submit = button('Enregistrer');
+  await act(async () => {
+    if (kind === 'status') field('Liste').props.onChange('teste');
+    else root.root.findAllByType(Pressable).find(node => node.props.accessibilityLabel === '4 cœurs')!.props.onPress();
+    await submit();
+  });
+  expect(backend.update).toHaveBeenCalledWith('restaurants', resto.id, kind === 'status' ? { status: 'teste' } : { status: 'favori', rating: 4 });
+});
+
+test.each([false, true])('saisies cumulées du restaurant avant rendu (création : %s)', async (fresh) => {
+  await open(fresh);
+  const submit = button('Enregistrer');
+  await act(async () => {
+    field('Nom').props.onChangeText(' Nouveau nom ');
+    field('Cuisine').props.onChangeText(' Cuisine fictive ');
+    field('Ville / quartier').props.onChangeText(' Quartier fictif ');
+    field('Notes').props.onChangeText(' Note fictive ');
+    field('Liste').props.onChange('teste');
+    await submit();
+  });
+  const data = { name: 'Nouveau nom', cuisine: 'Cuisine fictive', place: 'Quartier fictif', note: 'Note fictive', status: 'teste' };
+  if (fresh) expect(backend.add).toHaveBeenCalledWith('restaurants', expect.objectContaining(data));
+  else expect(backend.update).toHaveBeenCalledWith('restaurants', resto.id, data);
+});
+
+test('un nom effacé juste avant validation ne ferme pas le restaurant', async () => {
+  await open();
+  const submit = button('Enregistrer');
+  await act(async () => { field('Nom').props.onChangeText(' '); await submit(); });
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(root.root.findAllByType('sheet' as never)).toHaveLength(1);
+});
+
 test('la cuisine reçue reste intacte quand seul le nom est saisi', async () => {
   await open();
   await edit('Nom', 'Mon nom');
