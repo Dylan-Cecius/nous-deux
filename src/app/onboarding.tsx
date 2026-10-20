@@ -11,9 +11,7 @@ import { Fonts, MemberColors } from '@/constants/theme';
 import { useCouple } from '@/lib/couple-context';
 import { isFirebaseConfigured } from '@/lib/firebase';
 import { useFloatingHeartMotion } from '@/lib/use-floating-heart-motion';
-import { useOnboardingForm } from '@/lib/use-onboarding-form';
-
-type Step = 'profile' | 'choice' | 'join' | 'local' | 'signin';
+import { useOnboardingForm, type OnboardingStep } from '@/lib/use-onboarding-form';
 
 const CREAM = '#FBF6F1';
 const PINK = '#FF8FB8';
@@ -70,8 +68,8 @@ function FloatingHeart() {
 export default function Onboarding() {
   const insets = useSafeAreaInsets();
   const { setBackend } = useCouple();
-  const [step, setStep] = useState<Step>('profile');
-  const form = useOnboardingForm(setBackend);
+  const [step, setStep] = useState<OnboardingStep>('profile');
+  const form = useOnboardingForm(setBackend, step);
   const { name, color, code, partnerName, busy, interact } = form;
 
   return (

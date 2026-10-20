@@ -1444,3 +1444,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 | Demandes d’entrée | 3136b50c027e89e3d412cec4506ac17dd428aa44 |
 | Interactions d’entrée | b6d584692c74e2bce9742fdae53fde448ee428a0 |
 | Saisie d’entrée | 4fd8c036a716e935bc6c9cf8e89619b376e21357 |
+
+## 2026-10-20 — 22:30 Europe/Brussels — Actions d’entrée rattachées à leur étape
+
+- Reprise GitHub à ffad6f84f22e3935ade2fcc9ac50d95deed56326 : PR #3 ouverte/en brouillon, consignes et journal relus. 178 blobs présents vérifiés par SHA, zéro divergence, sept PNG absents ; aucun workflow .github dans l’arbre récursif non tronqué. Règle multi-tâches déjà conforme.
+- Huit régressions rouges du contrôleur : anciens champs/actions/navigation utilisés après changement d’étape ou aller-retour, et succès/erreur tardifs appliqués à une autre étape. Un contrôle garantit la conservation des champs et la nouvelle action courante. Les boutons partagés protègent déjà leur démontage ; cette correction couvre aussi le contrôleur et les événements de saisie qui restent sans cette protection.
+- useOnboardingAction attache ses callbacks et résultats à un contexte d’étape, renouvelé après transition. useOnboardingForm reçoit l’étape de l’écran, les brouillons et le verrou restent conservés. Backend, règles et suppressions inchangés.
+- Preuves : 67 tests entrée/formulaire/identité réussis en 0,927 s ; lint, TypeScript et diff check réussis, diff relu. Tests de logique à données fictives, écran complet non rendu et aucun résultat natif revendiqué. L’invalidation immédiate entre la demande de navigation et son prochain rendu reste à examiner ; aucune requête déjà envoyée n’est annulée.

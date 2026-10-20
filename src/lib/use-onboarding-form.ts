@@ -4,17 +4,18 @@ import { createCloudCouple, createLocalCouple, joinCloudCouple, type Backend } f
 import { useOnboardingAction } from './use-onboarding-action';
 
 type Draft = { name: string; color: string; code: string; partnerName: string };
+export type OnboardingStep = 'profile' | 'choice' | 'join' | 'local' | 'signin';
 const emptyDraft = (): Draft => ({ name: '', color: MemberColors[0], code: '', partnerName: '' });
 
 /** Entry data/actions, kept independent of the decorative screen assets. */
-export function useOnboardingForm(setBackend: (backend: Backend) => void) {
+export function useOnboardingForm(setBackend: (backend: Backend) => void, step: OnboardingStep = 'profile') {
   const [draft, setDraft] = useState(emptyDraft);
   const latest = useRef<Draft | null>(null);
   useEffect(() => {
     latest.current = emptyDraft();
     return () => { latest.current = null; };
   }, []);
-  const { run, busy, interact } = useOnboardingAction(setBackend);
+  const { run, busy, interact } = useOnboardingAction(setBackend, step);
   const change = (patch: Partial<Draft>) => interact(() => {
     if (!latest.current) return;
     const next = { ...latest.current, ...patch };

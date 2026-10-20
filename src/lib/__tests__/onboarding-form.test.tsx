@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { MemberColors } from '@/constants/theme';
 import { createCloudCouple, createLocalCouple, joinCloudCouple, type Backend } from '../backend';
-import { useOnboardingForm } from '../use-onboarding-form';
+import { useOnboardingForm, type OnboardingStep } from '../use-onboarding-form';
+import { showDialog } from '@/components/dialog';
 
 jest.mock('../backend', () => ({ createCloudCouple: jest.fn(), createLocalCouple: jest.fn(), joinCloudCouple: jest.fn() }));
 jest.mock('@/components/dialog', () => ({ showDialog: jest.fn() }));
@@ -11,8 +12,8 @@ let root: ReactTestRenderer;
 let form: ReturnType<typeof useOnboardingForm>;
 const install = jest.fn();
 const backend = { mode: 'local', coupleId: 'fictitious', userId: 'alice' } as Backend;
-function Harness() {
-  const current = useOnboardingForm(install);
+function Harness({ step = 'profile' }: { step?: OnboardingStep }) {
+  const current = useOnboardingForm(install, step);
   useEffect(() => { form = current; }, [current]);
   return null;
 }
@@ -101,4 +102,49 @@ test.each([false, true])('Continuer ne quitte pas un prénom devenu vide (rendu 
   expect(next).not.toHaveBeenCalled();
   await act(async () => { form.changeName('Camille fictive'); proceed(next); });
   expect(next).toHaveBeenCalledTimes(1);
+});
+
+test.each([false, true])('les saisies d’une ancienne étape sont ignorées (aller-retour : %s)', async roundtrip => {
+  const previous = form;
+  await act(async () => root.update(<Harness step="local" />));
+  if (roundtrip) await act(async () => root.update(<Harness step="profile" />));
+  await act(async () => { previous.changeName('Périmé'); previous.changeColor(MemberColors[2]); previous.changeCode('ZYXW765432'); previous.changePartnerName('Périmé'); });
+  expect(form.name).toBe('Ancien prénom');
+  expect(form.color).toBe(MemberColors[0]);
+  expect(form.code).toBe('ABCD234567');
+  expect(form.partnerName).toBe('Ancien partenaire');
+});
+
+test.each(['createCloud', 'join', 'createLocal'] as const)('une ancienne étape ne démarre pas %s', async action => {
+  const submit = form[action];
+  await act(async () => root.update(<Harness step="signin" />));
+  await act(async () => { await submit(); });
+  expect(createCloudCouple).not.toHaveBeenCalled(); expect(joinCloudCouple).not.toHaveBeenCalled(); expect(createLocalCouple).not.toHaveBeenCalled();
+});
+
+test('une ancienne navigation ne quitte pas la nouvelle étape', async () => {
+  const previous = form;
+  const next = jest.fn();
+  await act(async () => root.update(<Harness step="local" />));
+  await act(async () => { previous.interact(next); previous.continueProfile(next); });
+  expect(next).not.toHaveBeenCalled();
+});
+
+test.each(['success', 'failure'])('une réponse %s après transition ne touche pas la nouvelle étape', async outcome => {
+  let finish!: () => void;
+  (createCloudCouple as jest.Mock).mockImplementationOnce(() => new Promise<Backend>((resolve, reject) => {
+    finish = () => outcome === 'success' ? resolve(backend) : reject(new Error('Réponse fictive tardive'));
+  }));
+  let pending!: Promise<unknown>;
+  await act(async () => { pending = form.createCloud(); });
+  await act(async () => root.update(<Harness step="signin" />));
+  await act(async () => { finish(); await pending; });
+  expect(install).not.toHaveBeenCalled();
+  expect(showDialog).not.toHaveBeenCalled();
+});
+
+test('une transition conserve les champs et permet une nouvelle action courante', async () => {
+  await act(async () => root.update(<Harness step="local" />));
+  await act(async () => { form.changePartnerName('Nouveau fictif'); await form.createLocal(); });
+  expect(createLocalCouple).toHaveBeenCalledWith({ name: 'Ancien prénom', color: MemberColors[0] }, { name: 'Nouveau fictif', color: MemberColors[1] });
 });
