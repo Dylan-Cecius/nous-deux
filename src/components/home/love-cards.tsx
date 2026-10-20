@@ -10,6 +10,7 @@ import { useCollectionState, useSession } from '@/lib/couple-context';
 import { formatRelative, quote } from '@/lib/dates';
 import { bump, success } from '@/lib/haptics';
 import { useAsyncAction } from '@/lib/use-async-action';
+import { useReducedMotion } from '@/lib/use-reduced-motion';
 
 /** Bouton « Je pense à toi » : un appui envoie un cœur et une notification à ta moitié. */
 export function PingCard() {
@@ -19,6 +20,7 @@ export function PingCard() {
 
 function ScopedPingCard() {
   const t = useTheme();
+  const reducedMotion = useReducedMotion();
   const session = useSession();
   const { backend, partner } = session;
   const notes = useCollectionState('notes');
@@ -40,6 +42,7 @@ function ScopedPingCard() {
 
   // Le cœur bat doucement en continu.
   useEffect(() => {
+    if (reducedMotion) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(beat, { toValue: 1.18, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true }),
@@ -50,7 +53,7 @@ function ScopedPingCard() {
     );
     loop.start();
     return () => loop.stop();
-  }, [beat]);
+  }, [beat, reducedMotion]);
 
   const lastReceived = notes.items
     .filter((n) => n.kind === 'ping' && n.from !== backend.userId)
@@ -87,12 +90,12 @@ function ScopedPingCard() {
             backgroundColor: t.card,
             borderRadius: 22,
             padding: 16,
-            transform: [{ scale: pressed ? 0.98 : 1 }],
+            transform: [{ scale: pressed && !reducedMotion ? 0.98 : 1 }],
           },
           cardShadow(t.shadow),
         ]}>
         <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: t.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
-          <Animated.View style={{ transform: [{ scale: beat }] }}>
+          <Animated.View style={{ transform: [{ scale: reducedMotion ? 1 : beat }] }}>
             <Ionicons name="heart" size={28} color={t.primary} />
           </Animated.View>
         </View>

@@ -1124,3 +1124,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Deux régressions reproduites : texte sélectionné et petite initiale sur orange #C26A1B à 3,91:1. Foreground opaque adapté pour Avatar et Chips personnalisés ; blanc conservé s’il atteint 4,5:1, sinon noir, sans modifier la couleur enregistrée. Formats non hexadécimaux/avec alpha inchangés, sans garantie de contraste.
 - Preuves : deux cas rouges puis verts, douze contrôles des autres couleurs et quinze tests du calcul/repli (dont les 256 gris). Lint/TypeScript réussis ; 56 suites / 1215 tests réussis en 10,345 s ; diff relu/propre. Source : https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html. Documentation Expo57 et index relus.
 - Limites : calcul opaque au repos, pas de validation native ni certification globale ; états atténués, transparence et autres composants hors périmètre. Aucun serveur/règle, build, déploiement, dépense ou distribution.
+
+## 2026-10-20 — 17:32 Europe/Brussels — Cœur d’accueil sans mouvement imposé
+
+- Base : `ded9704aa077e719ccad94348a41870dddb614f8`. Deux régressions rouges : PingCard lançait sa boucle malgré la réduction du mouvement et ne l’arrêtait pas lors d’une activation en direct.
+- Réutilisation du hook conservateur existant ; boucle non lancée/arrêtée, échelle neutre et effet de pression sans réduction de taille. Action explicite, confirmation et envoi local simulé inchangés.
+- Preuves : quatre nouveaux tests (deux rouges puis verts, deux contrôles), 65 tests ciblés réussis en 1,917 s ; lint/TypeScript et diff propres. Documentation React Native0.86 AccessibilityInfo/Animated relue. Tests d’animations et d’envoi doublés, aucun cœur ni notification réel envoyé.
+- Limites : autres animations (logos, transitions) encore à examiner ; pas de réglage système essayé sur appareil ni de validation globale. Aucun serveur/règle, build, déploiement ou dépense.
