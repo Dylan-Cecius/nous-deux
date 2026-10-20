@@ -1047,3 +1047,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Field conserve la priorité du nom explicite puis du titre et utilise le placeholder comme dernier repli, jamais la valeur saisie. L’état disabled suit editable/readOnly (priorité native readOnly), sans effacer busy ni les indications explicites. Noms stables et distincts pour réponse personnelle/partenaire et mot doux.
 - Preuves : lint et TypeScript réussis ; 53 suites / 1132 tests réussis en 9,183 s ; diff relu et `git diff --check` propre. Documentation Expo57/React Native0.86 et implémentation TextInput installée consultées. Tests uniquement fictifs et contrats de composants.
 - Limites : aucune preuve VoiceOver/TalkBack réelle ni aperçu complet (sept PNG absents), aucune build/distribution/validation Apple. Serveur et règles inchangés ; aucun émulateur ni service réel appelé. Suite : audit ciblé des confirmations web et accessibilité des contrôles.
+
+## 2026-10-20 — 16:48 Europe/Brussels — Confirmation web consommée une seule fois
+
+- Base : `593a67845195d65e1ba546e1a62938bc54aeff56`. Six cas rouges reproduits dans DialogHost : double validation/annulation, anciennes validation/fermeture après remplacement, et action après démontage.
+- Le dialogue courant est actualisé dès sa réception puis consommé avant l’appel du callback. Remplacement, fermeture (avec ou sans annulation) et démontage invalident les événements retenus. Une action ouvrant un second dialogue le conserve. Alert natif reste inchangé.
+- Preuves : dix tests nouveaux, dont six rouges puis verts ; 56 tests ciblés, lint et TypeScript réussis. Contrôle transversal : 54 suites / 1142 tests réussis en 8,613 s. Diff relu et sans erreur d’espacement.
+- Limites : tests de composants et callbacks fictifs, pas de clic navigateur ni d’alerte native réellement essayés. Aucune écriture serveur, build, distribution ou dépense. La garde de confirmation ne remplace pas les vérifications métier au moment de l’écriture.

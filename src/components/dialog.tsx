@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Platform, Pressable, StyleSheet, Text, View, type AlertButton } from 'react-native';
 
 import { Fonts, useTheme } from '@/constants/theme';
@@ -24,24 +24,33 @@ export function showDialog(title: string, message?: string, buttons: AlertButton
 export function DialogHost() {
   const t = useTheme();
   const [dialog, setDialog] = useState<Dialog | null>(null);
+  const current = useRef<Dialog | null>(null);
 
   useEffect(() => {
-    listeners.add(setDialog);
+    const receive: Listener = (next) => {
+      current.current = next;
+      setDialog(next);
+    };
+    listeners.add(receive);
     return () => {
-      listeners.delete(setDialog);
+      listeners.delete(receive);
+      current.current = null;
     };
   }, []);
 
   if (!dialog) return null;
 
-  const choose = (b: AlertButton) => {
+  const choose = (b?: AlertButton) => {
+    if (current.current !== dialog) return;
+    // Consume before invoking user code, which may immediately open another dialog.
+    current.current = null;
     setDialog(null);
-    b.onPress?.();
+    b?.onPress?.();
   };
   const cancel = dialog.buttons.find((b) => b.style === 'cancel');
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={() => (cancel ? choose(cancel) : setDialog(null))}>
+    <Modal visible transparent animationType="fade" onRequestClose={() => choose(cancel)}>
       <View style={styles.backdrop}>
         <View style={[styles.box, { backgroundColor: t.background }]} accessibilityRole="alert">
           <Text style={{ fontFamily: Fonts.display, fontSize: 20, color: t.text }}>{dialog.title}</Text>
