@@ -7,6 +7,7 @@ import { NoteCard, PingCard } from '@/components/home/love-cards';
 import { MemoriesStrip } from '@/components/home/memories-strip';
 import { QuestionCard } from '@/components/home/question-card';
 import { DateField } from '@/components/pickers';
+import { showDialog } from '@/components/dialog';
 import { Button, Card, confirmDelete, Field, Ionicons, Row, Screen, SectionTitle, Sheet, T } from '@/components/ui';
 import { cardShadow, useTheme } from '@/constants/theme';
 import { useCollectionState, useSession } from '@/lib/couple-context';
@@ -144,6 +145,8 @@ function HomeContent() {
   );
 }
 
+const PAST_DATE_MESSAGE = 'Choisis aujourd’hui ou une date future, ou active « Revient chaque année » pour un anniversaire.';
+
 function DateSheet({ onClose }: { onClose: () => void }) {
   const t = useTheme();
   const { backend } = useSession();
@@ -161,6 +164,7 @@ function DateSheet({ onClose }: { onClose: () => void }) {
   const { run, pending } = useAsyncAction((action: () => unknown) => action());
   const isCurrent = () => !closed.current && latest.current?.context === context;
   const unavailable = collection.loading || collection.error;
+  const pastDate = !yearly && date < todayKey();
   const canWrite = () => isCurrent() && latest.current && !latest.current.collection.loading && !latest.current.collection.error;
   const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
   const change = (patch: Partial<{ title: string; date: string; yearly: boolean }>) => run(() => {
@@ -175,6 +179,10 @@ function DateSheet({ onClose }: { onClose: () => void }) {
   const save = () => run(async () => {
     const current = latest.current;
     if (!current?.title.trim() || !canWrite()) return;
+    if (!current.yearly && current.date < todayKey()) {
+      showDialog('Date déjà passée', PAST_DATE_MESSAGE);
+      return;
+    }
     try {
       await backend.add('dates', { title: current.title.trim(), emoji: '', date: current.date, yearly: current.yearly });
       close();
@@ -194,11 +202,12 @@ function DateSheet({ onClose }: { onClose: () => void }) {
         </View>
         <Switch value={yearly} disabled={pending} accessibilityLabel="Revient chaque année" onValueChange={(value) => change({ yearly: value })} trackColor={{ true: t.primary }} />
       </Row>
+      {pastDate && <T variant="small">{PAST_DATE_MESSAGE}</T>}
       {unavailable && <T variant="small" muted>Dates indisponibles. Ton brouillon est conservé ; recharge les dates avant de continuer.</T>}
       {collection.error && <Button label="Recharger les dates du formulaire" variant="outline" onPress={collection.retry} />}
       <Button
         label="Ajouter"
-        disabled={pending || unavailable || !title.trim()}
+        disabled={pending || unavailable || pastDate || !title.trim()}
         onPress={save}
       />
     </Sheet>

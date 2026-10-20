@@ -41,6 +41,49 @@ const refresh = async () => { await act(async () => root.update(<Home />)); };
 const open = async () => { await act(async () => root.root.findByProps({ title: 'À venir' }).props.onAction()); };
 const fill = async () => { await open(); await act(async () => field().props.onChangeText(' Brouillon fictif ')); };
 
+test.each(['date passée', 'répétition retirée', 'passage à minuit'])('refus d’un compte à rebours déjà terminé : %s', async scenario => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(new Date(2026, 9, 20, 23, 59, 59));
+  await mount(); await fill();
+  if (scenario === 'répétition retirée') {
+    await act(async () => {
+      root.root.findByType('date' as never).props.onChange('2020-01-02');
+      root.root.findByType(Switch).props.onValueChange(true);
+    });
+  }
+  const submit = button('Ajouter');
+  await act(async () => {
+    if (scenario === 'date passée') root.root.findByType('date' as never).props.onChange('2026-10-19');
+    if (scenario === 'répétition retirée') root.root.findByType(Switch).props.onValueChange(false);
+    if (scenario === 'passage à minuit') jest.setSystemTime(new Date(2026, 9, 21));
+    await submit();
+  });
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(sheet().props.visible).toBe(true);
+  expect(field().props.value).toBe(' Brouillon fictif ');
+  expect(showDialog).toHaveBeenCalledWith('Date déjà passée', expect.stringContaining('Choisis aujourd’hui ou une date future'));
+  // Avant le prochain rafraîchissement de l’horloge, le dialogue explique déjà le refus.
+  if (scenario === 'passage à minuit') await refresh();
+  expect(root.root.findByProps({ label: 'Ajouter' }).props.disabled).toBe(true);
+  expect(root.root.findAllByType('t' as never).map(node => node.props.children).join(' ')).toContain('Choisis aujourd’hui ou une date future');
+  await act(async () => root.root.findByType('date' as never).props.onChange('2026-10-22'));
+  expect(root.root.findByProps({ label: 'Ajouter' }).props.disabled).toBe(false);
+  await act(async () => { await submit(); });
+  expect(backend.add).toHaveBeenCalledTimes(1);
+  expect(backend.add).toHaveBeenCalledWith('dates', expect.objectContaining({ date: '2026-10-22', title: 'Brouillon fictif', yearly: false }));
+});
+
+test('un anniversaire ancien reste accepté quand la répétition annuelle est choisie', async () => {
+  await mount(); await fill();
+  const submit = button('Ajouter');
+  await act(async () => {
+    root.root.findByType('date' as never).props.onChange('2020-01-02');
+    root.root.findByType(Switch).props.onValueChange(true);
+    await submit();
+  });
+  expect(backend.add).toHaveBeenCalledWith('dates', expect.objectContaining({ date: '2020-01-02', yearly: true }));
+});
+
 test.each(['title', 'date', 'yearly', 'all'])('dernière saisie de date à venir avant rendu : %s', async (kind) => {
   await mount(); await fill();
   const submit = button('Ajouter');
