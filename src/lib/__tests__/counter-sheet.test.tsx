@@ -266,10 +266,34 @@ test('fermer invalide immédiatement un ancien gestionnaire', async () => {
   expect(pickPhoto).not.toHaveBeenCalled();
 });
 
+test.each(['selection', 'upload', 'association', 'date', 'frame'])('une erreur %s ne révèle pas de détails privés et ne promet pas un échec certain', async (stage) => {
+  const error = new Error('fictitious://private-photo?token=private-token');
+  if (stage === 'selection') (pickPhoto as jest.Mock).mockRejectedValueOnce(error);
+  else if (stage === 'upload') backend.uploadPhoto.mockRejectedValueOnce(error);
+  else backend.updateCouple.mockRejectedValueOnce(error);
+  if (stage === 'date') await act(async () => root.root.findByType('date' as never).props.onChange('2021-02-03'));
+  if (stage === 'frame') await act(async () => button('Repositionner la photo')());
+  await act(async () => button(stage === 'date' ? 'Enregistrer la date' : stage === 'frame' ? 'Enregistrer le cadrage' : 'Changer la photo de couple')());
+  expect(showDialog).toHaveBeenCalledTimes(1);
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('private-token');
+  expect(onClose).not.toHaveBeenCalled();
+  if (['date', 'frame', 'association'].includes(stage)) {
+    expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('Vérifie'));
+  }
+});
+
+test('une erreur photo non standard n’est pas inspectée et libère le verrou', async () => {
+  const error = Object.defineProperty({}, 'message', { get() { throw new Error('Ne pas inspecter'); } });
+  backend.uploadPhoto.mockRejectedValueOnce(error);
+  await act(async () => button('Changer la photo de couple')());
+  expect(showDialog).toHaveBeenCalledTimes(1);
+  expect(root.root.findByProps({ label: 'Changer la photo de couple' }).props.disabled).toBe(false);
+});
+
 test('un échec du sélecteur est affiché et autorise une nouvelle tentative', async () => {
   (pickPhoto as jest.Mock).mockRejectedValueOnce(new Error('Galerie fictivement indisponible'));
   await act(async () => { await button('Changer la photo de couple')(); });
-  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Galerie fictivement indisponible');
+  expect(showDialog).toHaveBeenCalledWith('Photo non enregistrée', 'Impossible de préparer cette photo. Vérifie son accès ou choisis une autre image.');
   await act(async () => { await button('Changer la photo de couple')(); });
   expect(backend.updateCouple).toHaveBeenCalledTimes(1);
 });
@@ -328,7 +352,7 @@ test('revenir au cadrage ne réactive pas un ancien bouton de sauvegarde', async
 test('une erreur de photo courante libère le verrou sans quitter le formulaire', async () => {
   backend.uploadPhoto.mockRejectedValueOnce(new Error('Upload fictivement refusé'));
   await act(async () => { await button('Changer la photo de couple')(); });
-  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Upload fictivement refusé');
+  expect(showDialog).toHaveBeenCalledWith('Photo non enregistrée', 'Impossible de préparer la photo de couple. Vérifie son accès et ta connexion avant de réessayer.');
   expect(backend.updateCouple).not.toHaveBeenCalled();
   expect(onClose).not.toHaveBeenCalled();
   await act(async () => { await button('Changer la photo de couple')(); });

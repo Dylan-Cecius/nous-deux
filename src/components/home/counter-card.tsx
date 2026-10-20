@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { showDialog } from '@/components/dialog';
 import { DEFAULT_FRAME, PhotoFrameEditor } from '@/components/framed-photo';
 import { DateField } from '@/components/pickers';
 import { Button, Sheet, T } from '@/components/ui';
@@ -42,22 +43,42 @@ function CounterForm({ onClose }: { onClose: () => void }) {
     setFraming(next);
   };
   const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
-  const runCurrent = (action: () => Promise<void>) => run(async () => {
+  const runCurrent = (action: () => Promise<void>, failure = () => ({
+    title: 'Enregistrement non confirmé',
+    message: 'Vérifie les informations de votre histoire après leur actualisation avant de réessayer : la modification peut déjà avoir été enregistrée. Ta saisie est conservée.',
+  })) => run(async () => {
     if (!canWrite()) return;
     try { await action(); }
-    catch (error) { if (isCurrent()) throw error; }
+    catch {
+      if (isCurrent()) {
+        const { title, message } = failure();
+        showDialog(title, message);
+      }
+    }
   });
 
-  const changePhoto = () => runCurrent(async () => {
-    if (latest.current?.framing !== null) return;
-    const picked = await pickPhoto();
-    if (!picked || !canWrite()) return;
-    const photoUrl = await backend.uploadPhoto(picked.uri);
-    if (!canWrite()) return;
-    await backend.updateCouple({ photoUrl, photoFrame: DEFAULT_FRAME });
-    if (!isCurrent()) return;
-    changeFraming({ uri: photoUrl }, DEFAULT_FRAME);
-  });
+  const changePhoto = () => {
+    let stage: 'selection' | 'upload' | 'save' = 'selection';
+    return runCurrent(async () => {
+      if (latest.current?.framing !== null) return;
+      const picked = await pickPhoto();
+      if (!picked || !canWrite()) return;
+      stage = 'upload';
+      const photoUrl = await backend.uploadPhoto(picked.uri);
+      if (!canWrite()) return;
+      stage = 'save';
+      await backend.updateCouple({ photoUrl, photoFrame: DEFAULT_FRAME });
+      if (!isCurrent()) return;
+      changeFraming({ uri: photoUrl }, DEFAULT_FRAME);
+    }, () => ({
+      title: stage === 'save' ? 'Enregistrement non confirmé' : 'Photo non enregistrée',
+      message: stage === 'selection'
+        ? 'Impossible de préparer cette photo. Vérifie son accès ou choisis une autre image.'
+        : stage === 'upload'
+          ? 'Impossible de préparer la photo de couple. Vérifie son accès et ta connexion avant de réessayer.'
+          : 'Vérifie la photo de couple après son actualisation avant de réessayer : elle peut déjà avoir été enregistrée.',
+    }));
+  };
 
   if (framing) {
     const photoChanged = couple?.photoUrl !== framing.uri;
