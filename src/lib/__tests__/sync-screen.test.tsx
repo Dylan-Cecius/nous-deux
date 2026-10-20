@@ -6,7 +6,7 @@ import { getSupportContact } from '../public-info';
 jest.mock('../couple-context', () => ({ CoupleProvider: ({ children }: { children: React.ReactNode }) => children, useCouple: jest.fn() }));
 jest.mock('@/constants/theme', () => ({ PrefsProvider: ({ children }: { children: React.ReactNode }) => children, useTheme: () => ({ background: '#fff' }) }));
 jest.mock('expo-font', () => ({ useFonts: () => [true, null] }));
-jest.mock('expo-splash-screen', () => ({ preventAutoHideAsync: jest.fn(), hideAsync: jest.fn() }));
+jest.mock('expo-splash-screen', () => ({ preventAutoHideAsync: jest.fn().mockResolvedValue(true), hideAsync: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('expo-status-bar', () => ({ StatusBar: () => null }));
 jest.mock('expo-router', () => ({
   ThemeProvider: ({ children }: { children: React.ReactNode }) => children,

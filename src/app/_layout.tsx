@@ -18,7 +18,9 @@ import { PrefsProvider, useTheme } from '@/constants/theme';
 import { CoupleProvider, useCouple } from '@/lib/couple-context';
 import { getSupportContact } from '@/lib/public-info';
 
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync().catch(() => {
+  console.warn('Écran de lancement : maintien automatique indisponible.');
+});
 
 export default function RootLayout() {
   const scheme = useColorScheme();
@@ -63,7 +65,9 @@ function RootStack() {
   const ready = !loading && (fontsLoaded || !!fontError);
 
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync();
+    if (ready) void SplashScreen.hideAsync().catch(() => {
+      console.warn('Écran de lancement : masquage non confirmé.');
+    });
   }, [ready]);
 
   if (!ready) return null;

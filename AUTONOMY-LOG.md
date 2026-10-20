@@ -1262,3 +1262,11 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - L’éditeur indique son indisponibilité et bloque commandes/prise de geste tant que la géométrie n’est pas complète et valide. Les anciens événements de cette période ne deviennent pas actifs après chargement ; une commande nouvelle utilise le minimum réel.
 - Preuves : trois nouveaux cas rouges puis verts (image absente, cadre absent, mesure invalide), avec réactivation et zoom attendu 0,4 depuis la vue entière du portrait. 35 tests ciblés réussis en 0,808 s, lint/TypeScript et diff propres.
 - Limites : API image et mesures simulées, pas de chronométrage de chargement réel ni rendu natif. Les cadrages persistés ne sont pas modifiés automatiquement ; aucune écriture réelle ou opération facturable.
+
+## 2026-10-20 — 19:46 Europe/Brussels — Rejets de l’écran de lancement
+
+- Base : `4195ed0f0d79bef195dabeedec6b56f24ecf909a`. Les promesses preventAutoHideAsync et hideAsync de la racine n’avaient pas de gestion de rejet. Deux tests rouges ont confirmé l’absence de gestionnaire avant rejet volontaire des promesses fictives.
+- Les deux appels conservent leur ordre et leur condition de disponibilité ; leurs rejets produisent maintenant un diagnostic générique, sans inclure les détails de l’erreur native. L’interface prête et la reprise d’une restauration refusée restent présentes.
+- Preuves : deux cas rouges puis verts, quatre contrôles de session/polices/reprise. Les promesses des doubles sont réellement rejetées dans les cas verts. Un premier contrôle global a révélé un ancien double SplashScreen renvoyant undefined ; corrigé pour respecter le contrat Promise documenté. Un avertissement lint du nouveau test a aussi été corrigé avant le contrôle final.
+- Résultat final : npm run lint et tsc --noEmit réussis ; 61 suites / 1351 tests applicatifs réussis en 9,351 s ; diff relu et propre. Documentation Expo SDK 57 SplashScreen consultée.
+- Limites : ceci traite le rejet JavaScript, sans prétendre réussir le masquage si le module natif le refuse. Aucune relance automatique, build release ni observation de l’écran de lancement sur appareil. Les polices et modules natifs sont doublés uniquement dans les tests, aucune ressource absente créée.
