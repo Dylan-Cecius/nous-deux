@@ -1075,3 +1075,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - T transmet désormais accessibilityRole lorsqu’il est explicitement fourni. Les quatre vrais titres reçoivent header ; les nombres ou textes seulement stylés h2 ne deviennent pas automatiquement des titres. Écran sans titre fourni sans en-tête vide.
 - Preuves : quatre cas rouges puis verts et deux contrôles ; lint/TypeScript réussis ; 55 suites / 1160 tests réussis en 9,847 s. Diff relu/propre, documentation React Native0.86 accessibilité consultée.
 - Limites : propriétés de composants testées, navigation réelle au rotor VoiceOver/TalkBack non essayée ; pas de certification ni de build. Aucune modification serveur ni activation de fonctions payantes.
+
+## 2026-10-20 — 16:55 Europe/Brussels — Longues confirmations web défilantes
+
+- Base : `a873d90aab1481c91d0000f8c78bccd918e363d1`. Revue du code : message de confirmation pouvant inclure un titre saisi long, boîte sans hauteur maximale et sans défilement, actions repoussées par le contenu. Un test structurel rouge confirme l’absence de zone défilante sur un message fictif long ; ce test n’est pas une reproduction pixel sur navigateur.
+- Boîte bornée à la hauteur disponible, titre/message dans une ScrollView réductible, boutons séparés sans réduction. Texte intégral conservé ; comportements de confirmation inchangés.
+- Preuves : lint/TypeScript et 20 tests ciblés réussis (1,294 s), diff relu/propre. Documentation React Native0.86 ScrollView/Layout consultée pour le bornage et flexShrink. Dernier contrôle transversal : 1160 tests avant ce lot.
+- Limites : recette visuelle navigateur étroit/paysage et texte agrandi encore nécessaire, aucun export complet ni validation native. Pas de service réel, build ou distribution.

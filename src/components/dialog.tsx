@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Modal, Platform, Pressable, StyleSheet, Text, View, type AlertButton } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, type AlertButton } from 'react-native';
 
 import { Fonts, useTheme } from '@/constants/theme';
 
@@ -53,12 +53,14 @@ export function DialogHost() {
     <Modal visible transparent animationType="fade" onRequestClose={() => choose(cancel)}>
       <View style={styles.backdrop}>
         <View style={[styles.box, { backgroundColor: t.background }]} accessibilityRole="alert">
-          <Text style={{ fontFamily: Fonts.display, fontSize: 20, color: t.text }}>{dialog.title}</Text>
-          {!!dialog.message && (
-            <Text style={{ fontFamily: Fonts.body, fontSize: 15, lineHeight: 21, color: t.textSecondary }}>
-              {dialog.message}
-            </Text>
-          )}
+          <ScrollView style={styles.content} contentContainerStyle={{ gap: 10 }}>
+            <Text style={{ fontFamily: Fonts.display, fontSize: 20, color: t.text }}>{dialog.title}</Text>
+            {!!dialog.message && (
+              <Text style={{ fontFamily: Fonts.body, fontSize: 15, lineHeight: 21, color: t.textSecondary }}>
+                {dialog.message}
+              </Text>
+            )}
+          </ScrollView>
           <View style={styles.buttons}>
             {dialog.buttons.map((b, i) => {
               const color = b.style === 'destructive' ? t.danger : b.style === 'cancel' ? t.textSecondary : t.primary;
@@ -87,7 +89,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
-  box: { width: '100%', maxWidth: 360, borderRadius: 24, padding: 22, gap: 10 },
-  buttons: { flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 4, marginTop: 6 },
+  box: { width: '100%', maxWidth: 360, maxHeight: '100%', borderRadius: 24, padding: 22, gap: 10 },
+  content: { flexShrink: 1, flexGrow: 0 },
+  buttons: { flexShrink: 0, flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 4, marginTop: 6 },
   button: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12 },
 });

@@ -1,5 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Alert, Modal, Platform, Pressable } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { DialogHost, showDialog } from '@/components/dialog';
 
 jest.mock('@/constants/theme', () => ({ useTheme: () => ({}), Fonts: {} }));
@@ -13,6 +13,18 @@ let root: ReactTestRenderer;
 const buttons = () => root.root.findAllByType(Pressable);
 beforeEach(async () => { Platform.OS = 'web'; await act(async () => { root = create(<DialogHost />); }); });
 afterEach(async () => { await act(async () => root.unmount()); jest.restoreAllMocks(); });
+
+test('un message long dispose d’une zone défilante bornée sans emporter les boutons', async () => {
+  const message = 'Texte fictif très long. '.repeat(200);
+  await act(async () => showDialog('Titre fictif', message, [{ text: 'Annuler', style: 'cancel' }, { text: 'Confirmer' }]));
+  const scroll = root.root.findByType(ScrollView);
+  expect(scroll.findAllByType(Text).map(node => node.props.children)).toContain(message);
+  expect(scroll.findAllByType(Pressable)).toHaveLength(0);
+  expect(buttons()).toHaveLength(2);
+  expect(StyleSheet.flatten(scroll.props.style)).toMatchObject({ flexShrink: 1 });
+  const box = root.root.findByProps({ accessibilityRole: 'alert' });
+  expect(StyleSheet.flatten(box.props.style).maxHeight).toBe('100%');
+});
 
 test('une confirmation web ne peut être consommée deux fois avant le rendu', async () => {
   const action = jest.fn();
