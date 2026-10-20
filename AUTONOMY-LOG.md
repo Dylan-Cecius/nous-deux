@@ -1089,3 +1089,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Hauteur minimale40 conservée, hauteur naturelle et marge verticale autorisées ; libellés centrés pouvant passer sur plusieurs lignes, sans désactiver l’agrandissement système. Sélection et actions inchangées.
 - Preuves : lint/TypeScript réussis, 93 tests ciblés en1,625s, diff relu/propre. Documentation React Native0.86 Text/Layout consultée. Dernier contrôle transversal :1160 tests avant les deux derniers lots.
 - Limites : vérifier 320px, paysage et grande police sur appareils autorisés avant diffusion ; tests structurels insuffisants pour valider la mise en page réelle. Aucune build, publication ou dépense.
+
+## 2026-10-20 — 17:01 Europe/Brussels — Cases de liste identifiables
+
+- Base : `839c96a9e040a64139ef9cb3be5f3c81505d342b`. Trois régressions confirmées après correction du sélecteur de test : les cases annonçaient seulement une action générique, un renommage ne donnait aucun contexte accessible, et leur coche restait blanc sur l’accent sombre clair.
+- Chaque case porte maintenant le titre déjà affiché de son article, l’action restant une indication séparée ; état checked/busy/disabled inchangé. Le coche utilise onPrimary, déjà vérifié au lot de contraste. Aucun contenu nouveau lu ni transmis.
+- Preuves : lint/TypeScript et 61 tests ciblés réussis en1,503s, diff relu/propre. Le checkpoint précédent a subi une déconnexion réseau lors du CAS : référence relue inchangée, même commit réessayé avec expected_sha, succès vérifié sans forcer ni doubler le commit.
+- Limites : VoiceOver/TalkBack et focus des contrôles imbriqués encore à vérifier. Playwright est présent mais son Chromium attendu est absent et aucun navigateur système trouvé ; aucun téléchargement lancé, donc pas de recette pixel. Les sept PNG restent absents ; aucune build/distribution.

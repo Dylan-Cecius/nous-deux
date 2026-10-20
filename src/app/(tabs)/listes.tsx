@@ -178,7 +178,8 @@ function ListesContent() {
         accessibilityRole="checkbox"
         accessibilityState={{ checked: item.done, disabled: pending, busy: pending }}
         disabled={pending}
-        accessibilityLabel={item.done ? 'Marquer comme à faire' : 'Marquer comme fait'}
+        accessibilityLabel={item.title}
+        accessibilityHint={item.done ? 'Marquer comme à faire' : 'Marquer comme fait'}
         hitSlop={10}
         onPress={() => toggle(item)}
         style={{
@@ -191,7 +192,7 @@ function ListesContent() {
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-        {item.done && <Ionicons name="checkmark" size={17} color="#fff" />}
+        {item.done && <Ionicons name="checkmark" size={17} color={t.onPrimary} />}
       </Pressable>
       <View style={{ flex: 1, gap: 2 }}>
         <T

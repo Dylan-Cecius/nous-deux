@@ -9,7 +9,7 @@ jest.mock('../couple-context', () => ({ useCollectionState: jest.fn(), useSessio
 jest.mock('../haptics', () => ({ success: jest.fn(), tap: jest.fn() }));
 jest.mock('@/components/celebrate', () => ({ celebrate: jest.fn() }));
 jest.mock('@/components/dialog', () => ({ showDialog: jest.fn() }));
-jest.mock('@/constants/theme', () => ({ useTheme: () => ({}), Fonts: {} }));
+jest.mock('@/constants/theme', () => ({ useTheme: () => ({ primary: '#77C094', onPrimary: '#160E12' }), Fonts: {} }));
 jest.mock('@/components/ui', () => {
   const React = jest.requireActual('react');
   return { confirmDelete: jest.fn(), ...Object.fromEntries(['Screen', 'Card', 'T', 'Button', 'IconButton', 'Row', 'Dot', 'Empty', 'Fab', 'Ionicons', 'Field', 'Chips', 'Segmented', 'Sheet', 'ProgressBar'].map((name) => [name, (props: object) => React.createElement(name.toLowerCase(), props)])) };
@@ -35,6 +35,32 @@ const open = async () => {
   await act(async () => { root = create(<Listes />); });
   await switchTab('shopping');
 };
+
+test('les cases de la liste portent le nom de leur article et une action distincte', async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [item, { ...item, id: 'two', title: 'Autre course fictive', done: false }] });
+  await open();
+  const boxes = root.root.findAllByProps({ accessibilityRole: 'checkbox' }).filter(node => typeof node.props.onPress === 'function');
+  expect([...new Set(boxes.map(node => node.props.accessibilityLabel))].sort()).toEqual(['Autre course fictive', 'Course fictive']);
+  for (const box of boxes) {
+    expect(box.props.accessibilityHint).toBe(box.props.accessibilityState.checked ? 'Marquer comme à faire' : 'Marquer comme fait');
+  }
+});
+
+test('le nom accessible suit un titre modifié sans cocher l’article', async () => {
+  await open();
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, title: 'Course renommée' }] });
+  await act(async () => root.update(<Listes />));
+  const box = root.root.findAllByProps({ accessibilityRole: 'checkbox' }).find(node => typeof node.props.onPress === 'function')!;
+  expect(box.props.accessibilityLabel).toBe('Course renommée');
+  expect(box.props.accessibilityState.checked).toBe(true);
+  expect(backend.update).not.toHaveBeenCalled();
+});
+
+test('le coche reprend le contraste du thème sombre', async () => {
+  await open();
+  const check = root.root.findAllByType('ionicons' as never).find(node => node.props.name === 'checkmark')!;
+  expect(check.props.color).toBe('#160E12');
+});
 const askBasket = async () => {
   await open();
   await act(async () => { root.root.findByProps({ label: 'Vider les articles cochés' }).props.onPress(); });
