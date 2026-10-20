@@ -51,8 +51,10 @@ function DailyQuestion({ today }: { today: string }) {
     (backend.mode === 'local' || id === backend.userId) &&
     !latest.current?.answers.some((a) => a.date === today && a.from === id) && !recorded.current.get(backend)?.has(id);
   const change = (id: string, value: string) => {
-    if (!canAnswerNow(id) || locked.current.has(id)) return;
-    setDrafts((previous) => ({ ...previous, [id]: value }));
+    if (!canAnswerNow(id) || locked.current.has(id) || !latest.current) return;
+    const next = { ...latest.current.drafts, [id]: value };
+    latest.current.drafts = next;
+    setDrafts(next);
   };
   const submit = async (id: string) => {
     if (!canAnswerNow(id) || locked.current.has(id)) return;

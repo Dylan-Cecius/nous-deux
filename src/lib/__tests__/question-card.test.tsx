@@ -111,6 +111,34 @@ test('une réponse vidée ensuite ne part pas depuis une ancienne action', async
   expect(backend.add).not.toHaveBeenCalled();
 });
 
+test.each(['Dernière saisie', ''])('la validation avant rendu utilise la dernière saisie (%s)', async (value) => {
+  await fill();
+  const change = fields()[0].props.onChangeText;
+  const save = submit();
+  await act(async () => { change(value); await save(); });
+  if (value) expect(backend.add).toHaveBeenCalledWith('answers', expect.objectContaining({ text: value }));
+  else expect(backend.add).not.toHaveBeenCalled();
+});
+
+test('une première saisie immédiatement validée n’est pas ignorée', async () => {
+  await mount();
+  const change = fields()[0].props.onChangeText;
+  const save = submit();
+  await act(async () => { change('Première réponse'); await save(); });
+  expect(backend.add).toHaveBeenCalledWith('answers', expect.objectContaining({ text: 'Première réponse' }));
+});
+
+test('les deux saisies locales avant rendu restent distinctes', async () => {
+  (useSession as jest.Mock).mockReturnValue({ backend: { ...backend, mode: 'local' }, members, me: members[0] });
+  await mount();
+  const [first, second] = fields().map(field => field.props.onChangeText);
+  const actions = root.root.findAllByProps({ label: 'Valider la réponse' }).filter(node => typeof node.type === 'string').map(node => node.props.onPress);
+  await act(async () => { first('Réponse Alice'); second('Réponse Bob'); await actions[0](); await actions[1](); });
+  expect(backend.add).toHaveBeenCalledWith('answers', expect.objectContaining({ from: 'alice', text: 'Réponse Alice' }));
+  expect(backend.add).toHaveBeenCalledWith('answers', expect.objectContaining({ from: 'bob', text: 'Réponse Bob' }));
+  expect(notifyPartner).not.toHaveBeenCalled();
+});
+
 test.each(['success', 'error'])('retour %s après départ sans notification ni dialogue tardif', async (outcome) => {
   await fill(); let finish!: () => void;
   backend.add.mockImplementationOnce(() => new Promise((resolve, reject) => { finish = () => outcome === 'success' ? resolve('id') : reject(new Error('Erreur fictive')); }));
