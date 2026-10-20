@@ -1165,3 +1165,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Base : `3f72c20a379c938ea2ad34b40ddf73ed056a4b2a`. TESTFLIGHT-REVIEW complété avec six parcours (lecteur d’écran, texte agrandi, contraste, réduction du mouvement, remplacement/partage des invitations), résultats attendus et limites.
 - Scénarios préparés, aucun essai appareil/navigateur ni envoi à un tiers exécuté. Prérequis serveur, coût nul prouvé et données de test exigés ; aucun ancien statut Apple présenté comme actuel.
 - Contrôle : diff documentaire relu et git diff --check réussi. Pas de nouveau test applicatif exécuté pour ce lot de documentation ; dernier contrôle ciblé 115 tests, dernier complet 1237 tests avant les noms des couleurs.
+
+## 2026-10-20 — 17:52 Europe/Brussels — Garde des permissions natives préparées
+
+- Base : `441db529a34538146ae90dbf01fbd5545be065d8`. Audit : app.config.js retire les permissions/plugins vocaux conditionnellement, mais aucun test dédié ne protégeait cette configuration critique pour la revue. Ajout de couverture, aucun défaut ni correctif natif revendiqué.
+- Huit tests de la configuration pure : indicateur absent/false/invalide/true avec module toujours exclu, textes photo sans import de planning quand assistant désactivé, formes de plugins, conservation des autres permissions/options, absence de mutation et idempotence.
+- Preuves : huit tests réussis en 0,839 s ; lint/TypeScript et diff propres. Appel de la fonction JavaScript seulement, aucune commande Expo/prebuild, exécution de plugin ni build. L’indicateur true est limité à la fixture de test et restauré ; aucune configuration enregistrée ou fonctionnalité payante activée.
+- Limites : ne prouve pas le contenu d’un manifeste binaire ni les permissions d’une build distribuée ; inspection native future requise. Pas de modification du serveur/règles, déploiement ou dépense.
