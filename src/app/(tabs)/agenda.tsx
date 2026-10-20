@@ -22,6 +22,7 @@ import { TimeField } from '@/components/pickers';
 import { cardShadow, Fonts, Spacing, useTheme } from '@/constants/theme';
 import { notifyPartner } from '@/lib/assistant';
 import { useCollectionState, useSession } from '@/lib/couple-context';
+import { foregroundOnColor } from '@/lib/color-contrast';
 import { endMin, freeSlots, fromMin, mondayOf, toMin } from '@/lib/agenda';
 import { addDays, formatLong, fromKey, todayKey, weekdayShort } from '@/lib/dates';
 import { BOTH, type AgendaEvent, type EventKind } from '@/lib/types';
@@ -227,6 +228,8 @@ function AgendaContent() {
               ))}
 
               {ofDay.map((e) => {
+                const background = colorOf(e.who);
+                const foreground = foregroundOnColor(background);
                 const both = e.who === BOTH || columns.length < 2;
                 const col = colIndex(e.who);
                 const s = toMin(e.start);
@@ -246,17 +249,17 @@ function AgendaContent() {
                       right: both ? 6 : col === 1 ? 6 : '50%',
                       marginLeft: !both && col === 1 ? 3 : 0,
                       marginRight: !both && col !== 1 ? 3 : 0,
-                      backgroundColor: colorOf(e.who),
+                      backgroundColor: background,
                       borderRadius: 12,
                       paddingVertical: 6,
                       paddingHorizontal: 10,
                       overflow: 'hidden',
                     }}>
-                    <T variant="bodyBold" color="#fff" style={{ fontSize: 14 }} numberOfLines={h > 50 ? 2 : 1}>
+                    <T variant="bodyBold" color={foreground} style={{ fontSize: 14 }} numberOfLines={h > 50 ? 2 : 1}>
                       {e.title}
                     </T>
                     {h > 44 && (
-                      <T variant="small" color="rgba(255,255,255,0.85)" style={{ fontSize: 12 }}>
+                      <T variant="small" color={foreground} style={{ fontSize: 12 }}>
                         {e.start} – {e.end}
                       </T>
                     )}

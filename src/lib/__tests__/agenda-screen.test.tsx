@@ -6,6 +6,7 @@ import { confirmDelete } from '@/components/ui';
 import { showDialog } from '@/components/dialog';
 import { todayKey } from '../dates';
 import { notifyPartner } from '../assistant';
+import { MemberColors } from '@/constants/member-colors';
 
 jest.mock('../couple-context', () => {
   const state = jest.fn();
@@ -39,6 +40,34 @@ const session = { backend, members: [{ id: 'alice', name: 'Alice' }, { id: 'bob'
 beforeEach(() => { (useCollectionState as jest.Mock).mockReturnValue(ready); (useSession as jest.Mock).mockReturnValue(session); });
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
 const text = () => root.root.findAllByType('t' as never).map((node) => node.children.filter((child) => typeof child === 'string').join('')).join('\n');
+
+// Opaque foreground or alpha composited on the actual opaque member background.
+const contrast = (foreground: string, background: string) => {
+  const rgb = (hex: string) => {
+    const digits = hex.length === 4 ? hex.slice(1).split('').map(x => x + x).join('') : hex.slice(1);
+    return digits.match(/../g)!.map(x => parseInt(x, 16));
+  };
+  const bg = rgb(background);
+  const rgba = /^rgba\(([^)]+)\)$/.exec(foreground)?.[1].split(',').map(Number);
+  const fg = rgba ? bg.map((channel, i) => rgba[i] * rgba[3] + channel * (1 - rgba[3])) : rgb(foreground);
+  const luminance = (channels: number[]) => {
+    const [r, g, b] = channels.map(x => x / 255).map(x => x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const a = luminance(bg), b = luminance(fg);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+};
+
+describe.each(MemberColors)('bloc agenda sur %s', color => {
+  test.each(['Horaire fictif', '09:00 – 12:00'])('le texte %s garde au moins 4,5:1', async label => {
+    (useSession as jest.Mock).mockReturnValue({ ...session, colorOf: () => color });
+    (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [event] });
+    await act(async () => { root = create(<Agenda />); });
+    const node = root.root.findAllByType('t' as never).find(node => node.children.join('') === label)!;
+    expect(node).toBeTruthy();
+    expect(contrast(node.props.color, color)).toBeGreaterThanOrEqual(4.5);
+  });
+});
 
 const seriesEvent = { ...event, seriesId: 'series' };
 const seriesButton = () => root.root.findByProps({ label: 'Supprimer aussi les semaines suivantes' });

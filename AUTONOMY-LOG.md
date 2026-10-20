@@ -1209,3 +1209,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Copie verrouillée jusqu’au règlement de la promesse, bouton désactivé et garde dans le gestionnaire ; révision du message vérifiée avant les retours de succès/échec. Statut d’attente explicite et repli de sélection manuelle conservé si l’API clipboard manque.
 - Preuves : sept cas rouges puis verts, deux contrôles de copie courante/repli ; 60 suites / 1285 tests réussis en 9,948 s, dont 18 tests des formulaires. Lint et TypeScript réussis, diff relu/propre.
 - Limites : presse-papiers doublé, aucun accès réel ni e-mail. Une écriture clipboard déjà demandée n’est pas annulée ; sa notification périmée est ignorée et une nouvelle copie doit être demandée après sa fin. Aucun serveur, mécanisme de suppression, publication, build ou dépense modifié. Recette Safari et ressources PNG complètes restent nécessaires pour une preuve visuelle.
+
+## 2026-10-20 — 18:39 Europe/Brussels — Contraste du texte des blocs d’agenda
+
+- Base : `200116c0986c7eaa3e5ab29ac1b85a9e06974d20`. Six régressions calculées parmi les sept couleurs de membre : titre blanc orange à 3,91:1, horaires blancs atténués sous 4,5:1 sur cinq couleurs (orange 3,27:1).
+- Réutilisation de foregroundOnColor pour le titre et les horaires, désormais opaques ; couleur du membre, contenu, disposition et actions conservés. Aucun changement des données enregistrées.
+- Preuves : six cas rouges puis verts, quatorze contrôles de couleur au total ; 124 tests ciblés agenda/contraste réussis en 2,199 s. Lint et TypeScript réussis, diff relu/propre. Expo 57, index Expo, RN 0.86 Text Style Props et WCAG 2.2 consultés avant correction.
+- Revue React utilisée : calcul pur local sans nouvel état/effet ni dépendance, couleur de fond partagée avec le calcul du premier plan. Limites : contraste sRGB calculé au repos et composants simulés, pas de rendu natif, VoiceOver, taille de texte ou état de pression validé ; formats personnalisés non opaques gardent le repli historique sans garantie.
