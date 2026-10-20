@@ -1,4 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { router } from 'expo-router';
 import { Pressable } from 'react-native';
 import Souvenirs from '@/app/souvenirs';
 import { MemoriesStrip } from '@/components/home/memories-strip';
@@ -13,7 +14,7 @@ jest.mock('../couple-context', () => {
 jest.mock('../photos', () => ({ pickPhoto: jest.fn() }));
 jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), { Pressable: { value: 'pressable' } }));
 jest.mock('../haptics', () => ({ success: jest.fn() }));
-jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
+jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn(), canGoBack: jest.fn(), replace: jest.fn() } }));
 jest.mock('expo-image', () => ({ Image: (props: object) => jest.requireActual('react').createElement('image', props) }));
 jest.mock('@/constants/theme', () => ({ useTheme: () => ({}) }));
 jest.mock('@/components/pickers', () => ({ DateField: () => null }));
@@ -30,6 +31,15 @@ const memory = { id: 'memory', caption: 'Souvenir fictif', date: '2025-10-15', c
 beforeEach(() => { (useCollectionState as jest.Mock).mockReturnValue(ready); });
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
 const text = () => JSON.stringify(root.toJSON());
+
+test.each([true, false])('retour des souvenirs avec historique : %s', async (hasHistory) => {
+  (router.canGoBack as jest.Mock).mockReturnValue(hasHistory);
+  await act(async () => { root = create(<Souvenirs />); });
+  await act(async () => { root.root.findByType('screen' as never).props.onBack(); });
+  expect(router.back).toHaveBeenCalledTimes(hasHistory ? 1 : 0);
+  if (hasHistory) expect(router.replace).not.toHaveBeenCalled();
+  else expect(router.replace).toHaveBeenCalledWith('/');
+});
 
 describe.each([['album', Souvenirs], ['accueil', MemoriesStrip]] as const)('%s', (_name, Component) => {
   test.each(['loading', 'error'])('le vrai bouton n’envoie pas une photo choisie après passage en %s', async (status) => {

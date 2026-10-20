@@ -1333,3 +1333,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - L’image utilise désormais le souvenir courant reçu dans la collection ; les indisponibilités continuent de la masquer et la légende en cours de saisie reste conservée. Aucun champ photo ajouté au patch de sauvegarde.
 - Preuves : 50 tests fiche/album réussis en 1,399 s ; lint, TypeScript et diff check réussis, diff relu. Documentation Expo SDK 57 Image.source consultée : https://docs.expo.dev/versions/v57.0.0/sdk/image/ .
 - Limites : URI fictives et composant Image doublé, pas de téléchargement de photo réelle ni de preuve de rendu/cache natif. Aucun changement serveur, règles ou suppression.
+
+## 2026-10-20 — 21:34 Europe/Brussels — Retour depuis un lien direct
+
+- Défaut reproduit : Souvenirs et Dépenses demandaient un retour même lorsque le routeur n’avait aucun écran précédent. Deux cas rouges, deux contrôles avec historique conservés.
+- Le bouton revient à l’écran précédent si possible ; sinon il remplace la route par l’accueil, comme le parcours d’aide existant. Aucune modification des actions de dépense, marques ou suppressions.
+- Preuves : 26 tests d’écrans réussis en 1,219 s ; lint/TypeScript/diff check réussis, diff relu. Documentation Expo Router SDK 57 canGoBack/back/replace consultée : https://docs.expo.dev/versions/v57.0.0/sdk/router/ .
+- Revue React appliquée : dérivation simple dans l’événement, aucune nouvelle dépendance, effet, sous-composant imbriqué ou état de navigation dupliqué. Limites : routeur doublé, pas d’essai de lien universel sur téléphone ni de navigateur réel.

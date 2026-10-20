@@ -27,7 +27,7 @@ function SouvenirsContent() {
 
   return (
     <>
-      <Screen overline={unavailable ? 'Votre album' : `${memories.items.length} photo${memories.items.length > 1 ? 's' : ''}`} title="Souvenirs" onBack={() => router.back()}>
+      <Screen overline={unavailable ? 'Votre album' : `${memories.items.length} photo${memories.items.length > 1 ? 's' : ''}`} title="Souvenirs" onBack={() => router.canGoBack() ? router.back() : router.replace('/')}>
         {unavailable ? (
           <Card>
             <T>{memories.loading ? 'Chargement des souvenirs…' : 'Souvenirs indisponibles. Impossible de charger votre album pour le moment.'}</T>

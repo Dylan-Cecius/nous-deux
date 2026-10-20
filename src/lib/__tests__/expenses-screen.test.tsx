@@ -1,4 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { router } from 'expo-router';
 import Depenses from '@/app/depenses';
 import { useCollectionState } from '../couple-context';
 
@@ -9,7 +10,7 @@ jest.mock('../couple-context', () => ({
 }));
 jest.mock('@/constants/theme', () => ({ useTheme: () => ({}), cardShadow: () => ({}) }));
 jest.mock('../haptics', () => ({ success: jest.fn() }));
-jest.mock('expo-router', () => ({ router: { back: jest.fn() } }));
+jest.mock('expo-router', () => ({ router: { back: jest.fn(), canGoBack: jest.fn(), replace: jest.fn() } }));
 jest.mock('@/components/ui', () => {
   const React = jest.requireActual('react');
   return Object.fromEntries(['Screen', 'Card', 'T', 'Button', 'Empty', 'Fab', 'Row', 'Dot', 'Ionicons', 'Sheet', 'Field', 'Chips'].map((name) => [
@@ -19,6 +20,16 @@ jest.mock('@/components/ui', () => {
 
 let root: ReactTestRenderer;
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
+
+test.each([true, false])('retour des dépenses avec historique : %s', async (hasHistory) => {
+  (router.canGoBack as jest.Mock).mockReturnValue(hasHistory);
+  (useCollectionState as jest.Mock).mockReturnValue({ items: [], loading: false, error: false, retry: jest.fn() });
+  await act(async () => { root = create(<Depenses />); });
+  await act(async () => { root.root.findByType('screen' as never).props.onBack(); });
+  expect(router.back).toHaveBeenCalledTimes(hasHistory ? 1 : 0);
+  if (hasHistory) expect(router.replace).not.toHaveBeenCalled();
+  else expect(router.replace).toHaveBeenCalledWith('/');
+});
 
 test.each(['loading', 'error'])('les dépenses en %s n’affichent ni faux équilibre ni remboursement', async (status) => {
   const retry = jest.fn();

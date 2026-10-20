@@ -87,7 +87,7 @@ function DepensesContent() {
 
   return (
     <>
-      <Screen overline={ready ? `${euros(total)} dépensés à deux` : 'Dépenses partagées'} title="Dépenses" onBack={() => router.back()}>
+      <Screen overline={ready ? `${euros(total)} dépensés à deux` : 'Dépenses partagées'} title="Dépenses" onBack={() => router.canGoBack() ? router.back() : router.replace('/')}>
         {loading ? (
           <Card><T>Chargement des dépenses…</T></Card>
         ) : error ? (
