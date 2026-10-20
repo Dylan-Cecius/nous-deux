@@ -50,6 +50,15 @@ Le journal technique de suppression et les délais propres aux prestataires doiv
 
 Avant ouverture publique, désigner la personne chargée de ce processus et terminer la procédure administrative pour les demandes vérifiées sans session. Ne jamais improviser une suppression sur un compte réel.
 
+## Recette des messages préparés — ajout du 20 octobre 2026
+
+Préparée, **non exécutée dans Safari ou un navigateur réel**. Les 18 tests jsdom du script ne valident pas le rendu des pages générées, le presse-papiers système ni une livraison d’e-mail. Attendre une copie complète des ressources pour la recette visuelle ; ne pas remplacer les PNG manquants par des images factices.
+
+- Dans un aperçu privé autorisé, avec des coordonnées fictives, préparer un message puis modifier l’adresse, le texte ou le motif. Le résultat et son lien doivent disparaître ; une nouvelle préparation doit reprendre les valeurs actuelles. Vérifier aussi la réinitialisation et un champ devenu invalide.
+- Pour le formulaire de suppression, retirer la confirmation de propriété du compte après préparation : l’ancien résultat ne doit plus être utilisable. Cet essai ne supprime aucun compte et ne prouve pas l’identité du demandeur.
+- Copier puis modifier/préparer un autre message pendant l’attente : aucune seconde copie simultanée, aucun ancien succès ou échec ne doit remplacer le statut courant. Une copie déjà demandée au système ne peut pas être annulée ; attendre sa fin puis copier explicitement le nouveau message. Refuser la permission clipboard pour vérifier le repli manuel, sans faux message de réussite.
+- Contrôler le focus, les annonces du statut, la sélection manuelle et le bouton désactivé sur mobile, portrait/paysage et texte agrandi. Ne pas ouvrir ni envoyer un e-mail de test dans le cadre autonome : ces contrôles n’autorisent aucun message à un tiers. Le formulaire ne constitue toujours pas un accusé de réception.
+
 ## Publication et vérification
 
 1. Finaliser les informations et mesures ci-dessus, faire relire la politique et les déclarations de confidentialité des stores.
