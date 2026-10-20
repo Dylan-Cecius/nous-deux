@@ -224,6 +224,22 @@ test('le dernier contenu reçu reste affiché lors d’une erreur de lecture', a
   expect(root.root.findByType('date' as never).props.value).toBe('2022-02-02');
 });
 
+test.each([false, true])('la fiche utilise la photo courante de la collection (après reprise : %s)', async retry => {
+  await open();
+  await changeCaption('Mon brouillon intact');
+  if (retry) {
+    (useCollectionState as jest.Mock).mockReturnValue({ ...ready, error: true });
+    await refresh();
+    expect(sheet().findAllByType('image' as never)).toHaveLength(0);
+  }
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...memory, photoUrl: 'fictitious://current-photo' }] });
+  await refresh();
+  expect(sheet().findByType('image' as never).props.source.uri).toBe('fictitious://current-photo');
+  expect(root.root.findByProps({ label: 'Légende' }).props.value).toBe('Mon brouillon intact');
+  await act(async () => button('Enregistrer')());
+  expect(backend.update).toHaveBeenCalledWith('memories', memory.id, { caption: 'Mon brouillon intact' });
+});
+
 test('les espaces de saisie sont conservés à l’écran sans déclencher une écriture identique', async () => {
   await open();
   await changeCaption(`${memory.caption} `);

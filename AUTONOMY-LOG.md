@@ -1326,3 +1326,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Les deux événements de saisie actualisent maintenant la référence du brouillon et l’état ensemble, sous le verrou existant. Champs de base et patch minimal conservés ; aucun changement des fonctions/règles ou mécanismes de suppression.
 - Preuves : 30 tests de fiche souvenir réussis en 0,941 s ; npm run lint, tsc --noEmit et git diff --check réussis, commande code 0, diff relu. Les tests de suppression existants ne valent pas une nouvelle validation sécurité ; aucun émulateur lancé.
 - Limites : événements simulés et stockage doublé, aucun contenu réel lu/modifié, aucun essai clavier natif ni build. Pas de résolution des conflits serveur sur le même champ.
+
+## 2026-10-20 — 21:32 Europe/Brussels — Photo courante dans la fiche souvenir
+
+- Défaut reproduit : la fiche gardait la source de photo reçue à son ouverture, y compris après erreur puis reprise de la collection. Deux régressions rouges avant correction.
+- L’image utilise désormais le souvenir courant reçu dans la collection ; les indisponibilités continuent de la masquer et la légende en cours de saisie reste conservée. Aucun champ photo ajouté au patch de sauvegarde.
+- Preuves : 50 tests fiche/album réussis en 1,399 s ; lint, TypeScript et diff check réussis, diff relu. Documentation Expo SDK 57 Image.source consultée : https://docs.expo.dev/versions/v57.0.0/sdk/image/ .
+- Limites : URI fictives et composant Image doublé, pas de téléchargement de photo réelle ni de preuve de rendu/cache natif. Aucun changement serveur, règles ou suppression.

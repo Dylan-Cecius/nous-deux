@@ -130,7 +130,7 @@ function MemorySheet({ memory, onClose }: { memory: Memory; onClose: () => void 
 
   return (
     <Sheet visible title="Souvenir" onClose={() => run(close)}>
-      {!unavailable && <Image source={{ uri: memory.photoUrl }} style={{ width: '100%', aspectRatio: 1, borderRadius: 20 }} contentFit="cover" />}
+      {received && <Image source={{ uri: received.photoUrl }} style={{ width: '100%', aspectRatio: 1, borderRadius: 20 }} contentFit="cover" />}
       <Field label="Légende" value={caption} maxLength={4000} editable={!pending} onChangeText={(value) => changeDraft({ caption: value })} placeholder="Notre premier week-end à la mer" />
       <DateField label="Date" value={date} disabled={pending} onChange={(value) => changeDraft({ date: value })} maximumDate={new Date()} />
       {date > todayKey() && <T variant="small">La date du souvenir ne peut pas être dans le futur.</T>}
