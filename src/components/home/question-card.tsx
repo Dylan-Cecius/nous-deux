@@ -1,15 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { showDialog } from '@/components/dialog';
 import { Button, Card, Dot, Field, IconButton, Ionicons, Row, T } from '@/components/ui';
 import { useTheme } from '@/constants/theme';
 import { notifyPartner } from '@/lib/assistant';
+import type { Backend } from '@/lib/backend';
 import { useCollectionState, useSession } from '@/lib/couple-context';
 import { todayKey } from '@/lib/dates';
 import { success } from '@/lib/haptics';
 import { questionFor } from '@/lib/questions';
 import type { Member } from '@/lib/types';
+
+// Called only by the submit event, never while deriving the displayed question.
+const writeAnswer = (backend: Backend, date: string, from: string, text: string) =>
+  backend.add('answers', { date, from, text, createdAt: Date.now() });
 
 /**
  * Question du jour. Chacun répond de son côté ; la réponse de l'autre ne se dévoile
@@ -28,6 +33,50 @@ function DailyQuestion({ today }: { today: string }) {
   const { backend, members, me } = session;
   const { items: answers, loading, error, retry } = useCollectionState('answers');
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const ready = !loading && !error;
+  const memberIds = JSON.stringify(members.map((m) => m.id).sort());
+  const context = useMemo(() => ({ backend, ready, memberIds }), [backend, ready, memberIds]);
+  const latest = useRef<{ context: typeof context; drafts: typeof drafts; answers: typeof answers } | null>(null);
+  const locked = useRef(new Set<string>());
+  const recorded = useRef(new Map<typeof backend, Set<string>>());
+  const [acknowledged, setAcknowledged] = useState<{ backend: typeof backend; ids: string[] }>({ backend, ids: [] });
+  const [pending, setPending] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    latest.current = { context, drafts, answers };
+    return () => { latest.current = null; };
+  }, [context, drafts, answers]);
+  const isCurrent = () => latest.current?.context === context;
+  const canAnswerNow = (id: string) => isCurrent() && ready && members.some((m) => m.id === id) &&
+    (backend.mode === 'local' || id === backend.userId) &&
+    !latest.current?.answers.some((a) => a.date === today && a.from === id) && !recorded.current.get(backend)?.has(id);
+  const change = (id: string, value: string) => {
+    if (!canAnswerNow(id) || locked.current.has(id)) return;
+    setDrafts((previous) => ({ ...previous, [id]: value }));
+  };
+  const submit = async (id: string) => {
+    if (!canAnswerNow(id) || locked.current.has(id)) return;
+    const text = latest.current?.drafts[id]?.trim() ?? '';
+    if (!text || text.length > 4000) return;
+    locked.current.add(id);
+    setPending((previous) => ({ ...previous, [id]: true }));
+    try {
+      await writeAnswer(backend, today, id, text);
+      // Retain the acknowledgement while waiting for the collection snapshot,
+      // including a temporary read error. Never resend a confirmed answer.
+      const ids = recorded.current.get(backend) ?? new Set<string>();
+      ids.add(id);
+      recorded.current.set(backend, ids);
+      if (latest.current?.context.backend === backend) setAcknowledged({ backend, ids: [...ids] });
+      if (!isCurrent()) return;
+      success();
+      if (backend.mode === 'cloud') await notifyPartner(session, 'Question du jour');
+    } catch {
+      if (isCurrent()) showDialog('Enregistrement non confirmé', 'Ta réponse est conservée. Recharge les réponses pour vérifier si elle a été enregistrée avant de réessayer.');
+    } finally {
+      locked.current.delete(id);
+      if (latest.current) setPending((previous) => ({ ...previous, [id]: false }));
+    }
+  };
   const ofToday = answers.filter((a) => a.date === today);
   const answerOf = (id: string) => ofToday.find((a) => a.from === id);
   const iAnswered = !!answerOf(backend.userId);
@@ -53,8 +102,9 @@ function DailyQuestion({ today }: { today: string }) {
         // En mode local, les deux réponses se saisissent sur ce téléphone.
         const canAnswer = !answer && (m.id === backend.userId || backend.mode === 'local');
         if (canAnswer) return (
-          <AnswerField key={m.id} member={m} isMe={m.id === me?.id} date={today}
-            text={drafts[m.id] ?? ''} onChangeText={(text) => setDrafts((previous) => ({ ...previous, [m.id]: text }))} />
+          <AnswerField key={m.id} member={m} isMe={m.id === me?.id}
+            text={drafts[m.id] ?? ''} busy={!!pending[m.id]} recorded={acknowledged.backend === backend && acknowledged.ids.includes(m.id)}
+            onChangeText={(text) => change(m.id, text)} onSubmit={() => submit(m.id)} />
         );
         return (
           <View key={m.id} style={{ gap: 4 }}>
@@ -85,24 +135,10 @@ function DailyQuestion({ today }: { today: string }) {
   );
 }
 
-function AnswerField({ member, isMe, date, text, onChangeText }: {
-  member: Member; isMe: boolean; date: string; text: string; onChangeText: (text: string) => void;
+function AnswerField({ member, isMe, text, onChangeText, onSubmit, busy, recorded }: {
+  member: Member; isMe: boolean; text: string; onChangeText: (text: string) => void;
+  onSubmit: () => Promise<void>; busy: boolean; recorded: boolean;
 }) {
-  const session = useSession();
-  const { backend } = session;
-  const [busy, setBusy] = useState(false);
-  const submit = async () => {
-    if (!text.trim() || busy) return;
-    setBusy(true);
-    try {
-      await backend.add('answers', { date, from: member.id, text: text.trim(), createdAt: Date.now() });
-      success();
-      if (backend.mode === 'cloud') await notifyPartner(session, 'Question du jour');
-    } catch (error) {
-      showDialog('Réponse non enregistrée', error instanceof Error ? error.message : String(error));
-    } finally { setBusy(false); }
-  };
-
   return (
     <View style={{ gap: 6 }}>
       <Row style={{ gap: 6 }}>
@@ -112,9 +148,10 @@ function AnswerField({ member, isMe, date, text, onChangeText }: {
         </T>
       </Row>
       <Row>
-        <Field value={text} onChangeText={onChangeText} placeholder="Écris ta réponse…" grow maxLength={4000} editable={!busy} onSubmitEditing={submit} />
-        <IconButton icon="checkmark" label="Valider la réponse" variant="primary" onPress={submit} size={50} />
+        <Field value={text} onChangeText={onChangeText} placeholder="Écris ta réponse…" grow maxLength={4000} editable={!busy && !recorded} onSubmitEditing={onSubmit} />
+        <IconButton icon="checkmark" label="Valider la réponse" variant="primary" onPress={onSubmit} disabled={busy || recorded || !text.trim()} size={50} />
       </Row>
+      {recorded && <T variant="small" muted>Réponse enregistrée. Actualisation en cours…</T>}
     </View>
   );
 }

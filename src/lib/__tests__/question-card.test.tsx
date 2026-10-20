@@ -3,6 +3,7 @@ import { QuestionCard } from '@/components/home/question-card';
 import { useCollectionState, useSession } from '../couple-context';
 import { todayKey } from '../dates';
 import { notifyPartner } from '../assistant';
+import { showDialog } from '@/components/dialog';
 
 jest.mock('../couple-context', () => {
   const state = jest.fn();
@@ -28,9 +29,64 @@ const ready = { items: [], loading: false, error: false, retry: jest.fn() };
 const text = () => JSON.stringify(root.toJSON());
 const fields = () => root.root.findAllByType('field' as never);
 beforeEach(() => {
+  backend.add.mockReset().mockResolvedValue('answer-id');
   (useSession as jest.Mock).mockReturnValue({ backend, members, me: members[0] });
   (useCollectionState as jest.Mock).mockReturnValue(ready);
   (todayKey as jest.Mock).mockReturnValue('2026-10-15');
+});
+
+const mount = async () => { await act(async () => { root = create(<QuestionCard />); }); };
+const refresh = async () => { await act(async () => root.update(<QuestionCard />)); };
+const fill = async () => { await mount(); await act(async () => fields()[0].props.onChangeText(' Réponse fictive ')); };
+const submit = () => root.root.findByProps({ label: 'Valider la réponse' }).props.onPress;
+
+test('clavier et bouton simultanés partagent un seul envoi', async () => {
+  await fill();
+  const save = submit();
+  await act(async () => { await Promise.all([save(), fields()[0].props.onSubmitEditing()]); });
+  expect(backend.add).toHaveBeenCalledTimes(1);
+  expect(notifyPartner).toHaveBeenCalledTimes(1);
+});
+
+test.each(['unmount', 'date', 'member', 'backend', 'removed', 'loading', 'error', 'answered'])('ancienne réponse refusée après %s', async (kind) => {
+  await fill(); const save = submit();
+  if (kind === 'unmount') await act(async () => root.unmount());
+  else {
+    if (kind === 'date') (todayKey as jest.Mock).mockReturnValue('2026-10-16');
+    if (kind === 'member' || kind === 'backend') (useSession as jest.Mock).mockReturnValue({ backend: { ...backend, userId: kind === 'member' ? 'bob' : 'alice' }, members, me: members[0] });
+    if (kind === 'removed') (useSession as jest.Mock).mockReturnValue({ backend, members: [members[1]], me: members[0] });
+    if (kind === 'loading' || kind === 'error') (useCollectionState as jest.Mock).mockReturnValue({ ...ready, [kind]: true });
+    if (kind === 'answered') (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ id: 'existing', from: 'alice', date: '2026-10-15', text: 'Autre appareil', createdAt: 1 }] });
+    await refresh();
+  }
+  await act(async () => { await save(); });
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(notifyPartner).not.toHaveBeenCalled();
+});
+
+test('une ancienne action relit le brouillon courant', async () => {
+  await fill(); const save = submit();
+  await act(async () => fields()[0].props.onChangeText(' Nouvelle réponse '));
+  await act(async () => { await save(); });
+  expect(backend.add).toHaveBeenCalledWith('answers', expect.objectContaining({ text: 'Nouvelle réponse' }));
+});
+
+test('une réponse vidée ensuite ne part pas depuis une ancienne action', async () => {
+  await fill(); const save = submit();
+  await act(async () => fields()[0].props.onChangeText('  '));
+  await act(async () => { await save(); });
+  expect(backend.add).not.toHaveBeenCalled();
+});
+
+test.each(['success', 'error'])('retour %s après départ sans notification ni dialogue tardif', async (outcome) => {
+  await fill(); let finish!: () => void;
+  backend.add.mockImplementationOnce(() => new Promise((resolve, reject) => { finish = () => outcome === 'success' ? resolve('id') : reject(new Error('Erreur fictive')); }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = submit()(); });
+  await act(async () => root.unmount());
+  await act(async () => { finish(); await pending; });
+  expect(notifyPartner).not.toHaveBeenCalled();
+  expect(showDialog).not.toHaveBeenCalled();
 });
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
 
@@ -118,4 +174,55 @@ test('les deux brouillons locaux sont distincts et conservés après reprise', a
   await act(async () => { root.update(<QuestionCard />); });
   expect(fields().map((field) => field.props.value)).toEqual(['Brouillon Alice', 'Brouillon Bob']);
   expect(backend.add).not.toHaveBeenCalled();
+});
+
+test('le verrou survit à une panne de lecture et protège aussi une ancienne saisie', async () => {
+  await fill(); const save = submit(); const change = fields()[0].props.onChangeText;
+  let finish!: () => void;
+  backend.add.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = save(); change('Trop tard'); });
+  expect(fields()[0].props).toMatchObject({ value: ' Réponse fictive ', editable: false });
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, error: true }); await refresh();
+  (useCollectionState as jest.Mock).mockReturnValue(ready); await refresh();
+  await act(async () => { await submit()(); });
+  expect(backend.add).toHaveBeenCalledTimes(1);
+  await act(async () => { finish(); await pending; });
+  expect(notifyPartner).not.toHaveBeenCalled();
+  expect(text()).toContain('Réponse enregistrée');
+  await act(async () => { await submit()(); });
+  expect(backend.add).toHaveBeenCalledTimes(1);
+});
+
+test('une ancienne action reste invalide après aller-retour de la lecture', async () => {
+  await fill(); const oldSave = submit();
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, loading: true }); await refresh();
+  (useCollectionState as jest.Mock).mockReturnValue(ready); await refresh();
+  await act(async () => { await oldSave(); });
+  expect(backend.add).not.toHaveBeenCalled();
+  await act(async () => { await submit()(); });
+  expect(backend.add).toHaveBeenCalledTimes(1);
+});
+
+test('un rejet reste non confirmé, garde la saisie et autorise une reprise explicite', async () => {
+  await fill(); backend.add.mockRejectedValueOnce(new Error('Détail fournisseur à masquer'));
+  await act(async () => { await submit()(); });
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('vérifier'));
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('Détail fournisseur');
+  expect(fields()[0].props).toMatchObject({ value: ' Réponse fictive ', editable: true });
+  expect(notifyPartner).not.toHaveBeenCalled();
+  await act(async () => { await submit()(); });
+  expect(backend.add).toHaveBeenCalledTimes(2);
+  expect(notifyPartner).toHaveBeenCalledTimes(1);
+});
+
+test('les deux membres locaux peuvent répondre sans notification cloud', async () => {
+  (useSession as jest.Mock).mockReturnValue({ backend: { ...backend, mode: 'local' }, members, me: members[0] });
+  await mount();
+  await act(async () => { fields()[0].props.onChangeText('Alice'); fields()[1].props.onChangeText('Bob'); });
+  await act(async () => { await Promise.all(fields().map((field) => field.props.onSubmitEditing())); });
+  expect(backend.add).toHaveBeenCalledTimes(2);
+  expect(backend.add).toHaveBeenCalledWith('answers', expect.objectContaining({ from: 'alice', text: 'Alice' }));
+  expect(backend.add).toHaveBeenCalledWith('answers', expect.objectContaining({ from: 'bob', text: 'Bob' }));
+  expect(notifyPartner).not.toHaveBeenCalled();
 });
