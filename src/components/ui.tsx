@@ -315,7 +315,7 @@ export function Button({
     outline: t.text,
     ghost: t.primary,
     danger: t.danger,
-    sunset: '#FFFFFF',
+    sunset: '#2A1420',
     glass: '#FBF6F1',
   }[variant];
   return (

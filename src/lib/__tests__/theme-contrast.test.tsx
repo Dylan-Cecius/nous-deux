@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AccentThemes, MemberColors, PrefsProvider, useTheme } from '@/constants/theme';
-import { Avatar, Chips, Fab } from '@/components/ui';
+import { Avatar, Button, Chips, Fab } from '@/components/ui';
 import { foregroundOnColor } from '../color-contrast';
 
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(), setItem: jest.fn() }));
@@ -56,6 +56,47 @@ describe.each(MemberColors)('couleur de membre %s', (color) => {
     await act(async () => { root = create(<Avatar name="Alice fictive" color={color} size={32} />); });
     expect(contrast(StyleSheet.flatten(root.root.findByType(Text).props.style).color, color)).toBeGreaterThanOrEqual(4.5);
   });
+});
+
+test('le bouton dégradé garde texte et icône lisibles sur ses trois couleurs', async () => {
+  await act(async () => { root = create(<Button label="Continuer" variant="sunset" icon="arrow-forward" onPress={() => {}} />); });
+  const colors = root.root.findByType('gradient' as never).props.colors as string[];
+  const text = root.root.findAllByType(Text).find(node => node.props.children === 'Continuer')!;
+  const foreground = StyleSheet.flatten(text.props.style).color;
+  const icon = root.root.findByType('icon' as never).props.color;
+  for (const background of colors) {
+    expect(contrast(foreground, background)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(icon, background)).toBeGreaterThanOrEqual(3);
+  }
+});
+
+test('le dégradé reste inchangé et ses couleurs sRGB intermédiaires conservent le contraste du texte', async () => {
+  await act(async () => { root = create(<Button label="Continuer" variant="sunset" onPress={() => {}} />); });
+  const colors = root.root.findByType('gradient' as never).props.colors as string[];
+  expect(colors).toEqual(['#FFA36C', '#FF5A7A', '#E0479E']);
+  const text = root.root.findAllByType(Text).find(node => node.props.children === 'Continuer')!;
+  const foreground = StyleSheet.flatten(text.props.style).color;
+  for (let segment = 0; segment < colors.length - 1; segment++) {
+    const a = colors[segment].slice(1).match(/../g)!.map(x => parseInt(x, 16));
+    const b = colors[segment + 1].slice(1).match(/../g)!.map(x => parseInt(x, 16));
+    for (let percent = 0; percent <= 100; percent++) {
+      const color = '#' + a.map((channel, i) => Math.round(channel + (b[i] - channel) * percent / 100).toString(16).padStart(2, '0')).join('');
+      expect(contrast(foreground, color)).toBeGreaterThanOrEqual(4.5);
+    }
+  }
+});
+
+test('le bouton dégradé garde le même premier plan pour son indicateur d’attente', async () => {
+  let finish!: () => void;
+  const action = () => new Promise<void>(resolve => { finish = resolve; });
+  await act(async () => { root = create(<Button label="Continuer" variant="sunset" onPress={action} />); });
+  const text = root.root.findAllByType(Text).find(node => node.props.children === 'Continuer')!;
+  const foreground = StyleSheet.flatten(text.props.style).color;
+  const press = root.root.findByProps({ accessibilityRole: 'button' }).props.onPress;
+  let pending!: Promise<void>;
+  await act(async () => { pending = press(); });
+  expect(root.root.findByType(ActivityIndicator).props.color).toBe(foreground);
+  await act(async () => { finish(); await pending; });
 });
 
 describe.each(['light', 'dark'])('contraste du thème %s', (scheme) => {

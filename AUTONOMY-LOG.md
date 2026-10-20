@@ -1172,3 +1172,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Huit tests de la configuration pure : indicateur absent/false/invalide/true avec module toujours exclu, textes photo sans import de planning quand assistant désactivé, formes de plugins, conservation des autres permissions/options, absence de mutation et idempotence.
 - Preuves : huit tests réussis en 0,839 s ; lint/TypeScript et diff propres. Appel de la fonction JavaScript seulement, aucune commande Expo/prebuild, exécution de plugin ni build. L’indicateur true est limité à la fixture de test et restauré ; aucune configuration enregistrée ou fonctionnalité payante activée.
 - Limites : ne prouve pas le contenu d’un manifeste binaire ni les permissions d’une build distribuée ; inspection native future requise. Pas de modification du serveur/règles, déploiement ou dépense.
+
+## 2026-10-20 — 18:02 Europe/Brussels — Texte des boutons dégradés
+
+- Base : `dbe1cd79f50d21ff35509a71566719fb83fffaff`. Régression calculée sur le bouton sunset utilisé à l’entrée/connexion : texte blanc à 1,96:1 sur l’arrêt pêche et 3,00–3,77:1 sur les deux autres, sous 4,5:1.
+- Premier plan seul remplacé par l’encre de marque #2A1420 ; dégradé, dimensions, libellés et action conservés. Rapports des trois arrêts opaques : 8,78 / 5,74 / 4,56:1. Icône et indicateur partagent cette encre.
+- Preuves : un test rouge puis vert, deux contrôles supplémentaires (202 points sRGB interpolés, couleur de l’attente) ; lint/TypeScript réussis, 59 suites / 1258 tests réussis en 9,357 s, diff relu/propre.
+- Limites : calcul des couleurs au repos et échantillonnage sRGB seulement, pas de capture/native ni garantie d’interpolation propre au système. Opacité des états appuyé/désactivé et fond réel restent à vérifier. Aucun build, déploiement, serveur/règle ou dépense.
