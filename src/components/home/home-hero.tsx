@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAssistant } from '@/components/assistant-context';
@@ -11,6 +11,7 @@ import { Fonts } from '@/constants/theme';
 import { useSession } from '@/lib/couple-context';
 import { daysBetween, formatLong, formatNumber, fromKey, nextMilestone } from '@/lib/dates';
 import { useToday } from '@/lib/use-today';
+import { useFloatingHeartMotion } from '@/lib/use-floating-heart-motion';
 
 const CREAM = '#FBF6F1';
 const PINK = '#FF8FB8';
@@ -18,17 +19,7 @@ const MUTED = 'rgba(251,246,241,0.75)';
 
 /** Le cœur du logo qui flotte doucement dans le bandeau. */
 function FloatingHeart() {
-  const [anim] = useState(() => new Animated.Value(0));
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(anim, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [anim]);
+  const { translateY } = useFloatingHeartMotion(2000);
   return (
     <Animated.Image
       source={require('@/assets/images/logo-heart.png')}
@@ -41,7 +32,7 @@ function FloatingHeart() {
         width: 170,
         height: 170,
         opacity: 0.9,
-        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) }],
+        transform: [{ translateY }],
       }}
     />
   );

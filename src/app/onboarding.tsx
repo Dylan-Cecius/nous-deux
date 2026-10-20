@@ -1,8 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { ActivityIndicator, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, ColorPicker, Field, T } from '@/components/ui';
@@ -12,6 +12,7 @@ import { Fonts, MemberColors } from '@/constants/theme';
 import { createCloudCouple, createLocalCouple, joinCloudCouple, type Backend } from '@/lib/backend';
 import { useCouple } from '@/lib/couple-context';
 import { isFirebaseConfigured } from '@/lib/firebase';
+import { useFloatingHeartMotion } from '@/lib/use-floating-heart-motion';
 
 type Step = 'profile' | 'choice' | 'join' | 'local' | 'signin';
 
@@ -48,18 +49,7 @@ const styles = StyleSheet.create({
 
 /** Le cœur du logo, qui flotte et respire doucement. */
 function FloatingHeart() {
-  const [anim] = useState(() => new Animated.Value(0));
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(anim, { toValue: 1, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [anim]);
+  const { translateY, scale } = useFloatingHeartMotion(1800);
 
   return (
     <Animated.Image
@@ -70,8 +60,8 @@ function FloatingHeart() {
         height: 190,
         marginBottom: -18,
         transform: [
-          { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) },
-          { scale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) },
+          { translateY },
+          { scale },
         ],
       }}
     />

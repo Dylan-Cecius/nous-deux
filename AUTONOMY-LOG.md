@@ -1138,3 +1138,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - animationType devient none lorsque le hook indique une réduction (y compris avant lecture fiable), sans démonter les champs ni remplacer la confirmation. Alert natif n’est pas remplacé.
 - Preuves : deux régressions vertes avec conservation du champ/message et de la fermeture/confirmation ; lint/TypeScript réussis, 57 suites / 1221 tests réussis en 12,514 s, diff relu/propre. Source : https://reactnative.dev/docs/0.86/modal.
 - Limites : propriétés de composants vérifiées, animation native déjà engagée et focus clavier non essayés sur appareil/navigateur. Aucune build, distribution, dépense ni activation de fonctionnalité payante.
+
+## 2026-10-20 — 17:38 Europe/Brussels — Logos décoratifs statiques sur demande
+
+- Base : `ae264651ad6a1d9c3077aadc6bd1b2bc87210a4c`. Revue des deux FloatingHeart : boucles démarrées sans consulter le réglage système, contrairement aux célébrations maintenant corrigées. Amélioration justifiée par ces chemins inconditionnels, sans prétendre à une reproduction visuelle.
+- Contrôleur partagé useFloatingHeartMotion : translation/échelle neutres si réduction active ou inconnue, nettoyage de la boucle au changement/démontage. Accueil conserve sa durée 2000 ms et sa translation seule ; onboarding conserve 1800 ms et son échelle. Images et dimensions inchangées.
+- Preuves : cinq tests du contrôleur, 22 tests ciblés réussis en 1,546 s ; lint/TypeScript et diff propres. Pas de faux logo ni de fixture binaire : contrôleur isolé, aucune importation/rendu des images absentes dans ces tests.
+- Limites : intégration/rendu des deux écrans non validés sur appareil ; transitions du navigateur et assistant désactivé hors périmètre. La lecture immédiate après le CAS précédent était incohérente ; seconde lecture confirmant exactement ae264651ad6a1d9c3077aadc6bd1b2bc87210a4c, sans répéter l’écriture ni forcer.
