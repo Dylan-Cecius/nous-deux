@@ -204,10 +204,10 @@ export function Row({ children, style }: { children: ReactNode; style?: StylePro
 export function SectionTitle({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
   const t = useTheme();
   return (
-    <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-      <T variant="h2" accessibilityRole="header">{title}</T>
+    <Row style={{ justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap' }}>
+      <T variant="h2" accessibilityRole="header" style={{ maxWidth: '100%' }}>{title}</T>
       {action && onAction ? (
-        <Pressable onPress={onAction} hitSlop={10} accessibilityRole="button" accessibilityLabel={`${action} — ${title}`}>
+        <Pressable onPress={onAction} hitSlop={10} accessibilityRole="button" accessibilityLabel={`${action} — ${title}`} style={{ maxWidth: '100%' }}>
           <Text style={{ fontFamily: Fonts.bodyMedium, fontSize: 15, color: t.primary }}>{action}</Text>
         </Pressable>
       ) : null}
@@ -506,7 +506,7 @@ export function Chips<V extends string>({
                 { borderColor: active ? accent : t.border, backgroundColor: active ? accent : t.card },
               ]}>
               {o.icon ? <Ionicons name={o.icon} size={16} color={active ? selectedForeground : t.textSecondary} /> : null}
-              <Text style={{ color: active ? selectedForeground : t.text, fontFamily: Fonts.bodyMedium, fontSize: 15 }}>{o.label}</Text>
+              <Text style={{ color: active ? selectedForeground : t.text, fontFamily: Fonts.bodyMedium, fontSize: 15, flexShrink: 1, paddingVertical: 6 }}>{o.label}</Text>
             </Pressable>
           );
         })}
@@ -647,6 +647,7 @@ const styles = StyleSheet.create({
   chip: {
     borderRadius: 999,
     borderWidth: 1,
+    maxWidth: '100%',
     minHeight: 40,
     paddingHorizontal: 16,
     flexDirection: 'row',
