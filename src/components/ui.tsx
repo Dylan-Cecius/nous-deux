@@ -452,8 +452,7 @@ export function Segmented<V extends string>({
             }}
             style={[styles.seg, active && [{ backgroundColor: t.card }, cardShadow(t.shadow)]]}>
             <Text
-              numberOfLines={1}
-              style={{ fontFamily: Fonts.bodyBold, fontSize: 14, color: active ? t.text : t.textSecondary }}>
+              style={{ fontFamily: Fonts.bodyBold, fontSize: 14, color: active ? t.text : t.textSecondary, textAlign: 'center', flexShrink: 1 }}>
               {o.label}
             </Text>
           </Pressable>
@@ -639,7 +638,7 @@ const styles = StyleSheet.create({
   buttonSmall: { minHeight: 40, paddingHorizontal: Spacing.three },
   input: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 18, minHeight: 50, fontSize: 16 },
   segTrack: { flexDirection: 'row', borderRadius: 22, padding: 4 },
-  seg: { flex: 1, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  seg: { flex: 1, minHeight: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 8 },
   chip: {
     borderRadius: 999,
     borderWidth: 1,

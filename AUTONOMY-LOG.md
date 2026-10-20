@@ -1082,3 +1082,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Boîte bornée à la hauteur disponible, titre/message dans une ScrollView réductible, boutons séparés sans réduction. Texte intégral conservé ; comportements de confirmation inchangés.
 - Preuves : lint/TypeScript et 20 tests ciblés réussis (1,294 s), diff relu/propre. Documentation React Native0.86 ScrollView/Layout consultée pour le bornage et flexShrink. Dernier contrôle transversal : 1160 tests avant ce lot.
 - Limites : recette visuelle navigateur étroit/paysage et texte agrandi encore nécessaire, aucun export complet ni validation native. Pas de service réel, build ou distribution.
+
+## 2026-10-20 — 16:57 Europe/Brussels — Onglets sans hauteur fixe ni troncature forcée
+
+- Base : `1f638b6a169833a022eb9711d2b1553cf5ade386`. Revue du sélecteur partagé des listes/restaurants : hauteur40 fixe et texte limité à une ligne malgré la mise à l’échelle système. Un test structurel rouge vérifie ces contraintes ; aucune capture mobile n’est revendiquée.
+- Hauteur minimale40 conservée, hauteur naturelle et marge verticale autorisées ; libellés centrés pouvant passer sur plusieurs lignes, sans désactiver l’agrandissement système. Sélection et actions inchangées.
+- Preuves : lint/TypeScript réussis, 93 tests ciblés en1,625s, diff relu/propre. Documentation React Native0.86 Text/Layout consultée. Dernier contrôle transversal :1160 tests avant les deux derniers lots.
+- Limites : vérifier 320px, paysage et grande police sur appareils autorisés avant diffusion ; tests structurels insuffisants pour valider la mise en page réelle. Aucune build, publication ou dépense.

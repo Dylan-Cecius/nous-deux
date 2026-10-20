@@ -1,5 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Pressable, Text, TextInput } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput } from 'react-native';
 import { Button, Card, Chips, ColorPicker, Empty, Field, IconButton, Screen, SectionTitle, Segmented, Sheet, T } from '@/components/ui';
 import { tap } from '../haptics';
 
@@ -19,6 +19,19 @@ jest.mock('react-native', () => Object.create(jest.requireActual('react-native')
 let root: ReactTestRenderer;
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
 const options = [{ value: 'alice', label: 'Alice' }, { value: 'bob', label: 'Bob' }];
+
+test('les onglets n’imposent ni hauteur fixe ni troncature à leurs libellés', async () => {
+  await act(async () => { root = create(<Segmented options={[{ value: 'todo', label: 'À découvrir ensemble' }, { value: 'done', label: 'Déjà découverts ensemble' }]} value="todo" onChange={() => {}} />); });
+  for (const button of root.root.findAllByType(Pressable)) {
+    const style = StyleSheet.flatten(button.props.style);
+    expect(style.height).toBeUndefined();
+    expect(style.minHeight).toBeGreaterThanOrEqual(40);
+    const label = button.findByType(Text);
+    expect(label.props.numberOfLines).toBeUndefined();
+    expect(label.props.allowFontScaling).not.toBe(false);
+    expect(StyleSheet.flatten(label.props.style).textAlign).toBe('center');
+  }
+});
 
 test.each(['screen', 'section', 'sheet', 'empty'])('%s : le titre est repérable comme en-tête accessible', async (kind) => {
   const title = 'Titre fictif';
