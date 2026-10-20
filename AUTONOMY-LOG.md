@@ -1490,3 +1490,22 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Audit de mise en page : Chips affiche les noms de membre saisis (jusqu’à 60 caractères à l’entrée) dans une rangée sans borne de largeur ni réduction du bloc texte ; les titres de rubrique et leurs actions restaient imposés sur une seule rangée. Amélioration concrète de l’adaptation à largeur réduite/texte agrandi, sans prétendre à une reproduction pixel native.
 - Chips borne chaque choix à la largeur disponible et laisse son texte se répartir en hauteur avec marge verticale. SectionTitle autorise le passage de l’action à la ligne et borne les deux éléments. Aucun libellé tronqué volontairement, taille système conservée et actions/rôles/couleurs inchangés.
 - Documentation vérifiée avant les styles : Expo 57, index Expo, React Native 0.86 https://reactnative.dev/docs/0.86/flexbox (flexWrap, flexShrink). Preuves : 104 tests existants accessibilité/contraste réussis en 1,278 s ; lint, TypeScript et diff check réussis, diff relu. Aucun test ajouté qui recopierait ces styles ; le contrôle des débordements et de la lisibilité demande toujours une recette visuelle/native.
+
+## 2026-10-20 — 22:47 Europe/Brussels — Contrôle global des étapes d’entrée et de l’aide
+
+- Sept tâches successives sauvegardées séparément depuis le début observé à 22:27. Contrôles finaux à 22:47 : environ 20 minutes observées, et non une heure. 28 tests ajoutés, dont 25 régressions constatées rouges avant correction ; les corrections simples de navigation/texte/styles n’ont pas reçu de tests recopiant leur implémentation.
+- Contrôle global réel sur le code du checkpoint feb15ea687117776df80d73db8074f454ff3deb6 : `npm test -- --runInBand --silent` réussit, **65 suites / 1540 tests**, 10,631 s. Lint, TypeScript et diff check réussis sur le dernier changement de code ; diff transversal relu. Avertissement npm http-proxy sans échec. Aucun test de sécurité sur émulateur lancé, ni serveur, règles ou mécanisme de suppression modifiés.
+- Arbre Git récursif relu : 203 entrées, non tronqué. 177 blobs présents identiques à leur SHA ; seule différence attendue : TESTFLIGHT-REVIEW.md préparé pour ce checkpoint documentaire. Les sept PNG restent absents. Le contrôle des trois documents finaux après sauvegarde complète cette vérification ; aucune image factice, aucun export visuel/build native/essai iPhone revendiqué.
+- Quatre parcours de recette complémentaires préparés, non exécutés. Revue React : état local conservé, contexte d’étape et de focus explicite, nettoyages symétriques ; aucune dépendance ajoutée. Les requêtes déjà envoyées ne sont pas annulées et les correctifs client ne donnent aucune garantie transactionnelle entre appareils.
+- PR #3 relue : ouverte, brouillon, non fusionnée, branche et tête attendues. Checkpoints sous expected_sha et force:false, relecture après mise à jour. Fichiers serveur/règles/backend/configuration de distribution comparés au départ : inchangés ; publicationStatus=draft, retentionVerified=false, services payants désactivés. Aucun build, déploiement, achat, e-mail, invitation ou accès à des données intimes réelles.
+- Clôture anticipée de cet audit borné : les défauts reproduits des étapes d’entrée sont traités, l’aide répond à la confusion d’invitation déjà exprimée et l’adaptation des libellés est préparée. Pas d’autre défaut prêt établi dans cet audit ; les suites prioritaires identifiées demandent la recette native/visuelle avec ressources originales et l’association photo côté serveur sous tests sécurité autorisés, toujours indisponibles. Ne pas prolonger par des répétitions de contrôles ou des changements artificiels. Reprendre à partir du journal courant, sans refaire ces sept lots.
+
+| Lot | Checkpoint GitHub |
+| --- | --- |
+| Contexte des étapes | 2f99a5e89aa0122e0e1bfa9c8c6dd1396d37b408 |
+| Transition immédiate | 011064699a6f56b19665803ea804df69431b3a5a |
+| Retour au profil | 5cd1ff8f86b77355d3620a1d45865f32b9953607 |
+| Connexion et départ vers l’aide | 91142652314362e52bfc8fb8f0d90b6f76b92b9f |
+| Message d’échec local | 60e56e556cecb0faeb944f77cf859a39e031ec0a |
+| Explications d’invitation/reconnexion | a8d55b5521d0cea2acac0755233163a6dd9eeeea |
+| Adaptation des libellés longs | feb15ea687117776df80d73db8074f454ff3deb6 |
