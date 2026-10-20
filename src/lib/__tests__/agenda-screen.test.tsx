@@ -32,7 +32,9 @@ jest.mock('@/components/pickers', () => ({ TimeField: 'time', DateField: () => n
 jest.mock('@/components/ui', () => {
   const React = jest.requireActual('react');
   return { confirmDelete: jest.fn(), ...Object.fromEntries(['Screen', 'SectionTitle', 'Card', 'T', 'Button', 'Fab', 'Row', 'Dot', 'Ionicons', 'Sheet', 'Field', 'Chips', 'IconButton'].map((name) => [
-    name, (props: object) => React.createElement(name.toLowerCase(), props),
+    name, (props: { children?: React.ReactNode; right?: React.ReactNode }) => name === 'Screen'
+      ? React.createElement('screen', props, props.right, props.children)
+      : React.createElement(name.toLowerCase(), props),
   ])) };
 });
 
@@ -44,6 +46,25 @@ const session = { backend, members: [{ id: 'alice', name: 'Alice' }, { id: 'bob'
 beforeEach(() => { (useCollectionState as jest.Mock).mockReturnValue(ready); (useSession as jest.Mock).mockReturnValue(session); });
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); jest.useRealTimers(); });
 const text = () => root.root.findAllByType('t' as never).map((node) => node.children.filter((child) => typeof child === 'string').join('')).join('\n');
+
+test.each(['Semaine précédente', 'Semaine suivante'])('retour au jour courant après navigation : %s', async direction => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(new Date(2026, 9, 25, 23, 59, 59));
+  await act(async () => { root = create(<Agenda />); });
+  for (let i = 0; i < 3; i++) {
+    await act(async () => root.root.findByProps({ label: direction }).props.onPress());
+  }
+  const returnToday = root.root.findByProps({ label: 'Revenir à aujourd’hui' }).props.onPress;
+  // La semaine change après le rendu : le clic doit lire la date effective.
+  jest.setSystemTime(new Date(2026, 9, 26, 0, 0, 0));
+  await act(async () => returnToday());
+  const selected = root.root.findAllByProps({ accessibilityLabel: formatLong('2026-10-26') })
+    .find(node => typeof node.props.onPress === 'function')!;
+  expect(selected.props.accessibilityState.selected).toBe(true);
+  expect(root.root.findAllByProps({ accessibilityLabel: formatLong('2026-11-01') })).not.toHaveLength(0);
+  expect(backend.addEvents).not.toHaveBeenCalled();
+  expect(backend.update).not.toHaveBeenCalled();
+});
 
 test('à minuit le repère du jour avance sans changer la journée consultée', async () => {
   jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });

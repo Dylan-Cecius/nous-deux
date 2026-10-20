@@ -84,6 +84,12 @@ function AgendaContent() {
     setSelected(next);
   };
 
+  const returnToToday = () => {
+    const currentDay = todayKey();
+    setWeekStart(mondayOf(currentDay));
+    setSelected(currentDay);
+  };
+
   const askRemove = (event: AgendaEvent) => {
     if (latest.current?.context !== context) return;
     confirmDelete(event.title, () => runDelete(async () => {
@@ -151,6 +157,10 @@ function AgendaContent() {
             );
           })}
         </View>
+
+        {selected !== today && (
+          <Button label="Revenir à aujourd’hui" variant="ghost" small onPress={returnToToday} />
+        )}
 
         {assistant && (
           <Button
