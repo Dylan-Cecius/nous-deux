@@ -156,6 +156,19 @@ Préparée seulement, **aucun essai visuel ou natif réalisé**. Utiliser des do
 | Contraste des comptes à rebours | Afficher au moins deux dates à venir dans chacun des quatre thèmes, en modes clair et sombre. | Tous les nombres suivent le thème choisi et restent lisibles ; plus de bleu fixe sur une carte sur deux. Les ratios sont calculés sur couleurs opaques ; rendu réel à vérifier. |
 | Conseil de rappel | Lire la carte vide À venir et retrouver Nous → Notifications. Sur un appareil de test autorisé seulement, vérifier séparément autorisation refusée et accordée. | Conseil d’activation explicite, aucune promesse de livraison inconditionnelle. Les rappels effectifs et les permissions natives ne sont pas validés par la seule lecture du texte. |
 
+## Recette complémentaire — mode sans compte, montants et dates relatives (21 octobre, 00 h)
+
+Préparée seulement, **aucun essai visuel ou natif exécuté**. Utiliser un espace local de démonstration et des données fictives, sans compte réel, invitation ni notification à un tiers. Les ressources originales et les prérequis de build/coût/distribution restent obligatoires. Ne pas changer l’horloge d’un téléphone contenant des données réelles.
+
+| Parcours | Manipulation prévue | Résultat attendu et limite |
+| --- | --- | --- |
+| Cadeaux sur un téléphone partagé | Ouvrir Cadeaux en mode sans compte, avant et après ajout d’une idée fictive. | L’accès possible par la personne utilisant le téléphone est expliqué dans les deux états, sans cadenas ni promesse de secret. Ce texte ne constitue pas un verrou de confidentialité. |
+| Courses et question locales | Consulter Courses vide/remplie, puis lire la question du jour avant de répondre avec les deux profils fictifs. | Absence de synchronisation explicite ; réponses visibles dès leur enregistrement annoncées. Vérifier la lisibilité en texte agrandi et la lecture vocale. |
+| Mots doux et cœurs locaux | Saisir un mot fictif, contrôler la touche clavier et le libellé du bouton ; activer un cœur local. | Enregistrer le mot, touche de fin de saisie et cœur enregistré sur ce téléphone ; aucune promesse de notification distante. Aucun test cloud avec destinataire réel. |
+| Montant collé et arrondi | Dans une dépense fictive, saisir/coller 1,005 ; 1.015 ; 10,075 ; 1 234,56 (espaces normale, insécable et fine). Essayer aussi 0x10, 1e3, 0,009 et 100000,001. | Aperçu puis valeur enregistrée : 1,01 ; 1,02 ; 10,08 ; 1 234,56. Les quatre derniers exemples sont refusés. Vérifier le clavier natif et le collage ; aucun paiement ni transfert n’est effectué. |
+| Historiques à minuit | Dans un montage à horloge contrôlée, afficher mot, cœur reçu fictif et dépense du jour à 23:59 ; garder un brouillon ouvert et franchir minuit, puis tester une reprise après arrière-plan. | Aujourd’hui devient hier sans émission de collection, brouillons conservés. Un cœur reçu peut être fourni par un double de collection : aucun envoi à un tiers nécessaire. Les tests React ne valident pas le cycle de vie natif. |
+| Souvenirs et attentes de rappel | Lire les deux états vides de Souvenirs puis afficher une photo fictive d’une année passée à la même date dans le montage de test. | Le texte décrit la carte sur l’accueil, sans promettre une notification annuelle. L’image et son cadrage doivent être contrôlés avec les ressources originales. |
+
 ## Nettoyage technique : cible et déploiement
 
 `functions/src/retention.ts` prévoit un passage quotidien et au plus 500 documents par collection et par passage :
