@@ -3,10 +3,11 @@ import { InvitationCard } from '@/components/invitation-card';
 import { showDialog } from '@/components/dialog';
 import { createCoupleInvitation } from '../backend';
 import { useSession } from '../couple-context';
-import { Share } from 'react-native';
+import { AppState, Share, type AppStateStatus } from 'react-native';
 
 jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), {
   Share: { value: { share: jest.fn() } },
+  AppState: { value: { currentState: 'active', addEventListener: jest.fn() } },
 }));
 
 jest.mock('../couple-context', () => ({ useSession: jest.fn() }));
@@ -20,7 +21,11 @@ jest.mock('@/components/ui', () => {
 let root: ReactTestRenderer;
 const backend = { mode: 'cloud', coupleId: 'space-a', userId: 'alice' };
 const invitation = { code: 'ABCD234567', expiresAt: Date.now() + 60_000 };
-beforeEach(() => { (useSession as jest.Mock).mockReturnValue({ backend }); });
+beforeEach(() => {
+  (useSession as jest.Mock).mockReturnValue({ backend });
+  AppState.currentState = 'active';
+  (AppState.addEventListener as jest.Mock).mockReturnValue({ remove: jest.fn() });
+});
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.restoreAllMocks(); jest.resetAllMocks(); });
 const text = () => root.root.findAllByType('t' as never).map((node) => node.children.join('')).join('\n');
 const start = async () => {
@@ -137,6 +142,69 @@ test('un code expiré depuis le rendu ne peut être partagé', async () => {
   await act(async () => share());
   expect(Share.share).not.toHaveBeenCalled();
   expect(text()).not.toContain(invitation.code);
+});
+
+test('la reprise après expiration retire le code sans nouveau clic ni appel', async () => {
+  jest.useFakeTimers();
+  jest.setSystemTime(invitation.expiresAt - 60_000);
+  let onState: ((state: AppStateStatus) => void) | undefined;
+  const remove = jest.fn();
+  jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
+    onState = listener;
+    return { remove };
+  });
+  (createCoupleInvitation as jest.Mock).mockResolvedValue(invitation);
+  try {
+    const { pending } = await start();
+    await act(async () => pending);
+    expect(jest.getTimerCount()).toBe(1);
+    await act(async () => onState?.('background'));
+    expect(jest.getTimerCount()).toBe(0);
+    jest.setSystemTime(invitation.expiresAt + 1000);
+    await act(async () => onState?.('active'));
+    expect(text()).not.toContain(invitation.code);
+    expect(Share.share).not.toHaveBeenCalled();
+    expect(createCoupleInvitation).toHaveBeenCalledTimes(1);
+    expect(jest.getTimerCount()).toBe(0);
+    await act(async () => root.unmount());
+    expect(remove).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => root?.unmount());
+    jest.useRealTimers();
+  }
+});
+
+test('une horloge reculée ne retire pas prématurément une invitation encore valide', async () => {
+  jest.useFakeTimers();
+  jest.setSystemTime(invitation.expiresAt - 60_000);
+  (createCoupleInvitation as jest.Mock).mockResolvedValue(invitation);
+  try {
+    const { pending } = await start();
+    await act(async () => pending);
+    jest.setSystemTime(invitation.expiresAt - 300_000);
+    await act(async () => jest.advanceTimersByTime(60_000));
+    expect(text()).toContain(invitation.code);
+    await act(async () => jest.advanceTimersByTime(240_000));
+    expect(text()).not.toContain(invitation.code);
+  } finally {
+    await act(async () => root?.unmount());
+    jest.useRealTimers();
+  }
+});
+
+test('une échéance distante ne déborde pas le délai du minuteur', async () => {
+  jest.useFakeTimers();
+  const distant = { ...invitation, expiresAt: Date.now() + 35 * 86_400_000 };
+  (createCoupleInvitation as jest.Mock).mockResolvedValue(distant);
+  try {
+    const { pending } = await start();
+    await act(async () => pending);
+    await act(async () => jest.advanceTimersByTime(10));
+    expect(text()).toContain(invitation.code);
+  } finally {
+    await act(async () => root?.unmount());
+    jest.useRealTimers();
+  }
 });
 
 test('le partage indique l’échéance réelle sans promettre 24 heures supplémentaires', async () => {

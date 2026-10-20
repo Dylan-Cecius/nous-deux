@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Share } from 'react-native';
+import { AppState, Share, type AppStateStatus } from 'react-native';
 import { showDialog } from './dialog';
 import { Button, Card, T } from './ui';
 import { createCoupleInvitation, type Invitation } from '@/lib/backend';
@@ -34,12 +34,28 @@ function InvitationForm() {
   }, []);
   useEffect(() => {
     if (!invitation) return;
-    const timer = setTimeout(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const isForeground = (state: AppStateStatus | null) => state === 'active' || state === 'unknown' || state === null;
+    let foreground = isForeground(AppState.currentState);
+    const cancel = () => { clearTimeout(timer); timer = undefined; };
+    const refresh = () => {
+      cancel();
       if (currentInvitation.current !== invitation) return;
-      currentInvitation.current = null;
-      setInvitation(null);
-    }, Math.max(0, invitation.expiresAt - Date.now()));
-    return () => clearTimeout(timer);
+      const remaining = invitation.expiresAt - Date.now();
+      if (remaining <= 0) {
+        currentInvitation.current = null;
+        setInvitation(null);
+      } else if (foreground) {
+        // Recheck the wall clock; a delayed timer or a clock change is not expiry.
+        timer = setTimeout(refresh, Math.min(60_000, remaining));
+      }
+    };
+    const subscription = AppState.addEventListener('change', state => {
+      foreground = isForeground(state);
+      if (foreground) refresh(); else cancel();
+    });
+    refresh();
+    return () => { cancel(); subscription.remove(); };
   }, [invitation]);
   const create = async () => {
     if (!active.current || locked.current) return;
