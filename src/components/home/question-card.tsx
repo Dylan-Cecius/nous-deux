@@ -93,6 +93,9 @@ function DailyQuestion({ today }: { today: string }) {
         </T>
       </Row>
       <T variant="h2">{questionFor(today)}</T>
+      {backend.mode === 'local' && (
+        <T variant="small" muted>En mode sans compte, vous répondez sur ce téléphone et les réponses sont visibles dès leur enregistrement.</T>
+      )}
       {loading ? (
         <T muted>Chargement des réponses…</T>
       ) : error ? (

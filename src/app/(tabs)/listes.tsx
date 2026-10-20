@@ -70,10 +70,17 @@ const COPY: Record<Tab, { overline: string; empty: [IconName, string, string]; t
   },
 };
 
-const LOCAL_GIFTS_COPY: typeof COPY.gifts = {
-  ...COPY.gifts,
-  overline: 'Sur ce téléphone',
-  empty: ['gift-outline', 'Idées cadeaux', 'Note tes idées ici. En mode sans compte, elles restent sur ce téléphone et peuvent être consultées par la personne qui l’utilise.'],
+const LOCAL_COPY: Partial<typeof COPY> = {
+  gifts: {
+    ...COPY.gifts,
+    overline: 'Sur ce téléphone',
+    empty: ['gift-outline', 'Idées cadeaux', 'Note tes idées ici. En mode sans compte, elles restent sur ce téléphone et peuvent être consultées par la personne qui l’utilise.'],
+  },
+  shopping: {
+    ...COPY.shopping,
+    overline: 'Sur ce téléphone',
+    empty: ['cart-outline', 'Liste de courses', 'Préparez ici les articles à acheter. Cette liste reste sur ce téléphone.'],
+  },
 };
 
 export default function Listes() {
@@ -119,7 +126,7 @@ function ListesContent() {
   const sorted = [...entries].sort((a, b) => b.createdAt - a.createdAt);
   const todo = sorted.filter((i) => !i.done);
   const done = sorted.filter((i) => i.done);
-  const copy = tab === 'gifts' && backend.mode === 'local' ? LOCAL_GIFTS_COPY : COPY[tab];
+  const copy = (backend.mode === 'local' ? LOCAL_COPY[tab] : undefined) ?? COPY[tab];
 
   const toggle = (item: Entry) => runCurrent(async () => {
     const current = currentEntry(item.id);
@@ -227,6 +234,9 @@ function ListesContent() {
     <>
       <Screen overline={copy.overline} title="Nos listes">
         <Segmented options={TABS} value={tab} onChange={setTab} />
+        {backend.mode === 'local' && tab !== 'gifts' && (
+          <T variant="small" muted>Mode sans compte : ces listes restent sur ce téléphone, sans synchronisation.</T>
+        )}
 
         {tab === 'bucket' && sorted.length > 0 && (
           <Card style={{ gap: 12 }}>

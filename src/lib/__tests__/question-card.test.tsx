@@ -43,6 +43,12 @@ const refresh = async () => { await act(async () => root.update(<QuestionCard />
 const fill = async () => { await mount(); await act(async () => fields()[0].props.onChangeText(' Réponse fictive ')); };
 const submit = () => root.root.findByProps({ label: 'Valider la réponse' }).props.onPress;
 
+test.each(['local', 'cloud'])('la visibilité immédiate des réponses locales est expliquée seulement en mode local : %s', async mode => {
+  (useSession as jest.Mock).mockReturnValue({ backend: { ...backend, mode }, members, me: members[0] });
+  await mount();
+  expect(text().includes('visibles dès leur enregistrement')).toBe(mode === 'local');
+});
+
 test('les réponses locales ont des noms accessibles distincts sans reprendre le texte saisi', async () => {
   (useSession as jest.Mock).mockReturnValue({ backend: { ...backend, mode: 'local' }, members, me: members[0] });
   await mount();

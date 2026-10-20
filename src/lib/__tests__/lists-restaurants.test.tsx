@@ -49,6 +49,23 @@ test('les cadeaux synchronisés conservent leur explication de liste privée', a
   expect(text()).not.toContain('ne sont pas protégées');
 });
 
+test.each([false, true])('les courses locales ne promettent pas la synchronisation (liste remplie : %s)', async populated => {
+  (useSession as jest.Mock).mockReturnValue({ backend: { ...backend, mode: 'local' }, colorOf: () => '#000' });
+  if (populated) (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ id: 'item', list: 'shopping', title: 'Article fictif', createdBy: 'alice', done: false, createdAt: 1 }] });
+  await act(async () => { root = create(<Listes />); });
+  await switchTab('shopping');
+  expect(text()).toContain('sans synchronisation');
+  expect(text()).not.toContain('tout de suite en magasin');
+  expect(root.root.findByType('screen' as never).props.overline).toBe('Sur ce téléphone');
+});
+
+test('les courses synchronisées conservent leur présentation partagée', async () => {
+  await act(async () => { root = create(<Listes />); });
+  await switchTab('shopping');
+  expect(root.root.findByType('screen' as never).props.overline).toBe('Liste partagée');
+  expect(text()).not.toContain('sans synchronisation');
+});
+
 test('vider le panier utilise une seule opération, sans suppressions individuelles partielles', async () => {
   const item = { list: 'shopping', title: 'Article fictif', createdBy: 'alice', done: true, createdAt: 1 };
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, id: 'one' }, { ...item, id: 'two' }] });
