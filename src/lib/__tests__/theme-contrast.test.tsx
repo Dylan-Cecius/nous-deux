@@ -5,6 +5,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AccentThemes, MemberColors, PrefsProvider, useTheme } from '@/constants/theme';
 import { Avatar, Button, Chips, Fab } from '@/components/ui';
 import { foregroundOnColor } from '../color-contrast';
+import Home from '@/app/(tabs)/index';
+
+jest.mock('../couple-context', () => ({
+  useSession: () => ({ backend: { mode: 'local', coupleId: 'contrast', userId: 'alice' } }),
+  useCollectionState: (name: string) => ({ loading: false, error: false, items: name === 'dates' ? [
+    { id: 'today', title: 'Date fictive du jour', date: '2026-10-20', yearly: false },
+    { id: 'tomorrow', title: 'Date fictive du lendemain', date: '2026-10-21', yearly: false },
+  ] : [] }),
+}));
+jest.mock('../use-today', () => ({ useToday: () => '2026-10-20' }));
+jest.mock('@/components/invitation-card', () => ({ InvitationCard: () => null }));
+jest.mock('@/components/home/home-hero', () => ({ HomeHero: () => null }));
+jest.mock('@/components/home/love-cards', () => ({ NoteCard: () => null, PingCard: () => null }));
+jest.mock('@/components/home/memories-strip', () => ({ MemoriesStrip: () => null }));
+jest.mock('@/components/home/question-card', () => ({ QuestionCard: () => null }));
+jest.mock('@/components/pickers', () => ({ DateField: () => null }));
 
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(), setItem: jest.fn() }));
 jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), { useColorScheme: { value: jest.fn() } }));
@@ -100,6 +116,15 @@ test('le bouton dégradé garde le même premier plan pour son indicateur d’at
 });
 
 describe.each(['light', 'dark'])('contraste du thème %s', (scheme) => {
+  test.each(Object.keys(AccentThemes))('%s : chaque compte à rebours est contrasté sur sa carte', async accent => {
+    (useColorScheme as jest.Mock).mockReturnValue(scheme);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(accent);
+    await act(async () => { root = create(<PrefsProvider><Probe /><Home /></PrefsProvider>); });
+    for (const label of ['Jour J', 'J-1']) {
+      const node = root.root.findAllByType(Text).find(node => node.props.children === label)!;
+      expect(contrast(StyleSheet.flatten(node.props.style).color, palette.card)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
   test.each(Object.keys(AccentThemes))('%s : choix sélectionné lisible et icône contrastée', async (accent) => {
     (useColorScheme as jest.Mock).mockReturnValue(scheme);
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(accent);

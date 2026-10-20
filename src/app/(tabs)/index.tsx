@@ -113,7 +113,7 @@ function HomeContent() {
         </Card>
       ) : (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-          {upcoming.map((d, i) => (
+          {upcoming.map((d) => (
             <Pressable
               key={d.id}
               disabled={deleting}
@@ -123,7 +123,7 @@ function HomeContent() {
                 { width: '48.5%', flexGrow: 1, backgroundColor: t.card, borderRadius: 20, padding: 16, gap: 4 },
                 cardShadow(t.shadow),
               ]}>
-              <T variant="title" color={i % 2 === 0 ? t.primary : '#2F5D9E'}>
+              <T variant="title" color={t.primary}>
                 {d.left === 0 ? 'Jour J' : `J-${d.left}`}
               </T>
               <T variant="h3" numberOfLines={2}>
