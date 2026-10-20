@@ -32,6 +32,41 @@ const mount = async () => {
 };
 const refresh = async () => { await act(async () => root.update(<Nous />)); };
 
+test.each([false, true])('le bouton prénom relit la dernière saisie (rendu intermédiaire : %s)', async (rendered) => {
+  await mount();
+  const submit = save().props.onPress;
+  if (rendered) await act(async () => input().props.onChangeText(' Dernier prénom '));
+  await act(async () => {
+    if (!rendered) input().props.onChangeText(' Dernier prénom ');
+    await submit();
+  });
+  expect(backend.updateMember).toHaveBeenCalledWith(member.id, { name: 'Dernier prénom' });
+});
+
+describe.each([false, true])('validation prénom, rendu intermédiaire : %s', (rendered) => {
+  test.each([' ', member.name])('le bouton ancien refuse le prénom vide ou inchangé : %s', async (value) => {
+    await mount();
+    const submit = save().props.onPress;
+    if (rendered) await act(async () => input().props.onChangeText(value));
+    await act(async () => {
+      if (!rendered) input().props.onChangeText(value);
+      await submit();
+    });
+    expect(backend.updateMember).not.toHaveBeenCalled();
+  });
+});
+
+test('un ancien bouton ne réécrit pas un prénom reçu dans un champ intact', async () => {
+  await mount();
+  await act(async () => input().props.onChangeText(member.name));
+  const submit = save().props.onPress;
+  (useSession as jest.Mock).mockReturnValue({ ...session, members: [{ ...member, name: 'Alicia' }] });
+  await refresh();
+  await act(async () => { await submit(); });
+  expect(input().props.value).toBe('Alicia');
+  expect(backend.updateMember).not.toHaveBeenCalled();
+});
+
 test.each(['backend', 'member', 'removed', 'unmount'])('les anciens changements de profil sont ignorés après %s', async (kind) => {
   await mount(); const rename = save().props.onPress, recolor = color().props.onChange;
   if (kind === 'backend' || kind === 'member') (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...backend, userId: kind === 'member' ? 'bob' : 'alice' } });

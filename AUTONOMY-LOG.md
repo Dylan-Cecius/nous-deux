@@ -1375,3 +1375,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Les trois champs synchronisent la référence de validation dans l’événement, sous le verrou existant, avant leur rendu. Aucun changement du calcul des anniversaires, de la programmation des rappels ou de la suppression.
 - Preuves : 29 tests réussis en 1,077 s ; lint/TypeScript/diff check réussis, diff relu. Revue React : changements cumulés sur l’état courant, aucun effet ou dépendance ajouté.
 - Limites : données et sélecteurs doublés, aucun rappel réel, essai natif ou écriture distante.
+
+## 2026-10-20 — 21:46 Europe/Brussels — Validation du prénom courant
+
+- Sept régressions rouges : un ancien gestionnaire OK utilisait un ancien prénom avant/après rendu, ignorait un champ devenu vide/inchangé et pouvait réécrire un prénom reçu dans un champ intact.
+- Le bouton relit le prénom courant dans la référence contextualisée ; la saisie actualise cette référence immédiatement sous le verrou prénom/couleur existant. Synchronisation des champs intacts et conservation des brouillons maintenues.
+- Preuves : 21 tests profil réussis en 0,953 s ; lint/TypeScript/diff check réussis, diff relu. Revue React : référence nettoyée avec le contexte, aucune persistance supplémentaire ou dépendance ajoutée.
+- Limites : profils fictifs et backend doublé ; pas de conflit transactionnel entre appareils ni de recette clavier natif. Aucune modification des déconnexions, suppressions ou règles.
