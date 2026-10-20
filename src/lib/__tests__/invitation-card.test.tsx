@@ -145,7 +145,7 @@ test('un code expiré depuis le rendu ne peut être partagé', async () => {
 });
 
 test('la reprise après expiration retire le code sans nouveau clic ni appel', async () => {
-  jest.useFakeTimers();
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
   jest.setSystemTime(invitation.expiresAt - 60_000);
   let onState: ((state: AppStateStatus) => void) | undefined;
   const remove = jest.fn();
@@ -175,7 +175,7 @@ test('la reprise après expiration retire le code sans nouveau clic ni appel', a
 });
 
 test('une horloge reculée ne retire pas prématurément une invitation encore valide', async () => {
-  jest.useFakeTimers();
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
   jest.setSystemTime(invitation.expiresAt - 60_000);
   (createCoupleInvitation as jest.Mock).mockResolvedValue(invitation);
   try {
@@ -193,7 +193,7 @@ test('une horloge reculée ne retire pas prématurément une invitation encore v
 });
 
 test('une échéance distante ne déborde pas le délai du minuteur', async () => {
-  jest.useFakeTimers();
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
   const distant = { ...invitation, expiresAt: Date.now() + 35 * 86_400_000 };
   (createCoupleInvitation as jest.Mock).mockResolvedValue(distant);
   try {
