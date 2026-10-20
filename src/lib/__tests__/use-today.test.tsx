@@ -38,6 +38,23 @@ test('midnight updates the local date without external data or a parent render',
   expect(root?.toJSON()).toBe('2026-10-21');
 });
 
+test.each([
+  [2, 29, '2026-03-29', '2026-03-30'],
+  [9, 25, '2026-10-25', '2026-10-26'],
+] as const)('le jour civil reste correct pendant le changement horaire du mois %i', async (month, date, before, after) => {
+  const start = new Date(2026, month, date);
+  const nextMidnight = new Date(2026, month, date + 1);
+  jest.setSystemTime(start);
+  await mount();
+  const renders = rendered.mock.calls.length;
+  await act(async () => jest.advanceTimersByTime(nextMidnight.getTime() - start.getTime() - 1));
+  expect(snapshot()).toBe(before);
+  expect(rendered).toHaveBeenCalledTimes(renders);
+  await act(async () => jest.advanceTimersByTime(26));
+  expect(snapshot()).toBe(after);
+  expect(jest.getTimerCount()).toBe(1);
+});
+
 test('several consumers share one timer and one app-state listener', async () => {
   await mount(3);
   expect(AppState.addEventListener).toHaveBeenCalledTimes(1);

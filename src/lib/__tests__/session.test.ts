@@ -34,6 +34,35 @@ beforeEach(async () => {
 
 const profile = { name: 'Alice fictive', color: '#abcdef' };
 
+test.each(['toString', 'constructor', '__proto__'])('un rejet auth atypique %s conserve la session et libère le passage', async (code) => {
+  const raw = JSON.stringify({ mode: 'cloud', userId: 'alice', coupleId: 'old' });
+  await AsyncStorage.setItem('session', raw);
+  (signInWithEmailAndPassword as jest.Mock).mockRejectedValueOnce({ code });
+  await expect(signInWithEmail('alice@example.test', 'fictitious-password')).rejects.toThrow('Une erreur est survenue. Réessaie.');
+  expect(getDoc).not.toHaveBeenCalled();
+  expect(signOut).not.toHaveBeenCalled();
+  expect(await AsyncStorage.getItem('session')).toBe(raw);
+  (getDoc as jest.Mock).mockResolvedValue({ data: () => ({ coupleId: 'restored', members: ['alice'] }) });
+  expect((await signInWithEmail('alice@example.test', 'fictitious-password')).coupleId).toBe('restored');
+  expect(signInWithEmailAndPassword).toHaveBeenCalledTimes(2);
+});
+
+test.each([{}, 42, true])('un rejet callable non textuel %p ne remplace pas la session ni ne bloque une nouvelle action', async (message) => {
+  const raw = JSON.stringify({ mode: 'cloud', userId: 'alice', coupleId: 'old' });
+  await AsyncStorage.setItem('session', raw);
+  (getDoc as jest.Mock).mockResolvedValue({ data: () => undefined });
+  const call = jest.fn().mockRejectedValueOnce({ code: 'functions/invalid-argument', message })
+    .mockResolvedValueOnce({ data: { coupleId: 'created' } });
+  (httpsCallable as jest.Mock).mockReturnValue(call);
+  await expect(createCloudCouple(profile)).rejects.toThrow('Demande impossible pour le moment.');
+  expect(await AsyncStorage.getItem('session')).toBe(raw);
+  expect(signOut).not.toHaveBeenCalled();
+  expect(signInAnonymously).not.toHaveBeenCalled();
+  expect(call).toHaveBeenCalledTimes(1);
+  expect((await createCloudCouple(profile)).coupleId).toBe('created');
+  expect(call).toHaveBeenCalledTimes(2);
+});
+
 test.each(['', ' ', 'a/b', 42, {}, ['couple']].map((coupleId) => [coupleId]))('la restauration refuse un index mal formé sans nettoyer la session : %j', async (coupleId) => {
   const raw = JSON.stringify({ mode: 'cloud', userId: 'alice', coupleId: 'old' });
   await AsyncStorage.setItem('session', raw);

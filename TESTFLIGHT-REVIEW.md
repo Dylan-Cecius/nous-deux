@@ -66,6 +66,21 @@ Checklist préparée, **non exécutée sur téléphone**. Attendre une build aut
 - Édition à deux appareils : pendant qu’A modifie une légende ou un titre, B modifie un autre champ (date, détail, type film/série). A doit conserver sa saisie, recevoir les champs intacts et ne pas les réécrire. Deux éditions simultanées du même champ ne sont pas encore arbitrées côté serveur.
 - VoiceOver/TalkBack : parcourir miniatures, souvenir anniversaire, ajout occupé et fiche ; contrôler libellés complets, indication de destination et absence de focus inaccessible ou doublé. Les propriétés accessibles testées en Jest ne remplacent pas cet essai.
 
+## Complément de recette — changements du 20 octobre
+
+Scénarios préparés, **non exécutés sur appareil** et non présents dans la build 6 par le seul commit GitHub. Leur exécution attend une build autorisée et compatible avec les prérequis serveur ci-dessus. Ne pas modifier les comptes, photos ou horloges personnelles pour les reproduire : utiliser uniquement un appareil de test et des données fictives. Les deux appareils éventuels doivent appartenir au même espace de démonstration autorisé.
+
+| Parcours | Manipulation à vérifier | Résultat attendu et limite |
+| --- | --- | --- |
+| Question quotidienne | Saisir puis valider immédiatement, effacer puis valider, appuyer deux fois ; en mode local, saisir une réponse distincte pour chaque membre. | Dernier texte envoyé, texte vide refusé, une seule action simultanée par membre. Une réponse perdue ne constitue pas une preuve d'absence d'écriture. |
+| Passage de jour | Garder l'accueil ouvert à minuit puis tester une reprise après plusieurs jours ; vérifier question, compte à rebours, agenda et souvenir anniversaire. | Jour courant sans attendre une nouvelle donnée distante, ancien brouillon de réponse non envoyé pour le nouveau jour. Un formulaire d'édition déjà ouvert ne doit pas être effacé. Horloge simulée vérifiée en Jest ; veille/reprise native non prouvée. |
+| Votre histoire — date | Ouvrir la date sur A, la changer sur B avant toute saisie sur A ; recommencer en modifiant A d'abord. Valider ensuite une date inchangée. | Champ intact actualisé, saisie locale conservée, aucune écriture pour une validation inchangée. Pas d'arbitrage serveur de deux modifications simultanées du même champ. |
+| Votre histoire — cadrage | Répéter le scénario précédent sur la même photo ; remplacer ensuite la photo sur B alors que A cadre l'ancienne. Revenir au formulaire et rouvrir. | Transformation intacte actualisée, transformation modifiée conservée en entier ; sauvegarde sur une photo remplacée refusée, réouverture sur la photo courante. Vérifier le rendu et les gestes, non validés par Jest. |
+| Upload et erreurs | Interrompre uniquement la connexion du dispositif de test pendant sélection/upload/association, puis revenir au formulaire. | Verrou jusqu'à la fin de l'action ; pas d'URL ou détail fournisseur dans les erreurs photo ; résultat d'association éventuellement non confirmé. Vérifier les données reçues avant une reprise manuelle, ne pas supprimer de fichier à l'aveugle. |
+| Connexion | Provoquer une erreur de connexion sur un compte de démonstration puis réessayer explicitement. | Message lisible, action de nouveau disponible, session mémorisée non effacée par le seul affichage du rejet. Aucun achat, invitation ni notification à un tiers. |
+
+Pour chaque essai futur, noter date, plateforme/version système, numéro de build et SHA source, résultat réellement observé et capture anonymisée si nécessaire. Ne cocher aucun de ces parcours sur la seule base des tests automatisés. Les défauts reproduits ici utilisent des données synthétiques ; aucune fuite réelle n'a été constatée.
+
 ## Nettoyage technique : cible et déploiement
 
 `functions/src/retention.ts` prévoit un passage quotidien et au plus 500 documents par collection et par passage :
