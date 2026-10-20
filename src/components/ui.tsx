@@ -24,6 +24,7 @@ import { useAssistant } from './assistant-context';
 import { showDialog } from './dialog';
 import { cardShadow, Fonts, Radius, Spacing, useTheme } from '@/constants/theme';
 import { tap } from '@/lib/haptics';
+import { foregroundOnColor } from '@/lib/color-contrast';
 import { useAsyncAction } from '@/lib/use-async-action';
 import { userError } from '@/lib/errors';
 
@@ -246,7 +247,7 @@ export function Avatar({ name, color, size = 40, ring }: { name: string; color: 
         borderWidth: ring ? 3 : 0,
         borderColor: ring,
       }}>
-      <Text style={{ color: '#fff', fontFamily: Fonts.bodyBold, fontSize: size * 0.4 }}>
+      <Text style={{ color: foregroundOnColor(color), fontFamily: Fonts.bodyBold, fontSize: size * 0.4 }}>
         {name.trim().charAt(0).toUpperCase() || '?'}
       </Text>
     </View>
@@ -484,7 +485,7 @@ export function Chips<V extends string>({
         {options.map((o) => {
           const active = o.value === value;
           const accent = o.color ?? t.primary;
-          const selectedForeground = accent === t.primary ? t.onPrimary : '#fff';
+          const selectedForeground = accent === t.primary ? t.onPrimary : foregroundOnColor(accent);
           return (
             <Pressable
               key={o.value}

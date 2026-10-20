@@ -2,8 +2,9 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AccentThemes, PrefsProvider, useTheme } from '@/constants/theme';
-import { Chips, Fab } from '@/components/ui';
+import { AccentThemes, MemberColors, PrefsProvider, useTheme } from '@/constants/theme';
+import { Avatar, Chips, Fab } from '@/components/ui';
+import { foregroundOnColor } from '../color-contrast';
 
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(), setItem: jest.fn() }));
 jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), { useColorScheme: { value: jest.fn() } }));
@@ -30,6 +31,32 @@ let palette: ReturnType<typeof useTheme>;
 function Probe() { const t = useTheme(); useEffect(() => { palette = t; }, [t]); return null; }
 beforeEach(() => { jest.clearAllMocks(); (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined); });
 afterEach(async () => { if (root) await act(async () => root.unmount()); });
+
+test.each(['#fff', '#ABC', '#aBcDeF', '#000', '#123456', '#767676', '#777777'])('couleur opaque %s : texte au moins 4,5:1', (color) => {
+  expect(contrast(foregroundOnColor(color), color)).toBeGreaterThanOrEqual(4.5);
+});
+test.each(['transparent', 'red', '#FFFF', '#FFFFFF80', '#12', '#GGGGGG', ''])('format non opaque ou inconnu %s : repli historique sans promesse de contraste', (color) => {
+  expect(foregroundOnColor(color)).toBe('#FFFFFF');
+});
+test('tous les gris opaques conservent au moins 4,5:1 sans arrondi du ratio', () => {
+  for (let channel = 0; channel < 256; channel++) {
+    const color = '#' + channel.toString(16).padStart(2, '0').repeat(3);
+    expect(contrast(foregroundOnColor(color), color)).toBeGreaterThanOrEqual(4.5);
+  }
+});
+
+describe.each(MemberColors)('couleur de membre %s', (color) => {
+  test('nom du choix sélectionné au moins 4,5:1', async () => {
+    await act(async () => { root = create(<Chips value="a" onChange={() => {}} options={[{ value: 'a', label: 'Alice fictive', color, icon: 'person' }]} />); });
+    const text = root.root.findAllByType(Text).find(node => node.props.children === 'Alice fictive')!;
+    expect(contrast(StyleSheet.flatten(text.props.style).color, color)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(root.root.findByType('icon' as never).props.color, color)).toBeGreaterThanOrEqual(3);
+  });
+  test('initiale de petit avatar au moins 4,5:1', async () => {
+    await act(async () => { root = create(<Avatar name="Alice fictive" color={color} size={32} />); });
+    expect(contrast(StyleSheet.flatten(root.root.findByType(Text).props.style).color, color)).toBeGreaterThanOrEqual(4.5);
+  });
+});
 
 describe.each(['light', 'dark'])('contraste du thème %s', (scheme) => {
   test.each(Object.keys(AccentThemes))('%s : choix sélectionné lisible et icône contrastée', async (accent) => {

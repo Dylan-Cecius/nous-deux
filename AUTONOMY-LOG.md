@@ -1117,3 +1117,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Les choix utilisant primary reprennent onPrimary pour texte et icône, au lieu du blanc imposé ; couleurs personnalisées inchangées et encore à auditer. Les états et actions restent inchangés.
 - Preuves : huit cas verts après correctif, 61 tests ciblés réussis en 1,494 s, lint/TypeScript et diff propres. Même formule sRGB et référence WCAG que le lot précédent de contraste.
 - Limites : couleurs opaques au repos seulement, pas de certification globale ni d’essai natif. Aucun service, build ou distribution.
+
+## 2026-10-20 — 17:30 Europe/Brussels — Contraste des couleurs de membre
+
+- Reprise : PR #3 ouverte et en brouillon à b71065c4f1540a0614c81faa279a30580157f3a2, quatre fichiers de consignes relus via GitHub ; 164 blobs présents vérifiés par SHA, sept PNG toujours absents, worktree propre. Aucune répétition des douze lots précédents.
+- Deux régressions reproduites : texte sélectionné et petite initiale sur orange #C26A1B à 3,91:1. Foreground opaque adapté pour Avatar et Chips personnalisés ; blanc conservé s’il atteint 4,5:1, sinon noir, sans modifier la couleur enregistrée. Formats non hexadécimaux/avec alpha inchangés, sans garantie de contraste.
+- Preuves : deux cas rouges puis verts, douze contrôles des autres couleurs et quinze tests du calcul/repli (dont les 256 gris). Lint/TypeScript réussis ; 56 suites / 1215 tests réussis en 10,345 s ; diff relu/propre. Source : https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html. Documentation Expo57 et index relus.
+- Limites : calcul opaque au repos, pas de validation native ni certification globale ; états atténués, transparence et autres composants hors périmètre. Aucun serveur/règle, build, déploiement, dépense ou distribution.
