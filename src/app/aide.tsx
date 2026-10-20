@@ -1,44 +1,54 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useRef } from 'react';
 import { Linking } from 'react-native';
 
 import { showDialog } from '@/components/dialog';
 import { Button, Card, Screen, T } from '@/components/ui';
 import { getPublicSupportLinks, getSupportContact } from '@/lib/public-info';
 import { features } from '@/lib/features';
-
-async function openHelp(url: string) {
-  try {
-    await Linking.openURL(url);
-  } catch {
-    showDialog('Lien indisponible', `Tu peux ouvrir cette adresse dans ton navigateur : ${url}`);
-  }
-}
+import { useAsyncAction } from '@/lib/use-async-action';
 
 export default function Aide() {
   const publicLinks = getPublicSupportLinks();
   const contact = getSupportContact();
-  const emailSupport = async () => {
+  const focus = useRef<object | null>(null);
+  useFocusEffect(useCallback(() => {
+    focus.current = {};
+    return () => { focus.current = null; };
+  }, []));
+  const { run: open, pending } = useAsyncAction(async (url: string, title: string, message: string) => {
+    const current = focus.current;
+    if (!current) return;
+    try { await Linking.openURL(url); }
+    catch { if (focus.current === current) showDialog(title, message); }
+  });
+  const openHelp = (url: string) => open(url, 'Lien indisponible', `Tu peux ouvrir cette adresse dans ton navigateur : ${url}`);
+  const emailSupport = () => {
     if (!contact) return;
-    try { await Linking.openURL(contact.mailto); }
-    catch { showDialog('Contacter l’assistance', `Écris à ${contact.email} depuis ta messagerie. Aucun message n’a été envoyé par l’app.`); }
+    return open(contact.mailto, 'Contacter l’assistance', `Écris à ${contact.email} depuis ta messagerie. Aucun message n’a été envoyé par l’app.`);
+  };
+  const goBack = () => {
+    focus.current = null;
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
   };
   return (
-    <Screen overline="Nous Deux" title="Aide et confidentialité" onBack={() => router.canGoBack() ? router.back() : router.replace('/')}>
+    <Screen overline="Nous Deux" title="Aide et confidentialité" onBack={goBack}>
       {contact && (
         <Card>
           <T variant="h2">Besoin d’aide ?</T>
           <T>{contact.operator}</T>
           <T selectable>{contact.email}</T>
-          <Button label="Écrire à l’assistance" variant="soft" onPress={emailSupport} />
+          <Button label="Écrire à l’assistance" variant="soft" disabled={pending} onPress={emailSupport} />
           <T muted>Tu peux signaler un problème ou demander l’accès, la rectification ou la suppression de tes données. N’envoie ni mot de passe, ni code d’invitation, ni contenu intime.</T>
         </Card>
       )}
       {publicLinks && (
         <Card>
           <T variant="h2">Assistance et données personnelles</T>
-          <Button label="Contacter l’assistance" variant="soft" onPress={() => openHelp(publicLinks.support)} />
-          <Button label="Lire la politique de confidentialité" variant="outline" onPress={() => openHelp(publicLinks.privacy)} />
-          <Button label="Demander la suppression depuis le Web" variant="ghost" onPress={() => openHelp(publicLinks.deletion)} />
+          <Button label="Contacter l’assistance" variant="soft" disabled={pending} onPress={() => openHelp(publicLinks.support)} />
+          <Button label="Lire la politique de confidentialité" variant="outline" disabled={pending} onPress={() => openHelp(publicLinks.privacy)} />
+          <Button label="Demander la suppression depuis le Web" variant="ghost" disabled={pending} onPress={() => openHelp(publicLinks.deletion)} />
         </Card>
       )}
       <Card>
