@@ -67,6 +67,22 @@ test('un code effacé ne réutilise pas l’ancien code', async () => {
   expect(joinCloudCouple).not.toHaveBeenCalled();
 });
 
+test.each(['ABCD012345', 'ABCDI23456', 'ABCDO23456', 'ABCD@23456', 'ABCDé23456', 'ABCD_23456'])('le code non contractuel %s ne lance pas de jonction', async code => {
+  const submit = form.join;
+  await act(async () => { form.changeCode(code); await submit(); });
+  expect(joinCloudCouple).not.toHaveBeenCalled();
+  expect(showDialog).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('code'));
+  expect(form.code).toBe(code.toUpperCase());
+  expect(form.validCode).toBe(false);
+});
+
+test.each(['abcd234567', ' ABCD-234567 ', 'ABCD 234567'])('un code valide présenté sous la forme %s reste accepté', async code => {
+  await act(async () => { form.changeCode(code); });
+  expect(form.validCode).toBe(true);
+  await act(async () => form.join());
+  expect(joinCloudCouple).toHaveBeenCalledWith('ABCD234567', expect.any(Object));
+});
+
 test('un prénom partenaire effacé bloque la création locale', async () => {
   const submit = form.createLocal;
   await act(async () => { form.changePartnerName(' '); await submit(); });

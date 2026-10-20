@@ -177,9 +177,10 @@ export default function Onboarding() {
             <Button
               label="Rejoindre"
               variant="sunset"
-              disabled={busy || code.replace(/\s|-/g, '').length !== 10}
+              disabled={busy || !form.validCode}
               onPress={form.join}
             />
+            {!!code && !form.validCode && <T variant="small" color={MUTED}>Le code contient 10 caractères, sans les lettres I et O ni les chiffres 0 et 1.</T>}
             <Button label="Retour" variant="glass" disabled={busy} onPress={() => form.navigate(() => setStep('choice'))} />
           </GlassCard>
         )}

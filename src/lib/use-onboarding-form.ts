@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MemberColors } from '@/constants/theme';
 import { createCloudCouple, createLocalCouple, joinCloudCouple, type Backend } from './backend';
 import { useOnboardingAction } from './use-onboarding-action';
+import { parseInvitationCode } from './invitation-code';
 
 type Draft = { name: string; color: string; code: string; partnerName: string };
 export type OnboardingStep = 'profile' | 'choice' | 'join' | 'local' | 'signin';
@@ -29,6 +30,7 @@ export function useOnboardingForm(setBackend: (backend: Backend) => void, step: 
   };
   return {
     ...draft, busy, interact, navigate: transition,
+    validCode: parseInvitationCode(draft.code) !== null,
     continueProfile: (next: () => void) => { if (latest.current?.name.trim()) return transition(next); },
     changeName: (value: string) => change({ name: value }),
     changeColor: (value: string) => change({ color: value }),
@@ -37,8 +39,9 @@ export function useOnboardingForm(setBackend: (backend: Backend) => void, step: 
     createCloud: () => run(() => createCloudCouple(current().me)),
     join: () => run(() => {
       const { values, me } = current();
-      if (values.code.replace(/\s|-/g, '').length !== 10) throw new Error('Renseigne le code d’invitation complet.');
-      return joinCloudCouple(values.code, me);
+      const code = parseInvitationCode(values.code);
+      if (!code) throw new Error('Vérifie le code d’invitation de 10 caractères fourni dans Nous Deux. Les lettres I et O et les chiffres 0 et 1 n’en font pas partie.');
+      return joinCloudCouple(code, me);
     }),
     createLocal: () => run(async () => {
       const { values, me } = current();

@@ -5,11 +5,12 @@ import { Button, Card, T } from './ui';
 import { createCoupleInvitation, type Invitation } from '@/lib/backend';
 import { useSession } from '@/lib/couple-context';
 import { userError } from '@/lib/errors';
+import { parseInvitationCode } from '@/lib/invitation-code';
 
 function verifiedInvitation(value: unknown): Invitation | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const { code, expiresAt } = value as Partial<Invitation>;
-  if (typeof code !== 'string' || !/^[A-HJ-NP-Z2-9]{10}$/.test(code) ||
+  if (typeof code !== 'string' || parseInvitationCode(code) !== code ||
       typeof expiresAt !== 'number' || !Number.isSafeInteger(expiresAt) ||
       !Number.isFinite(new Date(expiresAt).getTime()) || expiresAt <= Date.now()) return null;
   return { code, expiresAt };
