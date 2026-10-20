@@ -109,6 +109,17 @@ Préparée seulement. Les tests React ci-dessous utilisent des sources fictives 
 | Date maximale | Sur web, saisir une date future dans la rencontre ou un souvenir, sortir du champ puis saisir aujourd’hui. Sur appareil, vérifier la borne du calendrier. | La date future n’est pas transmise comme valeur acceptée ; le brouillon web revient à la valeur contrôlée à la sortie. La journée limite est acceptée entière. Les tests de callbacks iOS/Android ne remplacent pas l’ouverture du calendrier natif. |
 | Démarrage et reprise | Vérifier le démarrage normal, le chargement lent des polices/session et une restauration refusée sur environnement de test. | La navigation n’apparaît qu’une fois prête ; la reprise de connexion reste accessible. Un rejet du module SplashScreen est traité avec un diagnostic générique, mais son masquage natif ne peut pas être garanti en cas d’échec. Le rendu du splash nécessite une build release autorisée, distincte de ces tests. |
 
+## Recette complémentaire — Votre histoire et aide (20 octobre, soirée)
+
+Parcours préparés, **non exécutés sur appareil**. Utiliser uniquement un environnement de test autorisé, des comptes et photos fictifs, une build autorisée et les prérequis serveur de cette recette. Aucune ouverture de service payant, aucun e-mail ni demande réelle de suppression.
+
+| Parcours | Manipulation prévue | Résultat attendu et limite |
+| --- | --- | --- |
+| Perte puis retour des données du couple | Retarder sélection/envoi/sauvegarde de photo ou sauvegarde de date/cadrage, rendre les données indisponibles puis les rétablir avant le résultat. | L’ancienne opération ne poursuit pas l’étape suivante, ne ferme pas la fiche reprise et n’y affiche pas d’erreur tardive. Verrou libéré à la résolution ; brouillons conservés. Une écriture déjà envoyée peut avoir réussi et doit être relue, jamais compensée aveuglément. |
+| Nouvelle photo reçue pendant la préparation | Depuis deux clients de test, recevoir une autre photo pendant une sélection puis pendant un upload retardé. Réessayer explicitement ensuite. | Aucun upload supplémentaire après sélection obsolète, aucune association après upload obsolète ; explication de relance. Une relance depuis la photo courante fonctionne. Ce garde ne remplace pas une précondition atomique serveur et ne nettoie pas un upload orphelin. |
+| Aide et refus d’ouverture système | Avec un double de Linking ou un refus système contrôlé, lancer une ouverture, quitter la route puis y revenir avant le refus. Tester plusieurs boutons pendant une ouverture. | Pas de dialogue tardif après départ/retour, une ouverture à la fois, sortie toujours possible, nouvelle tentative après résolution. Repli utile si le refus concerne encore l’écran courant. Aucun message envoyé ; les liens publics restent absents en configuration privée. |
+| Compteur au lecteur d’écran | Avec VoiceOver puis TalkBack, atteindre Votre histoire avec/sans date, à un jour du prochain cap et après changement de journée. | Nombre de jours, date et cap annoncés, puis indication d’ouverture des réglages. Sans date, absence explicitée. Vérifier absence de double annonce et navigation vers/depuis la fiche ; Jest ne valide que les propriétés transmises. |
+
 ## Nettoyage technique : cible et déploiement
 
 `functions/src/retention.ts` prévoit un passage quotidien et au plus 500 documents par collection et par passage :
