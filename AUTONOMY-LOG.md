@@ -1241,3 +1241,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Les composants internes sont désormais recréés par source ; leurs dimensions et leur point de départ de glissement sont isolés, y compris pour un aller-retour entre deux URI. Les dimensions du cadre et de l’image doivent être finies et positives avant calcul ; un événement valide ultérieur rétablit le cadrage.
 - Preuves : 24 tests ciblés réussis (22 nouveaux), puis 60 suites / 1327 tests applicatifs réussis en 9,479 s ; npm run lint et tsc --noEmit réussis, diff relu et sans erreur d’espacement. Documentation Expo SDK 57 Image et RN 0.86 LayoutEvent consultée ; revue React : composants internes au niveau module, état lié à la source, aucun effet de synchronisation superflu.
 - Limites : événements Image/Layout doublés et URI fictives ; aucune image réelle chargée, capture visuelle, validation native ou build. Aucun serveur/règle, stockage utilisateur, configuration payante ou état de publication modifié.
+
+## 2026-10-20 — 19:36 Europe/Brussels — Fin des gestes de cadrage
+
+- Base : `8c96a63972b6ee2c2186a742bd1c33caa863debb`. Sept régressions reproduites : mouvement sans prise du geste, mouvements après release/terminate, événements retenus après désactivation (y compris réactivation), changement de source ou démontage.
+- Le glissement possède maintenant un départ optionnel, effacé à la fin/annulation et au changement d’état. Un contexte d’interaction invalide les anciens événements et commandes sans interrompre les rendus ordinaires d’un glissement actif.
+- Preuves : sept cas rouges puis verts et un contrôle de continuité ajouté ; 32 tests ciblés réussis en 0,976 s. npm run lint, tsc --noEmit et git diff --check réussis ; diff relu. Documentation RN 0.86 Gesture Responder System consultée, nettoyage au cycle de vie vérifié.
+- Limites : événements synthétiques, pas de gestes sur appareil ni de garantie d’annulation d’une sauvegarde déjà engagée. IconButton reste protégé de son côté ; ces contrôles vérifient également la frontière propre à l’éditeur. Aucun changement serveur/règle, upload, build ou distribution.

@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, View, type GestureResponderEvent, type LayoutChangeEvent, type ViewStyle } from 'react-native';
 
 import { IconButton, Row, T } from './ui';
@@ -96,19 +96,33 @@ function PhotoFrameEditorContent({
   const { box, layout, onLayout, onLoad } = useFramedLayout(frame);
 
   // Point de départ du glissement (doigt et cadrage).
-  const start = useRef({ pageX: 0, pageY: 0, frame });
+  const start = useRef<{ pageX: number; pageY: number; frame: PhotoFrame } | null>(null);
+  const context = useMemo(() => ({ disabled }), [disabled]);
+  const current = useRef<typeof context | null>(null);
+  useEffect(() => {
+    current.current = context;
+    return () => {
+      current.current = null;
+      start.current = null;
+    };
+  }, [context]);
+  // Un événement retenu avant une désactivation ou un démontage reste inactif.
+  const canEdit = () => !disabled && current.current === context;
+  const endGesture = () => { if (canEdit()) start.current = null; };
   const clamp = (v: number) => Math.min(1, Math.max(0, v));
 
   const responder = {
-    onStartShouldSetResponder: () => !disabled,
-    onMoveShouldSetResponderCapture: () => !disabled,
-    onResponderTerminationRequest: () => disabled,
+    onStartShouldSetResponder: canEdit,
+    onMoveShouldSetResponderCapture: canEdit,
+    onResponderTerminationRequest: () => !canEdit(),
+    onResponderRelease: endGesture,
+    onResponderTerminate: endGesture,
     onResponderGrant: (e: GestureResponderEvent) => {
-      if (disabled) return;
+      if (!canEdit()) return;
       start.current = { pageX: e.nativeEvent.pageX, pageY: e.nativeEvent.pageY, frame };
     },
     onResponderMove: (e: GestureResponderEvent) => {
-      if (disabled || !layout || !box) return;
+      if (!canEdit() || !layout || !box || !start.current) return;
       const from = start.current;
       const dx = e.nativeEvent.pageX - from.pageX;
       const dy = e.nativeEvent.pageY - from.pageY;
@@ -120,7 +134,7 @@ function PhotoFrameEditorContent({
   };
 
   const zoomBy = (delta: number) => {
-    if (disabled) return;
+    if (!canEdit()) return;
     const min = layout?.minZoom ?? 1;
     onChange({ ...frame, zoom: Math.min(MAX_ZOOM, Math.max(min, (layout?.zoom ?? frame.zoom) + delta)) });
   };
@@ -157,8 +171,8 @@ function PhotoFrameEditorContent({
       </T>
       <Row style={{ justifyContent: 'center', gap: 12 }}>
         <IconButton icon="remove" label="Dézoomer" disabled={disabled} onPress={() => zoomBy(-0.15)} />
-        <IconButton icon="expand-outline" label="Photo entière" disabled={disabled} onPress={() => { if (!disabled) onChange({ x: 0.5, y: 0.5, zoom: 0 }); }} />
-        <IconButton icon="scan-outline" label="Remplir le cadre" disabled={disabled} onPress={() => { if (!disabled) onChange(DEFAULT_FRAME); }} />
+        <IconButton icon="expand-outline" label="Photo entière" disabled={disabled} onPress={() => { if (canEdit()) onChange({ x: 0.5, y: 0.5, zoom: 0 }); }} />
+        <IconButton icon="scan-outline" label="Remplir le cadre" disabled={disabled} onPress={() => { if (canEdit()) onChange(DEFAULT_FRAME); }} />
         <IconButton icon="add" label="Zoomer" disabled={disabled} onPress={() => zoomBy(0.15)} />
       </Row>
     </View>
