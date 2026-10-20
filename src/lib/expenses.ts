@@ -1,5 +1,20 @@
 import type { Expense } from './types';
 
+/** Saisie décimale en euros, arrondie au centime depuis les chiffres saisis. */
+export function parseExpenseAmount(input: string): number | null {
+  let text = input.trim().replace(/[\u00a0\u202f]/g, ' ');
+  if (/^[.,]/.test(text)) text = `0${text}`;
+  if (!/^(?:\d+|\d{1,3}(?: \d{3})+)(?:[.,]\d*)?$/.test(text)) return null;
+  const [integer, fraction = ''] = text.replace(/ /g, '').split(/[.,]/);
+  const whole = Number(integer);
+  if (!Number.isSafeInteger(whole) || whole > 100000 || (whole === 100000 && /[1-9]/.test(fraction))) return null;
+  let cents = whole * 100 + Number((fraction + '00').slice(0, 2));
+  // Conserver la borne minimale avant arrondi : 0,009 n'est pas 0,01 saisi.
+  if (cents < 1) return null;
+  if (Number(fraction[2] ?? '0') >= 5) cents++;
+  return cents / 100;
+}
+
 /**
  * Solde du point de vue de `meId` : positif = l'autre me doit de l'argent.
  * Chaque dépense est partagée à moitié ; un remboursement compte en entier.

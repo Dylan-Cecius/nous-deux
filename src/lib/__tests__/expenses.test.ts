@@ -1,8 +1,19 @@
 /// <reference types="jest" />
-import { balanceFor } from '../expenses';
+import { balanceFor, parseExpenseAmount } from '../expenses';
 
 const ME = 'dylan';
 const PARTNER = 'camille';
+
+describe('saisie décimale des dépenses', () => {
+  test.each([
+    ['0,01', 0.01], [',5', 0.5], ['.50', 0.5], ['42', 42], ['42,', 42],
+    [' 00042.50 ', 42.5], ['100 000,00', 100000], ['99999,999', 100000],
+    ['1,00499999', 1], ['1,00500000', 1.01],
+  ])('%s donne %s', (input, expected) => expect(parseExpenseAmount(input)).toBe(expected));
+  test.each(['', ' ', '0', '0,009', '100000,0001', '100001', '-1', 'Infinity', '12 34,56', '1,234.56', '1 234 56', '1\t234,56'])('%s est refusé', input => {
+    expect(parseExpenseAmount(input)).toBeNull();
+  });
+});
 
 describe('dépenses communes', () => {
   test('une dépense est partagée à moitié', () => {

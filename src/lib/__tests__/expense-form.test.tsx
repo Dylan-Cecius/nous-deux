@@ -33,6 +33,25 @@ const mount = async () => {
 };
 const refresh = async () => { await act(async () => root.update(<Depenses />)); };
 
+test.each([
+  ['1,005', 1.01], ['1.015', 1.02], ['10,075', 10.08],
+  ['1 234,56', 1234.56], ['1\u00a0234,56', 1234.56], ['1\u202f234,56', 1234.56],
+])('le montant décimal %s est enregistré au bon centime', async (amount, expected) => {
+  await mount();
+  const submit = save();
+  await act(async () => { field('Montant (€)').props.onChangeText(amount); await submit(); });
+  expect(backend.add).toHaveBeenCalledWith('expenses', expect.objectContaining({ amount: expected }));
+});
+
+test.each(['0x10', '1e3'])('une notation technique %s ne devient pas un montant implicite', async amount => {
+  await mount();
+  const submit = save();
+  await act(async () => { field('Montant (€)').props.onChangeText(amount); await submit(); });
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(field('Ajouter').props.disabled).toBe(true);
+  expect(field('Montant (€)').props.value).toBe(amount);
+});
+
 test.each(['title', 'amount', 'payer', 'all'])('la validation immédiate conserve la dernière saisie : %s', async (kind) => {
   await mount();
   const submit = save();

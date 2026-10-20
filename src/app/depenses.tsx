@@ -9,7 +9,7 @@ import { formatRelative } from '@/lib/dates';
 import { success } from '@/lib/haptics';
 import type { Backend } from '@/lib/backend';
 import type { Expense } from '@/lib/types';
-import { balanceFor } from '@/lib/expenses';
+import { balanceFor, parseExpenseAmount } from '@/lib/expenses';
 import { useAsyncAction } from '@/lib/use-async-action';
 
 const euros = (n: number) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }).replace(/ /g, ' ');
@@ -192,8 +192,8 @@ function ExpenseSheet({ onClose }: { onClose: () => void }) {
   const { run, pending } = useAsyncAction((action: () => unknown) => action());
   const isCurrent = () => !closed.current && latest.current?.context === context;
   const unavailable = collection.loading || collection.error;
-  const value = Number(amount.replace(',', '.'));
-  const valid = !!title.trim() && Number.isFinite(value) && value >= 0.01 && value <= 100000 && members.some((member) => member.id === paidBy);
+  const value = parseExpenseAmount(amount);
+  const valid = !!title.trim() && value !== null && members.some((member) => member.id === paidBy);
   const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
   const change = (key: 'title' | 'amount' | 'paidBy', next: string) => run(() => {
     if (!isCurrent() || !latest.current) return;
@@ -205,12 +205,12 @@ function ExpenseSheet({ onClose }: { onClose: () => void }) {
   const save = () => run(async () => {
     const current = latest.current;
     if (!isCurrent() || !current || current.collection.loading || current.collection.error) return;
-    const currentValue = Number(current.amount.replace(',', '.'));
-    if (!current.title.trim() || !Number.isFinite(currentValue) || currentValue < 0.01 || currentValue > 100000 || !current.members.some((member) => member.id === current.paidBy)) return;
+    const currentValue = parseExpenseAmount(current.amount);
+    if (!current.title.trim() || currentValue === null || !current.members.some((member) => member.id === current.paidBy)) return;
     try {
       await backend.add('expenses', {
         title: current.title.trim(),
-        amount: Math.round(currentValue * 100) / 100,
+        amount: currentValue,
         paidBy: current.paidBy,
         kind: 'expense',
         createdAt: Date.now(),
@@ -225,7 +225,8 @@ function ExpenseSheet({ onClose }: { onClose: () => void }) {
     <Sheet visible title="Nouvelle dépense" onClose={() => run(close)}>
       <Field label="Quoi ?" value={title} maxLength={200} editable={!pending} onChangeText={(next) => change('title', next)} placeholder="Courses, resto, billets de train…" />
       <Field label="Montant (€)" value={amount} editable={!pending} onChangeText={(next) => change('amount', next)} placeholder="42,50" keyboardType="decimal-pad" />
-      {!!amount && (!Number.isFinite(value) || value < 0.01 || value > 100000) && <T variant="small">Entre un montant entre 0,01 € et 100 000 €.</T>}
+      {!!amount && value === null && <T variant="small">Entre un montant décimal entre 0,01 € et 100 000 €, par exemple 42,50.</T>}
+      {value !== null && <T variant="small" muted>Montant retenu : {euros(value)}.</T>}
       <Chips
         label="Payé par"
         options={members.map((m) => ({ value: m.id, label: m.name, color: m.color }))}
