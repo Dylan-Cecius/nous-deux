@@ -5,7 +5,7 @@ import Home from '@/app/(tabs)/index';
 import { useCollectionState, useSession } from '../couple-context';
 import { confirmDelete } from '@/components/ui';
 import { showDialog } from '@/components/dialog';
-import { todayKey } from '../dates';
+import { addDays, todayKey } from '../dates';
 import { notifyPartner } from '../assistant';
 import { MemberColors } from '@/constants/member-colors';
 
@@ -105,6 +105,57 @@ const openSeries = async () => {
 };
 const formField = (label: string) => root.root.findByProps({ label });
 const changeTitle = async (value = 'Titre saisi') => { await act(async () => formField('Titre').props.onChangeText(value)); };
+
+test.each(['title', 'who', 'kind', 'start', 'end', 'date', 'all'])('dernière saisie agenda avant rendu : %s', async (key) => {
+  await openSeries();
+  const submit = formField('Enregistrer').props.onPress;
+  const patch: Record<string, string> = {};
+  await act(async () => {
+    if (key === 'title' || key === 'all') { formField('Titre').props.onChangeText(' Dernier titre '); patch.title = 'Dernier titre'; }
+    if (key === 'who' || key === 'all') { formField('Pour qui ?').props.onChange('bob'); patch.who = 'bob'; }
+    if (key === 'kind' || key === 'all') { formField('Type').props.onChange('perso'); patch.kind = 'perso'; }
+    if (key === 'start' || key === 'all') { formField('Début').props.onChange('10:00'); patch.start = '10:00'; }
+    if (key === 'end' || key === 'all') { formField('Fin').props.onChange('14:00'); patch.end = '14:00'; }
+    if (key === 'date' || key === 'all') {
+      const nextDay = formField('Jour suivant').props.onPress;
+      nextDay(); nextDay();
+      patch.date = addDays(seriesEvent.date, 2);
+    }
+    await submit();
+  });
+  expect(backend.update).toHaveBeenCalledWith('events', seriesEvent.id, patch);
+});
+
+test.each(['title', 'who', 'range'])('saisie agenda devenue invalide avant rendu : %s', async (key) => {
+  await openSeries();
+  const submit = formField('Enregistrer').props.onPress;
+  await act(async () => {
+    if (key === 'title') formField('Titre').props.onChangeText(' ');
+    if (key === 'who') formField('Pour qui ?').props.onChange('unknown');
+    if (key === 'range') formField('Début').props.onChange('13:00');
+    await submit();
+  });
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(root.root.findAllByType('sheet' as never)).toHaveLength(1);
+});
+
+test.each([false, true])('création immédiate avec répétition agenda (titre déjà saisi : %s)', async (typed) => {
+  await act(async () => { root = create(<Agenda />); });
+  await act(async () => formField('Ajouter un horaire').props.onPress());
+  if (typed) await changeTitle('Titre fictif');
+  const submit = formField('Enregistrer').props.onPress;
+  await act(async () => {
+    if (!typed) formField('Titre').props.onChangeText('Titre fictif');
+    formField('Répéter chaque semaine').props.onChange('4');
+    await submit();
+  });
+  expect(backend.addEvents).toHaveBeenCalledTimes(1);
+  const events = backend.addEvents.mock.calls[0][0];
+  expect(events).toHaveLength(4);
+  expect(events.map((entry: { date: string }) => entry.date)).toEqual([0, 7, 14, 21].map(days => addDays(todayKey(), days)));
+  expect(events.every((entry: { title: string; seriesId: string }) => entry.title === 'Titre fictif' && entry.seriesId === events[0].seriesId && !!entry.seriesId)).toBe(true);
+  expect(notifyPartner).toHaveBeenCalledTimes(1);
+});
 const receiveEvent = async (patch: object) => {
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...seriesEvent, ...patch }] });
   await act(async () => root.update(<Agenda />));

@@ -1361,3 +1361,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Les mises à jour de valeurs synchronisent immédiatement la référence de sauvegarde avant la mise à jour du brouillon partagé. Les bases reçues et patchs minimaux restent inchangés ; aucune modification de suppression ou activation Places.
 - Preuves : 60 tests restaurant/brouillon partagé réussis en 1,403 s ; lint/TypeScript/diff check réussis, diff relu. Revue React : mises à jour composées sur les dernières valeurs, synchronisation dans les événements, aucun effet/dependance ajouté.
 - Limites : stockage simulé, absence d’appel Places vérifiée ; pas de recette de saisie/notation native ni résolution serveur des conflits sur le même champ.
+
+## 2026-10-20 — 21:43 Europe/Brussels — Dernière saisie de l’agenda
+
+- Douze régressions rouges : titre, membre, type, heures, deux déplacements de date consécutifs, cumul de champs, validations devenues invalides et répétition en création. Le choix de quatre semaines pouvait produire un seul horaire.
+- Les valeurs et la répétition sont synchronisées immédiatement dans la référence de validation puis dans le brouillon affiché. Les changements successifs se composent ; champs intacts reçus, patch minimal, verrou et notification déjà contextualisée conservés. Aucune modification de suppression, règles ou serveur.
+- Preuves : 98 tests agenda/brouillon partagé réussis en 2,471 s ; lint/TypeScript/diff check réussis, diff relu. Revue React : calcul suivant basé sur les dernières valeurs, aucun effet/dependance ajouté.
+- Limites : notifications et backend doublés, aucune notification envoyée ni écriture réelle ; pas de recette de sélecteur natif ou de concurrence serveur.

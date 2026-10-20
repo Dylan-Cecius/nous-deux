@@ -322,7 +322,7 @@ function EventSheet({
   const allEvents = useCollectionState('events');
   const received = !allEvents.loading && !allEvents.error && event
     ? allEvents.items.find((entry) => entry.id === event.id) : undefined;
-  const { base, values, setValues } = useSharedDraft(
+  const { base, values, setValues: setRenderedValues } = useSharedDraft(
     eventFields(event, defaultDate, defaultWho), received ? eventFields(received, defaultDate, defaultWho) : null,
   );
   const { title, who, kind, date, start, end } = values;
@@ -332,7 +332,7 @@ function EventSheet({
   const setStart = (start: string) => setValues((previous) => ({ ...previous, start }));
   const setEnd = (end: string) => setValues((previous) => ({ ...previous, end }));
   const shiftDate = (days: number) => setValues((previous) => ({ ...previous, date: addDays(previous.date, days) }));
-  const [repeat, setRepeat] = useState('0');
+  const [repeat, setRenderedRepeat] = useState('0');
   const unavailable = allEvents.loading || allEvents.error || (!!event && !allEvents.items.some((entry) => entry.id === event.id));
   // A native confirmation may outlive the snapshot, session or sheet that opened it.
   const context = useMemo(() => ({ backend }), [backend]);
@@ -344,6 +344,18 @@ function EventSheet({
   }, [context, allEvents, base, values, repeat, members]);
   const { run, pending: busy } = useAsyncAction((action: () => unknown) => action());
   const isCurrent = () => !closed.current && latest.current?.context === context;
+  const setValues = (update: (previous: typeof values) => typeof values) => {
+    const current = latest.current;
+    if (!current || !isCurrent()) return;
+    const next = update(current.values);
+    current.values = next;
+    setRenderedValues(() => next);
+  };
+  const setRepeat = (next: string) => {
+    if (!latest.current || !isCurrent()) return;
+    latest.current.repeat = next;
+    setRenderedRepeat(next);
+  };
   const canWrite = () => {
     const state = latest.current?.state;
     return isCurrent() && state && !state.loading && !state.error && (!event || state.items.some((entry) => entry.id === event.id));
