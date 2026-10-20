@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, Text, View } from 'react-native';
 
 import { Fonts } from '@/constants/theme';
@@ -22,11 +22,13 @@ function Message({ text }: { text: string }) {
   const progress = useState(() => new Animated.Value(0))[0];
 
   useEffect(() => {
-    Animated.sequence([
+    const animation = Animated.sequence([
       Animated.timing(progress, { toValue: 1, duration: 300, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }),
       Animated.delay(2000),
       Animated.timing(progress, { toValue: 2, duration: 400, useNativeDriver: true }),
-    ]).start();
+    ]);
+    animation.start();
+    return () => animation.stop();
   }, [progress]);
 
   return (
@@ -68,13 +70,15 @@ function Piece({ p, kind, height }: { p: Particle; kind: Kind; height: number })
   const progress = useState(() => new Animated.Value(0))[0];
 
   useEffect(() => {
-    Animated.timing(progress, {
+    const animation = Animated.timing(progress, {
       toValue: 1,
       duration: kind === 'hearts' ? 1600 : 1900,
       delay: p.delay,
       easing: kind === 'hearts' ? Easing.out(Easing.quad) : Easing.in(Easing.quad),
       useNativeDriver: true,
-    }).start();
+    });
+    animation.start();
+    return () => animation.stop();
   }, [progress, p.delay, kind]);
 
   const translateY = progress.interpolate({
@@ -110,19 +114,23 @@ function Piece({ p, kind, height }: { p: Particle; kind: Kind; height: number })
 /** À placer une fois, au-dessus des écrans. */
 export function CelebrationLayer() {
   const [burst, setBurst] = useState<{ key: number; kind: Kind; message?: string; particles: Particle[] } | null>(null);
-  const { width, height } = Dimensions.get('window');
+  const sequence = useRef(0);
+  const { height } = Dimensions.get('window');
 
   useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     const onCelebrate: Listener = (kind, message) => {
-      const key = Date.now();
-      setBurst({ key, kind, message, particles: makeParticles(kind, Math.min(width, 430)) });
-      setTimeout(() => setBurst((b) => (b?.key === key ? null : b)), message ? 2900 : 2400);
+      const key = ++sequence.current;
+      clearTimeout(timeout);
+      setBurst({ key, kind, message, particles: makeParticles(kind, Math.min(Dimensions.get('window').width, 430)) });
+      timeout = setTimeout(() => setBurst((b) => (b?.key === key ? null : b)), message ? 2900 : 2400);
     };
     listeners.add(onCelebrate);
     return () => {
       listeners.delete(onCelebrate);
+      clearTimeout(timeout);
     };
-  }, [width]);
+  }, []);
 
   if (!burst) return null;
   return (

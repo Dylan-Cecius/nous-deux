@@ -1096,3 +1096,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Chaque case porte maintenant le titre déjà affiché de son article, l’action restant une indication séparée ; état checked/busy/disabled inchangé. Le coche utilise onPrimary, déjà vérifié au lot de contraste. Aucun contenu nouveau lu ni transmis.
 - Preuves : lint/TypeScript et 61 tests ciblés réussis en1,503s, diff relu/propre. Le checkpoint précédent a subi une déconnexion réseau lors du CAS : référence relue inchangée, même commit réessayé avec expected_sha, succès vérifié sans forcer ni doubler le commit.
 - Limites : VoiceOver/TalkBack et focus des contrôles imbriqués encore à vérifier. Playwright est présent mais son Chromium attendu est absent et aucun navigateur système trouvé ; aucun téléchargement lancé, donc pas de recette pixel. Les sept PNG restent absents ; aucune build/distribution.
+
+## 2026-10-20 — 17:04 Europe/Brussels — Cycle de vie des célébrations
+
+- Base : `2d5859f1158fda54b791983e233af73214443bcd`. Quatre cas rouges reproduits avec animations doublées et horloge fictive : ancienne expiration effaçant un message récent au même Date.now, délais accumulés, délai après démontage, animations sans arrêt explicite.
+- Identifiant monotone par couche au lieu de Date.now, un seul délai remplacé/nettoyé, largeur relue à chaque événement. Séquences et particules arrêtées lors de leur remplacement/démontage. Durées existantes conservées.
+- Preuves : cinq nouveaux tests, quatre rouges puis verts et contrôle de durée nominale ; 99 tests ciblés réussis en1,766s, lint/TypeScript et diff propres. Documentation React Native0.86 Animated consultée.
+- Limites : animations natives simulées, pas de mesure de fluidité/mémoire sur téléphone. Aucun service externe ni contenu réel. Suite : respect du réglage système de réduction du mouvement.
