@@ -923,3 +923,13 @@ Dix régressions reproduites puis corrigées : confirmation après départ, chan
 
 Preuves : 49 suites / 992 tests applicatifs réussis en 8,132 s ; lint/TypeScript réussis après les derniers tests. Diff relu et espacement vérifié. Aucun compte réel ni donnée réelle supprimée. Cette vérification client ne remplace pas les règles serveur et ne fournit pas de transaction conditionnelle sur la version d'un document modifié simultanément à distance. Aucun serveur/règle changé, aucun build, déploiement, distribution ni dépense. Suite : verrouillage de saisie et acquittement des notes avant rafraîchissement React.
 
+## 2026-10-20, 13:32 Europe/Brussels — Verrou de saisie et acquittement immédiat
+
+Deux régressions rouges supplémentaires : ancien bouton rejouant une note après acquittement mais avant rendu, ancienne saisie modifiant le texte pendant l'envoi. Verrou synchrone partagé par la saisie et l'envoi ; brouillon relu et mis à jour immédiatement par les événements, vidé dès confirmation courante. Un troisième test vérifie une saisie suivie d'envoi avant le rendu. Le brouillon reste intact après échec et les retours d'une ancienne session restent ignorés.
+
+Preuves finales : 49 suites / 995 tests applicatifs réussis en 7,041 s ; 47 tests mots doux/cœurs dont les nouveaux scénarios. Lint/TypeScript réussis sur ce code et ces tests ; diff relu, git diff --check propre. Cinq lots de correction préparés et contrôlés, chacun avec son checkpoint CAS expected_sha, sans force. La lecture de référence a confirmé les quatre premiers checkpoints : 89240ab, ddc7d52, bf1288b, b0b8bcc. Ce cinquième lot inclut cette entrée.
+
+Durée observée à cette entrée : environ 18 minutes depuis 13:14, pas une heure. Clôture après les cinq lots contrôlés pour rendre le point d'activité demandé par le propriétaire pendant la session ; aucune durée supplémentaire, limite de quota ou activité continue prétendue. Prochaine priorité : audit des autres actions d'accueil, puis préparation isolée de la reprise des souvenirs selon MEMORY-PROTOCOL.md, sans activation avant prérequis. Une limite reste explicite : les créations ordinaires après réponse perdue ne sont pas idempotentes, les contrôles client ne remplacent pas les règles ou transactions serveur.
+
+Aucune modification serveur/règles/configuration native/EAS ou activation payante. Pas de build native, export visuel, déploiement, distribution TestFlight ou relecture de validation Apple. Sept PNG toujours indisponibles localement ; aucun substitut créé. Aucun contenu intime réel, opération sur compte réel, message à un tiers, paiement ni dépense.
+

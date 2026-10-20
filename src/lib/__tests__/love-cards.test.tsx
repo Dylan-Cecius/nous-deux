@@ -399,3 +399,33 @@ test('un échec de suppression tardif après départ ne montre pas de dialogue',
   await act(async () => { reject(new Error('Panne fictive')); await pending; });
   expect(showDialog).not.toHaveBeenCalled();
 });
+
+test('un acquittement de mot doux empêche le rejeu avant le prochain rendu', async () => {
+  await act(async () => { root = create(<NoteCard />); });
+  await act(async () => { field().props.onChangeText('Mot fictif'); });
+  const send = field().props.onSubmitEditing;
+  await act(async () => { await send(); await send(); });
+  expect(sendLoveNote).toHaveBeenCalledTimes(1);
+});
+
+test('une ancienne saisie ne modifie pas le brouillon pendant un envoi', async () => {
+  let reject!: (error: Error) => void;
+  (sendLoveNote as jest.Mock).mockReturnValue(new Promise<void>((_, no) => { reject = no; }));
+  await act(async () => { root = create(<NoteCard />); });
+  await act(async () => { field().props.onChangeText('Mot en cours'); });
+  const change = field().props.onChangeText;
+  let pending!: Promise<void>;
+  await act(async () => { pending = field().props.onSubmitEditing(); });
+  await act(async () => { change('Modification tardive'); });
+  expect(field().props.value).toBe('Mot en cours');
+  await act(async () => { reject(new Error('Panne fictive')); await pending; });
+  expect(field().props.value).toBe('Mot en cours');
+});
+
+test('la dernière saisie est utilisée même avant le prochain rendu', async () => {
+  await act(async () => { root = create(<NoteCard />); });
+  const input = field().props;
+  await act(async () => { input.onChangeText('Texte immédiatement saisi'); await input.onSubmitEditing(); });
+  expect((sendLoveNote as jest.Mock).mock.calls[0][1]).toBe('Texte immédiatement saisi');
+  expect(field().props.value).toBe('');
+});

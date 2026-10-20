@@ -127,6 +127,7 @@ function ScopedNoteCard() {
   const partnerId = partner?.id;
   const context = useMemo(() => ({ backend, partnerId }), [backend, partnerId]);
   const latestDraft = useRef<{ context: typeof context; note: string } | null>(null);
+  const sending = useRef(false);
   useEffect(() => {
     latestDraft.current = { context, note };
     return () => { latestDraft.current = null; };
@@ -162,19 +163,22 @@ function ScopedNoteCard() {
     }));
   };
 
-
   const { run: send, pending: busy } = useAsyncAction(async () => {
-    if (!isCurrent()) return;
+    if (!isCurrent() || sending.current) return;
     const text = latestDraft.current?.note.trim() ?? '';
     if (!text || text.length > 4000) return;
+    sending.current = true;
     try {
       await sendLoveNote(session, text, 'note', isCurrent);
-      if (!isCurrent()) return;
+      if (!isCurrent() || !latestDraft.current) return;
+      latestDraft.current.note = '';
       setNote('');
       bump();
       celebrate('hearts');
     } catch {
       if (isCurrent()) showDialog('Enregistrement non confirmé', 'Ton texte est conservé. Recharge les mots doux pour vérifier si le message a été enregistré avant de réessayer.');
+    } finally {
+      sending.current = false;
     }
   });
 
@@ -205,7 +209,11 @@ function ScopedNoteCard() {
           value={note}
           maxLength={4000}
           editable={!busy}
-          onChangeText={(value) => { if (isCurrent() && !busy) setNote(value); }}
+          onChangeText={(value) => {
+            if (!isCurrent() || sending.current || !latestDraft.current) return;
+            latestDraft.current.note = value;
+            setNote(value);
+          }}
           placeholder={partner ? `Un petit mot pour ${partner.name}…` : 'Un petit mot…'}
           grow
           onSubmitEditing={send}
