@@ -187,6 +187,33 @@ test('un ancien bouton enregistre le brouillon courant et pas la saisie précéd
   expect(backend.update).toHaveBeenCalledWith('memories', memory.id, { caption: 'Brouillon courant' });
 });
 
+test.each(['caption', 'date', 'both'])('une saisie %s suivie de validation avant rendu envoie la dernière valeur', async kind => {
+  await open();
+  const change = root.root.findByProps({ label: 'Légende' }).props.onChangeText;
+  const date = root.root.findByType('date' as never).props.onChange;
+  const save = button('Enregistrer');
+  await act(async () => {
+    if (kind !== 'date') await change('  Dernière légende  ');
+    if (kind !== 'caption') await date('2021-02-03');
+    await save();
+  });
+  expect(backend.update).toHaveBeenCalledWith('memories', memory.id, {
+    ...(kind !== 'date' ? { caption: 'Dernière légende' } : {}),
+    ...(kind !== 'caption' ? { date: '2021-02-03' } : {}),
+  });
+});
+
+test('une date devenue future avant rendu ne déclenche pas de sauvegarde ni fermeture', async () => {
+  await open();
+  await changeCaption('Brouillon à préserver');
+  const change = root.root.findByType('date' as never).props.onChange;
+  const save = button('Enregistrer');
+  await act(async () => { await change('2999-01-01'); await save(); });
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(sheet()).toBeTruthy();
+  expect(root.root.findByProps({ label: 'Légende' }).props.value).toBe('Brouillon à préserver');
+});
+
 test('le dernier contenu reçu reste affiché lors d’une erreur de lecture', async () => {
   await open();
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...memory, caption: 'Actualisé', date: '2022-02-02' }] });

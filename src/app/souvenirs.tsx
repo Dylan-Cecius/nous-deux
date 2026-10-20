@@ -99,6 +99,13 @@ function MemorySheet({ memory, onClose }: { memory: Memory; onClose: () => void 
     return isCurrent() && state && !state.loading && !state.error && containsMemory(state);
   };
   const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
+  const changeDraft = (patch: Partial<Pick<typeof draft, 'caption' | 'date'>>) => run(() => {
+    const current = latest.current;
+    if (!current || !isCurrent()) return;
+    const next = { ...current.draft, ...patch };
+    current.draft = next;
+    setDraft(next);
+  });
   const runCurrent = (action: () => Promise<void>) => run(async () => {
     if (!canWrite()) return;
     try { await action(); }
@@ -124,8 +131,8 @@ function MemorySheet({ memory, onClose }: { memory: Memory; onClose: () => void 
   return (
     <Sheet visible title="Souvenir" onClose={() => run(close)}>
       {!unavailable && <Image source={{ uri: memory.photoUrl }} style={{ width: '100%', aspectRatio: 1, borderRadius: 20 }} contentFit="cover" />}
-      <Field label="Légende" value={caption} maxLength={4000} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setDraft((current) => ({ ...current, caption: value })); })} placeholder="Notre premier week-end à la mer" />
-      <DateField label="Date" value={date} disabled={pending} onChange={(value) => run(() => { if (isCurrent()) setDraft((current) => ({ ...current, date: value })); })} maximumDate={new Date()} />
+      <Field label="Légende" value={caption} maxLength={4000} editable={!pending} onChangeText={(value) => changeDraft({ caption: value })} placeholder="Notre premier week-end à la mer" />
+      <DateField label="Date" value={date} disabled={pending} onChange={(value) => changeDraft({ date: value })} maximumDate={new Date()} />
       {date > todayKey() && <T variant="small">La date du souvenir ne peut pas être dans le futur.</T>}
       {unavailable && <T variant="small" muted>Album indisponible ou souvenir retiré. Ton brouillon est conservé ; recharge l’album avant de continuer.</T>}
       {collection.error && <Button label="Recharger l’album du formulaire" variant="outline" onPress={collection.retry} />}
