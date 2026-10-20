@@ -1,3 +1,6 @@
+const { PROJECT_ID: projectId, assertEmulatorEnvironment } = require('./emulator-guard.cjs');
+const endpoints = assertEmulatorEnvironment(process.env, projectId);
+
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
@@ -10,10 +13,6 @@ const { initializeTestEnvironment, assertFails, assertSucceeds } = require('@fir
 const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, serverTimestamp, Timestamp, writeBatch, runTransaction } = require('firebase/firestore');
 const { ref, uploadBytes, getBytes } = require('firebase/storage');
 
-const projectId = 'demo-nous-deux-security';
-if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST || !process.env.FIREBASE_STORAGE_EMULATOR_HOST) {
-  throw new Error('Ces tests exigent les trois émulateurs. Aucun accès au cloud réel.');
-}
 const app = initializeApp({ projectId, storageBucket: `${projectId}.appspot.com` });
 const db = getFirestore();
 const security = require('../lib/security');
@@ -44,7 +43,7 @@ async function seed(members = ['alice', 'bob']) {
   for (const uid of members) await db.doc(`users/${uid}`).set({ coupleId: cid });
 }
 before(async () => {
-  env = await initializeTestEnvironment({ projectId, firestore: { rules: readFileSync('../firestore.rules', 'utf8') }, storage: { rules: readFileSync('../storage.rules', 'utf8') } });
+  env = await initializeTestEnvironment({ projectId, firestore: { ...endpoints.firestore, rules: readFileSync('../firestore.rules', 'utf8') }, storage: { ...endpoints.storage, rules: readFileSync('../storage.rules', 'utf8') } });
 });
 beforeEach(async () => { await env.clearFirestore(); });
 after(async () => { await env?.cleanup(); await deleteApp(app); });
