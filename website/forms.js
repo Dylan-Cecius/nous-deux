@@ -6,8 +6,22 @@ if (form) {
   const preview = document.querySelector('[data-message]');
   const emailLink = document.querySelector('[data-email-link]');
   const copy = document.querySelector('[data-copy]');
+  const invalidate = () => {
+    const hadMessage = !result.hidden;
+    result.hidden = true;
+    emailLink.hidden = true;
+    emailLink.removeAttribute('href');
+    preview.value = '';
+    if (hadMessage) status.textContent = 'Le formulaire a changé : prépare à nouveau ton message avant de le copier ou de l’envoyer.';
+  };
+  form.addEventListener('input', invalidate);
+  form.addEventListener('change', invalidate);
+  form.addEventListener('reset', invalidate);
+  // Native validation can prevent submit entirely. Capture invalid on fields too.
+  form.addEventListener('invalid', invalidate, true);
   form.addEventListener('submit', (event) => {
     event.preventDefault();
+    invalidate();
     if (!form.reportValidity()) return;
     const data = new FormData(form);
     const deleting = form.dataset.requestForm === 'deletion';
