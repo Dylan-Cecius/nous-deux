@@ -63,7 +63,7 @@ function InvitationForm() {
     setBusy('share');
     try {
       const expiresAt = new Date(invitation.expiresAt).toLocaleString('fr-FR', { timeZoneName: 'short' });
-      await Share.share({ message: `Rejoins-moi sur Nous Deux. Ton code d’invitation : ${invitation.code}. Il expire le ${expiresAt} et est utilisable une seule fois.` });
+      await Share.share({ message: `Rejoins-moi dans notre espace sur Nous Deux. Une fois l’app installée, renseigne ton prénom, touche « Continuer », puis « Rejoindre ». Ton code : ${invitation.code}. Il expire le ${expiresAt} et est utilisable une seule fois. Ce code se saisit dans Nous Deux ; l’invitation TestFlight pour installer la bêta est distincte.` });
     } catch {
       if (active.current && currentInvitation.current === invitation) showDialog('Partage impossible', 'Tu peux transmettre le code affiché à ta moitié.');
     } finally {
@@ -75,6 +75,7 @@ function InvitationForm() {
     <Card tone="soft">
       <T variant="h3">Invite ta moitié</T>
       <T>Crée un code privé à transmettre à la personne qui partagera ton espace.</T>
+      <T variant="small" muted>Nous Deux doit déjà être installée sur son téléphone. Le code se saisit dans l’app, dans « Rejoindre ».</T>
       {invitation && <>
         <T variant="h2" style={{ textAlign: 'center', letterSpacing: 3 }}>{invitation.code}</T>
         <T variant="small" muted>Expire le {new Date(invitation.expiresAt).toLocaleString('fr-FR')}. Usage unique.</T>

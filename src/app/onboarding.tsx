@@ -161,6 +161,7 @@ export default function Onboarding() {
             <T variant="h2" color={CREAM}>
               Rejoindre
             </T>
+            <T color={MUTED}>Entre le code créé par ta moitié dans Nous Deux. L’invitation TestFlight sert séparément à installer l’app.</T>
             <Field
               dark
               label="Code d’invitation"

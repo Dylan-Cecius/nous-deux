@@ -53,13 +53,15 @@ export default function Aide() {
       )}
       <Card>
         <T variant="h2">Retrouver votre espace</T>
-        <T>Dans Nous → Ton compte, ajoute un e-mail et un mot de passe. Tu pourras ensuite choisir « J’ai déjà un compte » sur un autre téléphone.</T>
-        <T muted>Sans e-mail, ton accès dépend de la session conservée sur ce téléphone. Protège-le avant de désinstaller l’app.</T>
+        <T>Dans un espace synchronisé, ouvre Nous → Ton compte et ajoute un e-mail et un mot de passe. Tu pourras ensuite choisir « J’ai déjà un compte » sur un autre téléphone.</T>
+        <T muted>Sans e-mail, l’accès à ton espace synchronisé dépend de la session conservée sur ce téléphone. Protège-le avant de désinstaller l’app.</T>
+        <T muted>En mode sans compte, il n’y a pas de connexion par e-mail : votre espace reste sur ce téléphone. Désinstaller l’app peut effacer ces données locales.</T>
       </Card>
       <Card>
         <T variant="h2">Inviter ta moitié</T>
         <T>Crée une invitation depuis l’accueil ou l’onglet Nous. Elle expire après 24 heures et ne fonctionne qu’une fois. Un nouveau code remplace le précédent.</T>
-        <T>Ta moitié choisit « Rejoindre » à l’ouverture de l’app et saisit ce code. Partage-le uniquement avec elle.</T>
+        <T>Une fois Nous Deux installée, ta moitié renseigne son prénom, touche « Continuer », puis « Rejoindre » et saisit ce code. Partage-le uniquement avec elle.</T>
+        <T muted>Ce code ouvre votre espace dans Nous Deux. L’invitation TestFlight permet d’installer la bêta et s’accepte séparément dans TestFlight.</T>
       </Card>
       <Card>
         <T variant="h2">Ce qui est partagé</T>
