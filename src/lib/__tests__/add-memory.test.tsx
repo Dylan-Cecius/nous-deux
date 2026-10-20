@@ -173,7 +173,7 @@ test('annuler le sélecteur ne fait aucune écriture', async () => {
 test('un échec courant est visible et le verrou permet de réessayer', async () => {
   backend.uploadPhoto.mockRejectedValueOnce(new Error('Envoi fictif refusé'));
   await act(async () => { await action.add(); });
-  expect(showDialog).toHaveBeenCalledWith('Photo non enregistrée', 'Envoi fictif refusé');
+  expect(showDialog).toHaveBeenCalledWith('Photo non enregistrée', expect.stringContaining('Vérifie'));
   expect(backend.add).not.toHaveBeenCalled();
   await act(async () => { await action.add(); });
   expect(backend.add).toHaveBeenCalledTimes(1);
@@ -183,7 +183,7 @@ test('un rejet de création ne prétend pas que la photo est absente et invite �
   backend.add.mockRejectedValueOnce(new Error('Réponse fictive perdue'));
   await act(async () => { await action.add(); });
   expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('Vérifie ton album'));
-  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('Réponse fictive perdue'));
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('Réponse fictive perdue');
   expect(success).not.toHaveBeenCalled();
   expect(backend.uploadPhoto).toHaveBeenCalledTimes(1);
   expect(backend.add).toHaveBeenCalledTimes(1);
@@ -212,4 +212,25 @@ test.each(['picker', 'upload', 'save'])('la reprise de lecture attend la fin du 
   await act(async () => { await action.add(); });
   expect(pickPhoto).toHaveBeenCalledTimes(2);
   expect(success).toHaveBeenCalledTimes(1);
+});
+
+test.each(['picker', 'upload', 'save'])('l’erreur %s n’affiche pas les détails privés du fournisseur', async (stage) => {
+  const error = new Error('PRIVATE_PHOTO_URL?token=secret-fictif /private/alice/photo.jpg');
+  if (stage === 'picker') (pickPhoto as jest.Mock).mockRejectedValueOnce(error);
+  else if (stage === 'upload') backend.uploadPhoto.mockRejectedValueOnce(error);
+  else backend.add.mockRejectedValueOnce(error);
+  await act(async () => { await action.add(); });
+  expect(showDialog).toHaveBeenCalledTimes(1);
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('PRIVATE_PHOTO_URL');
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('secret-fictif');
+  expect(action.busy).toBe(false);
+});
+
+test('une erreur non standard ne masque pas le retour utilisateur et libère le verrou', async () => {
+  backend.uploadPhoto.mockRejectedValueOnce({ toString() { throw new Error('Conversion impossible'); } });
+  await act(async () => { await action.add(); });
+  expect(showDialog).toHaveBeenCalledTimes(1);
+  expect(action.busy).toBe(false);
+  await act(async () => { await action.add(); });
+  expect(backend.add).toHaveBeenCalledTimes(1);
 });

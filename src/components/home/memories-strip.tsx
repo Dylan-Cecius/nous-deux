@@ -34,13 +34,14 @@ export function useAddMemory(available: boolean) {
     scope.sending = true;
     lockedBackends.current.add(backend);
     setPendingBackends((previous) => [...previous, backend]);
-    let saving = false;
+    let stage: 'selection' | 'upload' | 'save' = 'selection';
     try {
       const picked = await pickPhoto();
       if (!picked || !scope.active) return;
+      stage = 'upload';
       const photoUrl = await backend.uploadPhoto(picked.uri);
       if (!scope.active) return;
-      saving = true;
+      stage = 'save';
       await backend.add('memories', {
         photoUrl,
         caption: '',
@@ -49,12 +50,13 @@ export function useAddMemory(available: boolean) {
         createdAt: Date.now(),
       });
       if (scope.active) success();
-    } catch (e) {
+    } catch {
       if (scope.active) {
-        const detail = e instanceof Error ? e.message : String(e);
-        showDialog(saving ? 'Enregistrement non confirmé' : 'Photo non enregistrée', saving
-          ? `Vérifie ton album après son actualisation avant de réessayer : la photo peut déjà avoir été enregistrée.\n\n${detail}`
-          : detail);
+        showDialog(stage === 'save' ? 'Enregistrement non confirmé' : 'Photo non enregistrée', stage === 'save'
+          ? 'Vérifie ton album après son actualisation avant de réessayer : la photo peut déjà avoir été enregistrée.'
+          : stage === 'selection'
+            ? 'Impossible de préparer cette photo. Vérifie son accès ou choisis une autre image.'
+            : 'Impossible de préparer la photo pour l’album. Vérifie l’accès à la photo et ta connexion avant de réessayer.');
       }
     } finally {
       scope.sending = false;

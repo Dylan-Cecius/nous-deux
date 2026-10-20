@@ -943,3 +943,9 @@ Contrôle de sécurité tenté via npm run test:security : compilation functions
 
 Suite : améliorer les messages des étapes photo sans exposer d'erreurs techniques brutes ; durcir les préconditions locales du banc de sécurité, puis poursuivre les tâches prêtes sans cloud réel. Aucun build, déploiement, service payant ni dépense.
 
+## 2026-10-20, 14:34 Europe/Brussels — Erreurs photo compréhensibles et sans détails privés
+
+Quatre régressions rouges reproduites : erreurs de sélection/upload/enregistrement pouvant afficher une URL privée ou un jeton contenu dans le message du fournisseur ; erreur non standard dont la conversion en texte provoquait un second échec sans dialogue. Messages fixes par étape, sans interpolation de l'erreur. Le résultat ambigu après création reste explicitement non confirmé et invite à vérifier l'album ; les erreurs de préparation donnent une action utile. Aucun fichier envoyé ou supprimé automatiquement.
+
+Preuves : 24 tests ciblés réussis en 1,054 s, lint/TypeScript réussis, diff relu et git diff --check propre. Dernière suite complète de ce cycle : 998 tests avant ce second lot ; les quatre nouveaux tests ciblés sont vérifiés séparément. Sécurité sur émulateurs toujours bloquée comme documenté à 14:32. Le propriétaire demande un aperçu visuel pendant le cycle : préparation d'une démonstration isolée des états, avec données fictives et sans prétendre montrer une build native. Prochain travail de développement : garde stricte localhost du banc de tests, puis parcours d'accueil restant ; pas d'activation du protocole souvenir.
+
