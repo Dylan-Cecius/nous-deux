@@ -98,6 +98,17 @@ Recette préparée uniquement : **aucun des essais ci-dessous n’a été exécu
 
 Les essais de création d’invitation nécessitent aussi les prérequis serveur, l’environnement autorisé et la preuve d’absence de coût supplémentaire. En leur absence, garder ces lignes non exécutées ; ne pas utiliser des comptes réels ni contourner le blocage des émulateurs de sécurité. Une recette réussie ne constitue pas une approbation Apple.
 
+## Recette complémentaire : cadrage, dates et démarrage (20 octobre)
+
+Préparée seulement. Les tests React ci-dessous utilisent des sources fictives et des modules natifs doublés ; aucun essai sur appareil n’est coché. Utiliser des photos de démonstration non privées et un environnement autorisé ; conserver les prérequis de coût, de ressources et de serveur avant toute build ou distribution.
+
+| Parcours | Manipulation prévue | Résultat attendu et limite |
+| --- | --- | --- |
+| Source et chargement photo | Passer d’un paysage à un portrait puis revenir au paysage ; observer l’éditeur et les photos affichées pendant un chargement lent. | Aucun ancien ratio appliqué à la nouvelle source. Commandes de cadrage indisponibles avant mesure valide, puis zoom calculé depuis le ratio courant. Vérifier le rendu réel et la réapparition des commandes ; Jest ne prouve pas les événements Image natifs. |
+| Fin du glissement | Déplacer une photo, relâcher puis reprendre ; interrompre un déplacement par fermeture de l’éditeur, changement de photo ou indisponibilité. | Un nouveau glissement part du cadrage courant ; un événement de l’ancien geste ne le remplace pas. Vérifier aussi une interruption système. Aucun enregistrement ou upload déjà engagé n’est annulé par cette protection. |
+| Date maximale | Sur web, saisir une date future dans la rencontre ou un souvenir, sortir du champ puis saisir aujourd’hui. Sur appareil, vérifier la borne du calendrier. | La date future n’est pas transmise comme valeur acceptée ; le brouillon web revient à la valeur contrôlée à la sortie. La journée limite est acceptée entière. Les tests de callbacks iOS/Android ne remplacent pas l’ouverture du calendrier natif. |
+| Démarrage et reprise | Vérifier le démarrage normal, le chargement lent des polices/session et une restauration refusée sur environnement de test. | La navigation n’apparaît qu’une fois prête ; la reprise de connexion reste accessible. Un rejet du module SplashScreen est traité avec un diagnostic générique, mais son masquage natif ne peut pas être garanti en cas d’échec. Le rendu du splash nécessite une build release autorisée, distincte de ces tests. |
+
 ## Nettoyage technique : cible et déploiement
 
 `functions/src/retention.ts` prévoit un passage quotidien et au plus 500 documents par collection et par passage :
