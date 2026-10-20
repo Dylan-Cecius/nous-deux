@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { ComponentProps, ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ComponentProps, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   ActivityIndicator,
@@ -259,6 +259,18 @@ export function ProgressBar({ value, color, track, height = 6 }: { value: number
 
 // --- Contrôles ----------------------------------------------------------------
 
+// A queued event must respect both the state in which it was captured and the
+// current committed state. Disabling then enabling does not revive old events.
+function useEnabledControl(disabled: boolean) {
+  const context = useMemo(() => ({ disabled }), [disabled]);
+  const current = useRef<typeof context | null>(null);
+  useEffect(() => {
+    current.current = context;
+    return () => { current.current = null; };
+  }, [context]);
+  return () => !disabled && current.current === context;
+}
+
 export function Button({
   label,
   onPress,
@@ -278,7 +290,8 @@ export function Button({
   style?: StyleProp<ViewStyle>;
 }) {
   const t = useTheme();
-  const { run, pending } = useAsyncAction(onPress);
+  const canPress = useEnabledControl(!!disabled);
+  const { run, pending } = useAsyncAction(() => { if (canPress()) return onPress(); });
   const unavailable = disabled || pending;
   const bg = {
     primary: t.primary,
@@ -344,7 +357,8 @@ export function IconButton({
   disabled?: boolean;
 }) {
   const t = useTheme();
-  const { run, pending } = useAsyncAction(() => { if (!disabled) return onPress(); });
+  const canPress = useEnabledControl(disabled);
+  const { run, pending } = useAsyncAction(() => { if (canPress()) return onPress(); });
   const unavailable = disabled || pending;
   const bg = { outline: t.card, primary: t.primary, accent: t.featureAccent }[variant];
   const fg = { outline: t.primary, primary: t.onPrimary, accent: t.feature }[variant];
@@ -457,6 +471,7 @@ export function Chips<V extends string>({
   disabled?: boolean;
 }) {
   const t = useTheme();
+  const canPress = useEnabledControl(disabled);
   return (
     <View style={{ gap: 8 }}>
       {label ? <T variant="caption" muted>{label}</T> : null}
@@ -472,7 +487,7 @@ export function Chips<V extends string>({
               disabled={disabled}
               accessibilityState={{ checked: active, disabled }}
               onPress={() => {
-                if (disabled) return;
+                if (!canPress()) return;
                 tap();
                 onChange(o.value);
               }}
@@ -506,7 +521,8 @@ export function ColorPicker({
   disabled?: boolean;
 }) {
   const t = useTheme();
-  const { run, pending } = useAsyncAction((color: string) => { if (!disabled) return onChange(color); });
+  const canPress = useEnabledControl(disabled);
+  const { run, pending } = useAsyncAction((color: string) => { if (canPress()) return onChange(color); });
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
       {colors.map((c) => (

@@ -1,6 +1,6 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Pressable } from 'react-native';
-import { Card, Chips, ColorPicker, IconButton, SectionTitle, Segmented } from '@/components/ui';
+import { Button, Card, Chips, ColorPicker, IconButton, SectionTitle, Segmented } from '@/components/ui';
 import { tap } from '../haptics';
 
 jest.mock('@expo/vector-icons/Ionicons', () => 'icon');
@@ -17,6 +17,65 @@ jest.mock('react-native', () => Object.create(jest.requireActual('react-native')
 let root: ReactTestRenderer;
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
 const options = [{ value: 'alice', label: 'Alice' }, { value: 'bob', label: 'Bob' }];
+
+const control = (kind: string, disabled: boolean, action: jest.Mock) => {
+  if (kind === 'button') return <Button label="Valider" disabled={disabled} onPress={action} />;
+  if (kind === 'icon') return <IconButton label="Valider" icon="checkmark" disabled={disabled} onPress={action} />;
+  if (kind === 'color') return <ColorPicker colors={['#111111']} value="#111111" disabled={disabled} onChange={action} />;
+  return <Chips options={[options[0]]} value="alice" disabled={disabled} onChange={action} />;
+};
+
+describe.each(['button', 'icon', 'color', 'chips'])('contrôle %s désactivé', (kind) => {
+  test('refuse aussi une invocation directe de son gestionnaire', async () => {
+    const action = jest.fn();
+    await act(async () => { root = create(control(kind, true, action)); });
+    await act(async () => { await root.root.findByType(Pressable).props.onPress(); });
+    expect(action).not.toHaveBeenCalled();
+    expect(tap).not.toHaveBeenCalled();
+  });
+
+  test('un ancien appui actif ne passe pas après désactivation', async () => {
+    const action = jest.fn();
+    await act(async () => { root = create(control(kind, false, action)); });
+    const oldPress = root.root.findByType(Pressable).props.onPress;
+    await act(async () => root.update(control(kind, true, action)));
+    await act(async () => { await oldPress(); });
+    expect(action).not.toHaveBeenCalled();
+    expect(tap).not.toHaveBeenCalled();
+    await act(async () => root.update(control(kind, false, action)));
+    await act(async () => { await root.root.findByType(Pressable).props.onPress(); });
+    expect(action).toHaveBeenCalledTimes(1);
+  });
+
+  test('un gestionnaire capturé désactivé ne devient pas une nouvelle intention', async () => {
+    const action = jest.fn();
+    await act(async () => { root = create(control(kind, true, action)); });
+    const oldPress = root.root.findByType(Pressable).props.onPress;
+    await act(async () => root.update(control(kind, false, action)));
+    await act(async () => { await oldPress(); });
+    expect(action).not.toHaveBeenCalled();
+  });
+
+  test('une désactivation temporaire invalide définitivement les anciens appuis', async () => {
+    const action = jest.fn();
+    await act(async () => { root = create(control(kind, false, action)); });
+    const oldPress = root.root.findByType(Pressable).props.onPress;
+    await act(async () => root.update(control(kind, true, action)));
+    await act(async () => root.update(control(kind, false, action)));
+    await act(async () => { await oldPress(); });
+    expect(action).not.toHaveBeenCalled();
+  });
+
+  test('un appui retenu après démontage reste inactif', async () => {
+    const action = jest.fn();
+    await act(async () => { root = create(control(kind, false, action)); });
+    const oldPress = root.root.findByType(Pressable).props.onPress;
+    await act(async () => root.unmount());
+    await act(async () => { await oldPress(); });
+    expect(action).not.toHaveBeenCalled();
+    expect(tap).not.toHaveBeenCalled();
+  });
+});
 
 test('une carte action explicitement nommée annonce son rôle sans changer les cartes composites', async () => {
   const onPress = jest.fn();
