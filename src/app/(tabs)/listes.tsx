@@ -70,6 +70,12 @@ const COPY: Record<Tab, { overline: string; empty: [IconName, string, string]; t
   },
 };
 
+const LOCAL_GIFTS_COPY: typeof COPY.gifts = {
+  ...COPY.gifts,
+  overline: 'Sur ce téléphone',
+  empty: ['gift-outline', 'Idées cadeaux', 'Note tes idées ici. En mode sans compte, elles restent sur ce téléphone et peuvent être consultées par la personne qui l’utilise.'],
+};
+
 export default function Listes() {
   const { backend } = useSession();
   return <ListesContent key={`${backend.mode}:${backend.coupleId}:${backend.userId}`} />;
@@ -113,7 +119,7 @@ function ListesContent() {
   const sorted = [...entries].sort((a, b) => b.createdAt - a.createdAt);
   const todo = sorted.filter((i) => !i.done);
   const done = sorted.filter((i) => i.done);
-  const copy = COPY[tab];
+  const copy = tab === 'gifts' && backend.mode === 'local' ? LOCAL_GIFTS_COPY : COPY[tab];
 
   const toggle = (item: Entry) => runCurrent(async () => {
     const current = currentEntry(item.id);
@@ -255,9 +261,11 @@ function ListesContent() {
 
         {tab === 'gifts' && (
           <Row style={{ gap: 8 }}>
-            <Ionicons name="lock-closed-outline" size={16} color={t.textSecondary} />
+            <Ionicons name={backend.mode === 'local' ? 'gift-outline' : 'lock-closed-outline'} size={16} color={t.textSecondary} />
             <T variant="small" muted style={{ flex: 1 }}>
-              Liste privée : {partner?.name ?? 'ta moitié'} ne la voit pas.
+              {backend.mode === 'local'
+                ? 'Mode sans compte : les idées cadeaux ne sont pas protégées de la personne qui utilise ce téléphone.'
+                : `Liste privée : ${partner?.name ?? 'ta moitié'} ne la voit pas depuis son compte.`}
             </T>
           </Row>
         )}

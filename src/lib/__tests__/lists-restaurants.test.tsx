@@ -31,6 +31,24 @@ afterEach(async () => { if (root) await act(async () => root.unmount()); jest.cl
 const text = () => JSON.stringify(root.toJSON());
 const switchTab = async (value: string) => { await act(async () => { root.root.findByType('segmented' as never).props.onChange(value); }); };
 
+test.each([false, true])('les cadeaux locaux expliquent l’accès sur le même téléphone (liste remplie : %s)', async populated => {
+  (useSession as jest.Mock).mockReturnValue({ backend: { ...backend, mode: 'local' }, partner: { name: 'Bob' }, colorOf: () => '#000' });
+  if (populated) (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ id: 'gift', title: 'Idée fictive', createdBy: 'alice', done: false, createdAt: 1 }] });
+  await act(async () => { root = create(<Listes />); });
+  await switchTab('gifts');
+  expect(text()).toContain('ne sont pas protégées');
+  expect(text()).not.toContain('ne la voit pas');
+  expect(text()).not.toContain('secrètes');
+  expect(text()).not.toContain('ne verra jamais');
+});
+
+test('les cadeaux synchronisés conservent leur explication de liste privée', async () => {
+  await act(async () => { root = create(<Listes />); });
+  await switchTab('gifts');
+  expect(text()).toContain('Liste privée');
+  expect(text()).not.toContain('ne sont pas protégées');
+});
+
 test('vider le panier utilise une seule opération, sans suppressions individuelles partielles', async () => {
   const item = { list: 'shopping', title: 'Article fictif', createdBy: 'alice', done: true, createdAt: 1 };
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, id: 'one' }, { ...item, id: 'two' }] });
