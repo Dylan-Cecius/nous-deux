@@ -36,6 +36,12 @@ afterEach(async () => { if (root) await act(async () => root.unmount()); jest.cl
 const text = () => root.root.findAllByType('t' as never).map((node) => node.children.filter((child) => typeof child === 'string').join('')).join('\n');
 const field = () => root.root.findByType('field' as never);
 
+test('le champ de mot doux a un nom stable distinct du message et du placeholder', async () => {
+  await act(async () => { root = create(<NoteCard />); });
+  await act(async () => field().props.onChangeText('Texte privé fictif'));
+  expect(field().props.accessibilityLabel).toBe('Ton mot doux');
+});
+
 test.each(['loading', 'error'])('les mots doux en %s n’annoncent pas un historique vide', async (status) => {
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, [status]: true });
   await act(async () => { root = create(<NoteCard />); });

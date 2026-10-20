@@ -206,6 +206,7 @@ function ScopedNoteCard() {
       )}
       <Row>
         <Field
+          accessibilityLabel="Ton mot doux"
           value={note}
           maxLength={4000}
           editable={!busy}

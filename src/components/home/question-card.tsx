@@ -151,7 +151,7 @@ function AnswerField({ member, isMe, text, onChangeText, onSubmit, busy, recorde
         </T>
       </Row>
       <Row>
-        <Field value={text} onChangeText={onChangeText} placeholder="Écris ta réponse…" grow maxLength={4000} editable={!busy && !recorded} onSubmitEditing={onSubmit} />
+        <Field accessibilityLabel={isMe ? 'Ta réponse à la question du jour' : `Réponse de ${member.name} à la question du jour`} value={text} onChangeText={onChangeText} placeholder="Écris ta réponse…" grow maxLength={4000} editable={!busy && !recorded} onSubmitEditing={onSubmit} />
         <IconButton icon="checkmark" label="Valider la réponse" variant="primary" onPress={onSubmit} disabled={busy || recorded || !text.trim()} size={50} />
       </Row>
       {recorded && <T variant="small" muted>Réponse enregistrée. Actualisation en cours…</T>}

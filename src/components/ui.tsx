@@ -395,6 +395,7 @@ export function Field({
   ...props
 }: TextInputProps & { label?: string; grow?: boolean; /** Pour un fond sombre (écran de bienvenue). */ dark?: boolean }) {
   const t = useTheme();
+  const editable = props.readOnly !== undefined ? !props.readOnly : props.editable !== false;
   const colors = dark
     ? { bg: 'rgba(0,0,0,0.28)', fg: '#FBF6F1', border: 'rgba(255,255,255,0.16)', placeholder: 'rgba(251,246,241,0.45)', label: 'rgba(251,246,241,0.7)' }
     : { bg: t.card, fg: t.text, border: t.border, placeholder: t.textSecondary, label: t.textSecondary };
@@ -406,9 +407,10 @@ export function Field({
         </T>
       ) : null}
       <TextInput
-        accessibilityLabel={label}
         placeholderTextColor={colors.placeholder}
         {...props}
+        accessibilityLabel={props.accessibilityLabel ?? label ?? props.placeholder}
+        accessibilityState={{ ...props.accessibilityState, disabled: props.accessibilityState?.disabled ?? !editable }}
         style={[
           styles.input,
           { backgroundColor: colors.bg, color: colors.fg, borderColor: colors.border, fontFamily: Fonts.body },

@@ -43,6 +43,14 @@ const refresh = async () => { await act(async () => root.update(<QuestionCard />
 const fill = async () => { await mount(); await act(async () => fields()[0].props.onChangeText(' Réponse fictive ')); };
 const submit = () => root.root.findByProps({ label: 'Valider la réponse' }).props.onPress;
 
+test('les réponses locales ont des noms accessibles distincts sans reprendre le texte saisi', async () => {
+  (useSession as jest.Mock).mockReturnValue({ backend: { ...backend, mode: 'local' }, members, me: members[0] });
+  await mount();
+  expect(fields().map(field => field.props.accessibilityLabel)).toEqual(['Ta réponse à la question du jour', 'Réponse de Bob à la question du jour']);
+  await act(async () => fields()[0].props.onChangeText('Texte privé fictif'));
+  expect(fields()[0].props.accessibilityLabel).toBe('Ta réponse à la question du jour');
+});
+
 test('clavier et bouton simultanés partagent un seul envoi', async () => {
   await fill();
   const save = submit();

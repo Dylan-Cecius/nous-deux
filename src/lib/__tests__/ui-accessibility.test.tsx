@@ -1,6 +1,6 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Pressable } from 'react-native';
-import { Button, Card, Chips, ColorPicker, IconButton, SectionTitle, Segmented } from '@/components/ui';
+import { Pressable, TextInput } from 'react-native';
+import { Button, Card, Chips, ColorPicker, Field, IconButton, SectionTitle, Segmented } from '@/components/ui';
 import { tap } from '../haptics';
 
 jest.mock('@expo/vector-icons/Ionicons', () => 'icon');
@@ -12,11 +12,43 @@ jest.mock('@/constants/theme', () => ({ useTheme: () => ({}), Fonts: {}, Spacing
 jest.mock('../haptics', () => ({ tap: jest.fn() }));
 jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), {
   Pressable: { value: 'pressable' },
+  TextInput: { value: 'text-input' },
 }));
 
 let root: ReactTestRenderer;
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
 const options = [{ value: 'alice', label: 'Alice' }, { value: 'bob', label: 'Bob' }];
+
+test('un champ sans titre garde son nom accessible après saisie', async () => {
+  await act(async () => { root = create(<Field placeholder="Ton message" value="texte fictif" />); });
+  expect(root.root.findByType(TextInput).props.accessibilityLabel).toBe('Ton message');
+  expect(root.root.findByType(TextInput).props.accessibilityLabel).not.toContain('fictif');
+});
+
+test('le titre visible et le nom explicite gardent priorité sur le placeholder', async () => {
+  await act(async () => { root = create(<Field label="Prénom" placeholder="Exemple" />); });
+  expect(root.root.findByType(TextInput).props.accessibilityLabel).toBe('Prénom');
+  await act(async () => root.update(<Field label="Prénom" placeholder="Exemple" accessibilityLabel="Prénom du partenaire" />));
+  expect(root.root.findByType(TextInput).props.accessibilityLabel).toBe('Prénom du partenaire');
+});
+
+test.each([
+  [{ editable: false }, true],
+  [{ readOnly: true }, true],
+  [{ editable: false, readOnly: false }, false],
+  [{}, false],
+] as const)('un champ annonce son état réellement modifiable (%p)', async (props, disabled) => {
+  await act(async () => { root = create(<Field label="Légende" {...props} accessibilityState={{ busy: true }} />); });
+  expect(root.root.findByType(TextInput).props.accessibilityState).toEqual({ busy: true, disabled });
+});
+
+test('les indications explicites du lecteur restent transmises', async () => {
+  await act(async () => { root = create(<Field label="Note" accessibilityState={{ disabled: true, expanded: true }} accessibilityHint="Indication fictive" aria-label="Nom explicite web" />); });
+  const input = root.root.findByType(TextInput);
+  expect(input.props.accessibilityState).toEqual({ disabled: true, expanded: true });
+  expect(input.props.accessibilityHint).toBe('Indication fictive');
+  expect(input.props['aria-label']).toBe('Nom explicite web');
+});
 
 const control = (kind: string, disabled: boolean, action: jest.Mock) => {
   if (kind === 'button') return <Button label="Valider" disabled={disabled} onPress={action} />;
