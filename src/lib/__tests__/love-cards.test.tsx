@@ -4,6 +4,7 @@ import { useCollectionState, useSession } from '../couple-context';
 import { sendLoveNote } from '../assistant';
 import { confirmDelete } from '@/components/ui';
 import { showDialog } from '@/components/dialog';
+import { AppState } from 'react-native';
 
 jest.mock('../couple-context', () => {
   const state = jest.fn();
@@ -35,6 +36,28 @@ beforeEach(() => {
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
 const text = () => root.root.findAllByType('t' as never).map((node) => node.children.filter((child) => typeof child === 'string').join('')).join('\n');
 const field = () => root.root.findByType('field' as never);
+
+test.each(['note', 'ping'])('la date relative du %s se renouvelle à minuit sans événement de collection', async (kind) => {
+  jest.useFakeTimers();
+  const state = AppState.currentState;
+  AppState.currentState = 'active';
+  jest.setSystemTime(new Date(2026, 9, 20, 23, 59, 50));
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...note, kind, createdAt: new Date(2026, 9, 20, 23).getTime() }] });
+  try {
+    await act(async () => { root = create(kind === 'note' ? <NoteCard /> : <PingCard />); });
+    if (kind === 'note') await act(async () => field().props.onChangeText('Brouillon de minuit'));
+    expect(text()).toContain('aujourd’hui à 23:00');
+    await act(async () => { jest.advanceTimersByTime(10_050); });
+    expect(text()).toContain('hier');
+    expect(text()).not.toContain('aujourd’hui');
+    if (kind === 'note') expect(field().props.value).toBe('Brouillon de minuit');
+    expect(sendLoveNote).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => root?.unmount());
+    AppState.currentState = state;
+    jest.useRealTimers();
+  }
+});
 
 test('le champ de mot doux a un nom stable distinct du message et du placeholder', async () => {
   await act(async () => { root = create(<NoteCard />); });

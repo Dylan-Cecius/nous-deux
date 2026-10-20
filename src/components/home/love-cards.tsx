@@ -11,6 +11,7 @@ import { formatRelative, quote } from '@/lib/dates';
 import { bump, success } from '@/lib/haptics';
 import { useAsyncAction } from '@/lib/use-async-action';
 import { useReducedMotion } from '@/lib/use-reduced-motion';
+import { useToday } from '@/lib/use-today';
 
 /** Bouton « Je pense à toi » : un appui envoie un cœur et une notification à ta moitié. */
 export function PingCard() {
@@ -20,6 +21,7 @@ export function PingCard() {
 
 function ScopedPingCard() {
   const t = useTheme();
+  const today = useToday();
   const reducedMotion = useReducedMotion();
   const session = useSession();
   const { backend, partner } = session;
@@ -103,7 +105,7 @@ function ScopedPingCard() {
           <T variant="h3">{sent ? backend.mode === 'local' ? 'Cœur enregistré !' : 'Cœur envoyé !' : 'Je pense à toi'}</T>
           <T variant="small" muted>
             {waitingForPartner ? 'Invite ta moitié pour lui envoyer un petit cœur.' : notes.loading ? 'Chargement des cœurs reçus…' : notes.error ? 'Historique des cœurs indisponible' : backend.mode === 'local' ? 'Un petit cœur conservé sur ce téléphone.' : lastReceived && partner
-              ? `${partner.name} a pensé à toi ${formatRelative(lastReceived.createdAt)}`
+              ? `${partner.name} a pensé à toi ${formatRelative(lastReceived.createdAt, today)}`
               : `Un appui, et ${partner?.name ?? 'ta moitié'} reçoit un petit cœur`}
           </T>
         </View>
@@ -122,6 +124,7 @@ export function NoteCard() {
 
 function ScopedNoteCard() {
   const t = useTheme();
+  const today = useToday();
   const session = useSession();
   const { backend, partner, nameOf, colorOf } = session;
   const notes = useCollectionState('notes');
@@ -193,7 +196,7 @@ function ScopedNoteCard() {
         </T>
         {latest && (
           <T variant="small" muted>
-            {nameOf(latest.from)} · {formatRelative(latest.createdAt)}
+            {nameOf(latest.from)} · {formatRelative(latest.createdAt, today)}
           </T>
         )}
       </Row>
@@ -246,7 +249,7 @@ function ScopedNoteCard() {
               <View style={{ flex: 1 }}>
                 <T>{n.text}</T>
                 <T variant="small" muted>
-                  {nameOf(n.from)} · {formatRelative(n.createdAt)}
+                  {nameOf(n.from)} · {formatRelative(n.createdAt, today)}
                 </T>
               </View>
             </Row>

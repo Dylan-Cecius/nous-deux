@@ -2,6 +2,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { router } from 'expo-router';
 import Depenses from '@/app/depenses';
 import { useCollectionState } from '../couple-context';
+import { AppState } from 'react-native';
 
 jest.mock('../couple-context', () => ({
   useCollection: jest.fn(() => []),
@@ -20,6 +21,28 @@ jest.mock('@/components/ui', () => {
 
 let root: ReactTestRenderer;
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
+
+test('la date de dépense devient hier à minuit en conservant le formulaire ouvert', async () => {
+  jest.useFakeTimers();
+  const state = AppState.currentState;
+  AppState.currentState = 'active';
+  jest.setSystemTime(new Date(2026, 9, 20, 23, 59, 50));
+  (useCollectionState as jest.Mock).mockReturnValue({ items: [{ id: 'test', title: 'Courses fictives', amount: 40, paidBy: 'alice', kind: 'expense', createdAt: new Date(2026, 9, 20, 23).getTime() }], loading: false, error: false, retry: jest.fn() });
+  try {
+    await act(async () => { root = create(<Depenses />); });
+    await act(async () => root.root.findByProps({ label: 'Ajouter une dépense' }).props.onPress());
+    await act(async () => root.root.findByProps({ label: 'Quoi ?' }).props.onChangeText('Brouillon de minuit'));
+    expect(JSON.stringify(root.toJSON())).toContain('aujourd’hui à 23:00');
+    await act(async () => { jest.advanceTimersByTime(10_050); });
+    expect(JSON.stringify(root.toJSON())).toContain('hier');
+    expect(JSON.stringify(root.toJSON())).not.toContain('aujourd’hui');
+    expect(root.root.findByProps({ label: 'Quoi ?' }).props.value).toBe('Brouillon de minuit');
+  } finally {
+    await act(async () => root?.unmount());
+    AppState.currentState = state;
+    jest.useRealTimers();
+  }
+});
 
 test.each([true, false])('retour des dépenses avec historique : %s', async (hasHistory) => {
   (router.canGoBack as jest.Mock).mockReturnValue(hasHistory);

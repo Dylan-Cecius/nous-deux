@@ -11,6 +11,7 @@ import type { Backend } from '@/lib/backend';
 import type { Expense } from '@/lib/types';
 import { balanceFor, parseExpenseAmount } from '@/lib/expenses';
 import { useAsyncAction } from '@/lib/use-async-action';
+import { useToday } from '@/lib/use-today';
 
 const euros = (n: number) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }).replace(/ /g, ' ');
 
@@ -39,6 +40,7 @@ export default function Depenses() {
 
 function DepensesContent() {
   const t = useTheme();
+  const today = useToday();
   const { backend, me, partner, nameOf, colorOf } = useSession();
   const { items: expenses, loading, error, retry } = useCollectionState('expenses');
   const ready = !loading && !error;
@@ -153,7 +155,7 @@ function DepensesContent() {
                         <Dot size={7} color={colorOf(e.paidBy)} />
                         <T variant="small" muted>
                           {e.kind === 'settle' ? `${nameOf(e.paidBy)} a remboursé` : `Payé par ${nameOf(e.paidBy)}`} ·{' '}
-                          {formatRelative(e.createdAt)}
+                          {formatRelative(e.createdAt, today)}
                         </T>
                       </Row>
                     </View>

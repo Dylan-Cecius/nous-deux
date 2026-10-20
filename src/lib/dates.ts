@@ -60,9 +60,9 @@ export function quote(text: string): string {
 }
 
 /** « aujourd'hui à 8:15 », « hier », « 3 oct. ». */
-export function formatRelative(timestamp: number): string {
+export function formatRelative(timestamp: number, today = todayKey()): string {
   const d = new Date(timestamp);
-  const diff = daysBetween(toKey(d), todayKey());
+  const diff = daysBetween(toKey(d), today);
   if (diff === 0) return `aujourd’hui à ${d.getHours()}:${pad(d.getMinutes())}`;
   if (diff === 1) return 'hier';
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
