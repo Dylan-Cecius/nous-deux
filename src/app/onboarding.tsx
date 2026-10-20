@@ -8,11 +8,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, ColorPicker, Field, T } from '@/components/ui';
 import { SignInForm } from '@/components/account';
 import { Fonts, MemberColors } from '@/constants/theme';
-import { createCloudCouple, createLocalCouple, joinCloudCouple } from '@/lib/backend';
 import { useCouple } from '@/lib/couple-context';
 import { isFirebaseConfigured } from '@/lib/firebase';
 import { useFloatingHeartMotion } from '@/lib/use-floating-heart-motion';
-import { useOnboardingAction } from '@/lib/use-onboarding-action';
+import { useOnboardingForm } from '@/lib/use-onboarding-form';
 
 type Step = 'profile' | 'choice' | 'join' | 'local' | 'signin';
 
@@ -72,13 +71,8 @@ export default function Onboarding() {
   const insets = useSafeAreaInsets();
   const { setBackend } = useCouple();
   const [step, setStep] = useState<Step>('profile');
-  const [name, setName] = useState('');
-  const [color, setColor] = useState(MemberColors[0]);
-  const [code, setCode] = useState('');
-  const [partnerName, setPartnerName] = useState('');
-  const { run, busy, interact } = useOnboardingAction(setBackend);
-
-  const me = { name: name.trim(), color };
+  const form = useOnboardingForm(setBackend);
+  const { name, color, code, partnerName, busy, interact } = form;
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -103,18 +97,18 @@ export default function Onboarding() {
             <T variant="h2" color={CREAM}>
               Faisons connaissance
             </T>
-            <Field dark label="Ton prénom" value={name} maxLength={60} editable={!busy} onChangeText={(value) => interact(() => setName(value))} placeholder="Ex. Camille" autoComplete="given-name" />
+            <Field dark label="Ton prénom" value={name} maxLength={60} editable={!busy} onChangeText={form.changeName} placeholder="Ex. Camille" autoComplete="given-name" />
             <View style={{ gap: 8 }}>
               <T variant="caption" color={MUTED}>
                 Ta couleur dans l’agenda
               </T>
-              <ColorPicker colors={MemberColors} value={color} disabled={busy} onChange={(value) => interact(() => setColor(value))} ringColor={CREAM} />
+              <ColorPicker colors={MemberColors} value={color} disabled={busy} onChange={form.changeColor} ringColor={CREAM} />
             </View>
             <Button
               label="Continuer"
               variant="sunset"
-              disabled={busy || !me.name}
-              onPress={() => interact(() => setStep(isFirebaseConfigured ? 'choice' : 'local'))}
+              disabled={busy || !name.trim()}
+              onPress={() => form.continueProfile(() => setStep(isFirebaseConfigured ? 'choice' : 'local'))}
             />
           </GlassCard>
         )}
@@ -147,7 +141,7 @@ export default function Onboarding() {
                 variant="sunset"
                 icon="sparkles-outline"
                 disabled={busy}
-                onPress={() => run(() => createCloudCouple(me))}
+                onPress={form.createCloud}
               />
             </GlassCard>
             <GlassCard>
@@ -173,7 +167,7 @@ export default function Onboarding() {
               label="Code d’invitation"
               value={code}
               editable={!busy}
-              onChangeText={(v) => interact(() => setCode(v.toUpperCase()))}
+              onChangeText={form.changeCode}
               placeholder="ABCD234567"
               autoCapitalize="characters"
               autoCorrect={false}
@@ -184,7 +178,7 @@ export default function Onboarding() {
               label="Rejoindre"
               variant="sunset"
               disabled={busy || code.replace(/\s|-/g, '').length !== 10}
-              onPress={() => run(() => joinCloudCouple(code, me))}
+              onPress={form.join}
             />
             <Button label="Retour" variant="glass" disabled={busy} onPress={() => interact(() => setStep('choice'))} />
           </GlassCard>
@@ -200,19 +194,12 @@ export default function Onboarding() {
                 ? 'Les données resteront sur ce téléphone, sans synchronisation.'
                 : 'La synchronisation entre vos deux téléphones n’est pas encore activée : pour l’instant, tout reste sur ce téléphone.'}
             </T>
-            <Field dark label="Son prénom" value={partnerName} maxLength={60} editable={!busy} onChangeText={(value) => interact(() => setPartnerName(value))} placeholder="Ex. Alex" />
+            <Field dark label="Son prénom" value={partnerName} maxLength={60} editable={!busy} onChangeText={form.changePartnerName} placeholder="Ex. Alex" />
             <Button
               label="C’est parti"
               variant="sunset"
               disabled={busy || !partnerName.trim()}
-              onPress={() =>
-                run(() =>
-                  createLocalCouple(me, {
-                    name: partnerName.trim(),
-                    color: MemberColors.find((c) => c !== color) ?? MemberColors[1],
-                  }),
-                )
-              }
+              onPress={form.createLocal}
             />
             {isFirebaseConfigured && <Button label="Retour" variant="glass" disabled={busy} onPress={() => interact(() => setStep('choice'))} />}
           </GlassCard>
