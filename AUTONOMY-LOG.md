@@ -1389,3 +1389,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Connexion et demande de réinitialisation lisent les coordonnées courantes ; saisie et navigation partagent le verrou. Retour invalide immédiatement le formulaire, la référence transitoire est relâchée à la fermeture/démontage. Champs désactivés pendant la demande, repris après échec.
 - Preuves : 21 tests connexion réussis en 0,847 s ; lint/TypeScript/diff check réussis, diff relu. Les doublures vérifient les coordonnées fictives transmises et l’absence d’appel après sortie. Revue React : nettoyages symétriques, état local uniquement, aucune persistance/trace des mots de passe ajoutée.
 - Limites : aucun compte réel, aucun e-mail envoyé, aucune authentification distante ni validation sécurité serveur exécutée. Une demande déjà envoyée ne peut pas être annulée par ce garde. SecureSheet et suppression inchangés dans ce lot.
+
+## 2026-10-20 — 21:51 Europe/Brussels — Coordonnées de sécurisation du compte
+
+- Dix régressions rouges : anciennes coordonnées/confirmation reprises avant ou après rendu, validation obsolète, modification des champs pendant la demande et soumission retenue juste après fermeture.
+- SecureSheet relit les trois valeurs courantes et revalide leur cohérence au moment de l’action. Champs/verrou coordonnés et fermeture immédiatement invalidante ; référence transitoire relâchée à la sortie. Mécanismes de suppression, backend et règles inchangés.
+- Preuves : 45 tests sécurisation/connexion réussis en 1,048 s ; lint/TypeScript/diff check réussis, diff relu. Revue React : synchronisation dans les événements, nettoyage à la sortie, aucune nouvelle persistance de coordonnées ou de secrets.
+- Limites : secureAccount et tous les services de compte doublés, aucune authentification, association de compte, suppression ni communication réelle. Les contrôles de suppression préexistants de la suite ne valent pas tests sécurité sur émulateurs.

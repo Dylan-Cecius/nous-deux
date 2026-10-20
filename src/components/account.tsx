@@ -107,16 +107,27 @@ function SecureSheet({ onClose, onDone }: { onClose: () => void; onDone: () => v
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const latest = useRef<{ email: string; password: string; confirm: string } | null>({ email: '', password: '', confirm: '' });
   const active = useRef(true);
   useEffect(() => {
     active.current = true;
-    return () => { active.current = false; };
+    latest.current = { email: '', password: '', confirm: '' };
+    return () => { active.current = false; latest.current = null; };
   }, []);
   const { run, pending: busy } = useAsyncAction((action: () => void | Promise<void>) => action());
   const valid = email.includes('@') && password.length >= 6 && password === confirm;
+  const change = (key: 'email' | 'password' | 'confirm', value: string) => run(() => {
+    if (!active.current || !latest.current) return;
+    latest.current[key] = value;
+    if (key === 'email') setEmail(value);
+    else if (key === 'password') setPassword(value);
+    else setConfirm(value);
+  });
 
   const submit = () => run(async () => {
-    if (!valid) return;
+    if (!active.current || !latest.current) return;
+    const { email, password, confirm } = latest.current;
+    if (!email.includes('@') || password.length < 6 || password !== confirm) return;
     try {
       await secureAccount(email, password);
       if (!active.current) return;
@@ -129,10 +140,15 @@ function SecureSheet({ onClose, onDone }: { onClose: () => void; onDone: () => v
   });
 
   return (
-    <Sheet visible title="Sécuriser mon compte" onClose={() => run(onClose)}>
-      <Field label="E-mail" value={email} onChangeText={setEmail} placeholder="toi@exemple.fr" keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-      <Field label="Mot de passe (6 caractères minimum)" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
-      <Field label="Confirme le mot de passe" value={confirm} onChangeText={setConfirm} secureTextEntry autoComplete="new-password" />
+    <Sheet visible title="Sécuriser mon compte" onClose={() => run(() => {
+      if (!active.current) return;
+      active.current = false;
+      latest.current = null;
+      onClose();
+    })}>
+      <Field label="E-mail" value={email} editable={!busy} onChangeText={(value) => change('email', value)} placeholder="toi@exemple.fr" keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
+      <Field label="Mot de passe (6 caractères minimum)" value={password} editable={!busy} onChangeText={(value) => change('password', value)} secureTextEntry autoComplete="new-password" />
+      <Field label="Confirme le mot de passe" value={confirm} editable={!busy} onChangeText={(value) => change('confirm', value)} secureTextEntry autoComplete="new-password" />
       {!!confirm && password !== confirm && <T variant="small" muted>Les deux mots de passe sont différents.</T>}
       <Button label="Sécuriser" disabled={!valid || busy} onPress={submit} />
     </Sheet>

@@ -94,6 +94,57 @@ async function openSecure() {
   });
 }
 
+describe.each([false, true])('sécurisation, rendu intermédiaire : %s', rendered => {
+  test('les dernières coordonnées et leur confirmation sont prises en compte', async () => {
+    await openSecure();
+    const submit = button('Sécuriser').props.onPress;
+    const change = () => {
+      button('E-mail').props.onChangeText('bob@example.test');
+      button('Mot de passe (6 caractères minimum)').props.onChangeText('new-fictitious-password');
+      button('Confirme le mot de passe').props.onChangeText('new-fictitious-password');
+    };
+    if (rendered) await act(async () => change());
+    await act(async () => { if (!rendered) change(); await submit(); });
+    expect(secureAccount).toHaveBeenCalledWith('bob@example.test', 'new-fictitious-password');
+  });
+  test.each([
+    ['E-mail', ''], ['Mot de passe (6 caractères minimum)', 'court'], ['Confirme le mot de passe', 'différent'],
+  ])('une ancienne action refuse une valeur devenue invalide : %s', async (field, value) => {
+    await openSecure();
+    const submit = button('Sécuriser').props.onPress;
+    if (rendered) await act(async () => button(field).props.onChangeText(value));
+    await act(async () => { if (!rendered) button(field).props.onChangeText(value); await submit(); });
+    expect(secureAccount).not.toHaveBeenCalled();
+    expect(button(field).props.value).toBe(value);
+  });
+});
+
+test('les trois coordonnées de sécurisation sont verrouillées pendant la demande', async () => {
+  await openSecure();
+  const labels = ['E-mail', 'Mot de passe (6 caractères minimum)', 'Confirme le mot de passe'];
+  const changes = labels.map(label => button(label).props.onChangeText);
+  let finish!: () => void;
+  (secureAccount as jest.Mock).mockReturnValueOnce(new Promise<void>(resolve => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = button('Sécuriser').props.onPress();
+    changes.forEach(change => change('ignored-fictitious-value'));
+  });
+  const fields = labels.map(label => button(label).props);
+  await act(async () => { finish(); await pending; });
+  expect(fields.map(field => field.editable)).toEqual([false, false, false]);
+  expect(fields.map(field => field.value)).toEqual(['alice@example.test', 'fictitious-password', 'fictitious-password']);
+});
+
+test('une fermeture de sécurisation neutralise immédiatement la soumission retenue', async () => {
+  await openSecure();
+  const submit = button('Sécuriser').props.onPress;
+  const close = root.root.findByProps({ title: 'Sécuriser mon compte' }).props.onClose;
+  await act(async () => { close(); await submit(); });
+  expect(secureAccount).not.toHaveBeenCalled();
+  expect(success).not.toHaveBeenCalled();
+});
+
 test('la sécurisation partage un verrou avec la fermeture et les autres soumissions', async () => {
   await openSecure();
   let finish!: () => void;
