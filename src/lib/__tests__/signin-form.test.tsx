@@ -6,6 +6,16 @@ import { resetPassword, signInWithEmail } from '../backend';
 jest.mock('../backend', () => ({ signInWithEmail: jest.fn(), resetPassword: jest.fn() }));
 jest.mock('../couple-context', () => ({ useCouple: jest.fn(), useSession: jest.fn() }));
 jest.mock('../haptics', () => ({ success: jest.fn() }));
+let mockFocus = () => {};
+let mockBlur = () => {};
+jest.mock('expo-router', () => ({ useFocusEffect: (effect: () => (() => void) | void) => {
+  const React = jest.requireActual('react');
+  React.useEffect(() => {
+    mockFocus = () => { const cleanup = effect(); mockBlur = cleanup ?? (() => {}); };
+    mockFocus();
+    return () => mockBlur();
+  }, [effect]);
+} }));
 jest.mock('@/components/dialog', () => ({ showDialog: jest.fn() }));
 jest.mock('@/constants/theme', () => ({ useTheme: () => ({}) }));
 jest.mock('@/components/ui', () => {
@@ -18,6 +28,7 @@ const onSignedIn = jest.fn(); const onBack = jest.fn();
 const backend = { coupleId: 'fictitious' };
 const button = (label: string) => root.root.findByProps({ label });
 beforeEach(async () => {
+  mockFocus = mockBlur = () => {};
   await act(async () => { root = create(<SignInForm onSignedIn={onSignedIn} onBack={onBack} />); });
   await act(async () => {
     button('E-mail').props.onChangeText('alice@example.test');
@@ -130,4 +141,46 @@ test('la réinitialisation sans adresse valide ne fait aucun envoi', async () =>
   await act(async () => { await button('Mot de passe oublié ?').props.onPress(); });
   expect(resetPassword).not.toHaveBeenCalled();
   expect(showDialog).toHaveBeenCalledWith('Mot de passe oublié', 'Entre d’abord ton adresse e-mail.');
+});
+
+describe.each([false, true])('départ vers l’aide, retour avant résultat : %s', returned => {
+  test.each([['signin', 'success'], ['signin', 'failure'], ['reset', 'success'], ['reset', 'failure']])(
+    'le résultat %s/%s ne s’affiche pas après départ de la route', async (action, outcome) => {
+      let finish!: () => void;
+      ((action === 'signin' ? signInWithEmail : resetPassword) as jest.Mock).mockReturnValueOnce(new Promise((resolve, reject) => {
+        finish = () => outcome === 'success' ? resolve(backend) : reject(new Error('Résultat hors écran fictif'));
+      }));
+      let pending!: Promise<void>;
+      await act(async () => { pending = button(action === 'signin' ? 'Me connecter' : 'Mot de passe oublié ?').props.onPress(); });
+      await act(async () => { mockBlur(); if (returned) mockFocus(); });
+      await act(async () => { finish(); await pending; });
+      expect(onSignedIn).not.toHaveBeenCalled();
+      expect(showDialog).not.toHaveBeenCalled();
+    },
+  );
+});
+
+test('les événements hors écran ne modifient ni coordonnées ni navigation', async () => {
+  const email = button('E-mail').props.onChangeText;
+  const password = button('Mot de passe').props.onChangeText;
+  const back = button('Retour').props.onPress;
+  await act(async () => { mockBlur(); email('absent@example.test'); password('absent-fictitious'); await back(); });
+  expect(button('E-mail').props.value).toBe('alice@example.test');
+  expect(button('Mot de passe').props.value).toBe('fictitious-password');
+  expect(onBack).not.toHaveBeenCalled();
+});
+
+test.each(['Me connecter', 'Mot de passe oublié ?'])('%s ne démarre pas hors écran', async label => {
+  const submit = button(label).props.onPress;
+  await act(async () => { mockBlur(); await submit(); });
+  expect(signInWithEmail).not.toHaveBeenCalled();
+  expect(resetPassword).not.toHaveBeenCalled();
+});
+
+test('le retour de l’aide conserve le brouillon et permet une nouvelle connexion volontaire', async () => {
+  (signInWithEmail as jest.Mock).mockResolvedValueOnce(backend);
+  await act(async () => { mockBlur(); mockFocus(); });
+  await act(async () => { await button('Me connecter').props.onPress(); });
+  expect(signInWithEmail).toHaveBeenCalledWith('alice@example.test', 'fictitious-password');
+  expect(onSignedIn).toHaveBeenCalledWith(backend);
 });

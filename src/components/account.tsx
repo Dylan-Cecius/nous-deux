@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { showDialog } from './dialog';
@@ -169,6 +170,11 @@ export function SignInForm({
   const [password, setPassword] = useState('');
   const latest = useRef<{ email: string; password: string } | null>({ email: '', password: '' });
   const active = useRef(true);
+  const focus = useRef<object | null>(null);
+  useFocusEffect(useCallback(() => {
+    focus.current = {};
+    return () => { focus.current = null; };
+  }, []));
   useEffect(() => {
     active.current = true;
     latest.current = { email: '', password: '' };
@@ -177,33 +183,35 @@ export function SignInForm({
   const { run, pending: busy } = useAsyncAction((action: () => void | Promise<void>) => action());
 
   const change = (key: 'email' | 'password', value: string) => run(() => {
-    if (!active.current || !latest.current) return;
+    if (!active.current || !focus.current || !latest.current) return;
     latest.current[key] = value;
     if (key === 'email') setEmail(value);
     else setPassword(value);
   });
 
   const submit = () => run(async () => {
-    if (!active.current || !latest.current) return;
+    const currentFocus = focus.current;
+    if (!active.current || !currentFocus || !latest.current) return;
     const { email, password } = latest.current;
     if (!email.trim() || !password) return;
     try {
       const backend = await signInWithEmail(email, password);
-      if (active.current) onSignedIn(backend);
+      if (active.current && focus.current === currentFocus) onSignedIn(backend);
     } catch (e) {
-      if (active.current) showDialog('Connexion impossible', errorText(e));
+      if (active.current && focus.current === currentFocus) showDialog('Connexion impossible', errorText(e));
     }
   });
 
   const forgot = () => run(async () => {
-    if (!active.current || !latest.current) return;
+    const currentFocus = focus.current;
+    if (!active.current || !currentFocus || !latest.current) return;
     const { email } = latest.current;
     if (!email.includes('@')) return showDialog('Mot de passe oublié', 'Entre d’abord ton adresse e-mail.');
     try {
       await resetPassword(email);
-      if (active.current) showDialog('E-mail envoyé', 'Regarde ta boîte mail pour choisir un nouveau mot de passe.');
+      if (active.current && focus.current === currentFocus) showDialog('E-mail envoyé', 'Regarde ta boîte mail pour choisir un nouveau mot de passe.');
     } catch (e) {
-      if (active.current) showDialog('Oups', errorText(e));
+      if (active.current && focus.current === currentFocus) showDialog('Oups', errorText(e));
     }
   });
 
@@ -214,7 +222,7 @@ export function SignInForm({
       <Button label="Me connecter" variant={dark ? 'sunset' : 'primary'} disabled={busy || !email || !password} onPress={submit} />
       <Button label="Mot de passe oublié ?" variant={dark ? 'glass' : 'ghost'} small disabled={busy} onPress={forgot} />
       <Button label="Retour" variant={dark ? 'glass' : 'ghost'} disabled={busy} onPress={() => run(() => {
-        if (!active.current) return;
+        if (!active.current || !focus.current) return;
         active.current = false;
         latest.current = null;
         onBack();
