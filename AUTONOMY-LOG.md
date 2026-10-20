@@ -1287,3 +1287,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Le contexte du formulaire inclut maintenant la disponibilité des données ; une interruption invalide définitivement les opérations de l’ancien contexte, même si le même backend et les données reviennent. Le verrou en cours reste actif jusqu’à sa résolution et les brouillons restent préservés.
 - Preuves : huit nouveaux tests échouaient avant le correctif (8 échecs / 52 succès), puis 60 tests ciblés réussis en 1,043 s ; npm run lint, tsc --noEmit et git diff --check réussis. Diff relu.
 - Limites : une écriture déjà envoyée peut avoir été acceptée, elle n’est ni annulée ni compensée. Tests avec promesses différées et données fictives ; aucune panne réelle, build native ou recette appareil. Aucun changement serveur/règles, aucune dépense ni distribution.
+
+## 2026-10-20 — 20:44 Europe/Brussels — Photo du partenaire reçue pendant la préparation
+
+- Défaut reproduit : une nouvelle photo reçue pendant le sélecteur ou le téléversement pouvait être remplacée automatiquement par l’opération commencée sur l’ancienne photo. Huit cas échouaient, avec/sans photo initiale et avec/sans retour à la valeur initiale.
+- Un contexte distinct de photo suit les changements reçus. Avant l’envoi puis avant l’association, l’action abandonne si cette photo a changé et explique comment confirmer un nouveau remplacement. Une simple modification de date n’invalide pas la photo ; la notification de sa propre sauvegarde autorise toujours le cadrage.
+- Preuves : huit régressions rouges puis vertes, deux contrôles supplémentaires ; les huit scénarios vérifient aussi une nouvelle tentative explicite réussie. 70 tests ciblés réussis en 1,081 s, lint/TypeScript/diff check réussis, diff relu.
+- Limites : protection des changements déjà reçus par ce client, pas de précondition atomique côté serveur ni de garantie multi-appareils. Un upload déjà fini peut rester sans association ; aucune suppression compensatoire ajoutée, car un commit ambigu ne permet pas de supprimer sans risque. Aucun changement serveur/règles, essai appareil, build ou dépense.

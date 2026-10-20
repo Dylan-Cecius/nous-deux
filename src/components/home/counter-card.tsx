@@ -41,12 +41,14 @@ function CounterForm({ onClose }: { onClose: () => void }) {
   const available = !!couple;
   // Une reprise de lecture ne doit pas réactiver une opération de l'ancienne fiche.
   const context = useMemo(() => ({ backend, available }), [backend, available]);
-  const latest = useRef<{ context: typeof context; couple: typeof couple; framing: typeof framing; value: string; frame: typeof frame } | null>(null);
+  const photoUrl = couple?.photoUrl;
+  const photoContext = useMemo(() => ({ photoUrl }), [photoUrl]);
+  const latest = useRef<{ context: typeof context; photoContext: typeof photoContext; couple: typeof couple; framing: typeof framing; value: string; frame: typeof frame } | null>(null);
   const closed = useRef(false);
   useEffect(() => {
-    latest.current = { context, couple, framing, value, frame };
+    latest.current = { context, photoContext, couple, framing, value, frame };
     return () => { latest.current = null; };
-  }, [context, couple, framing, value, frame]);
+  }, [context, photoContext, couple, framing, value, frame]);
   const { run, pending: busy } = useAsyncAction((action: () => unknown) => action());
   const isCurrent = () => !closed.current && latest.current?.context === context;
   const canWrite = () => isCurrent() && !!latest.current?.couple;
@@ -76,11 +78,18 @@ function CounterForm({ onClose }: { onClose: () => void }) {
     let stage: 'selection' | 'upload' | 'save' = 'selection';
     return runCurrent(async () => {
       if (latest.current?.framing !== null) return;
+      const initialPhoto = latest.current.photoContext;
+      const canReplace = () => {
+        if (!canWrite()) return false;
+        if (latest.current?.photoContext === initialPhoto) return true;
+        showDialog('Photo de couple actualisée', 'La photo a changé pendant la préparation. Relance la sélection depuis la photo actuelle pour confirmer son remplacement.');
+        return false;
+      };
       const picked = await pickPhoto();
-      if (!picked || !canWrite()) return;
+      if (!picked || !canReplace()) return;
       stage = 'upload';
       const photoUrl = await backend.uploadPhoto(picked.uri);
-      if (!canWrite()) return;
+      if (!canReplace()) return;
       stage = 'save';
       await backend.updateCouple({ photoUrl, photoFrame: DEFAULT_FRAME });
       if (!isCurrent()) return;

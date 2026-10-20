@@ -312,6 +312,58 @@ test('une sauvegarde de date engagée ne ferme pas la fiche après reprise de le
   expect(root.root.findByType('date' as never).props.value).toBe('2021-02-03');
 });
 
+test.each(['selection', 'upload'].flatMap(stage => [false, true].flatMap(empty => [false, true].map(restored => ({ stage, empty, restored })))))('une photo reçue pendant $stage bloque le remplacement (vide=$empty, retour=$restored)', async ({ stage, empty, restored }) => {
+  const initial = { ...couple, photoUrl: empty ? undefined : couple.photoUrl };
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: initial });
+  await refresh();
+  let finish!: (value: unknown) => void;
+  const operation = new Promise(resolve => { finish = resolve; });
+  if (stage === 'selection') (pickPhoto as jest.Mock).mockReturnValueOnce(operation);
+  else backend.uploadPhoto.mockReturnValueOnce(operation);
+  let pending!: Promise<void>;
+  await act(async () => { pending = button(empty ? 'Ajouter une photo de couple' : 'Changer la photo de couple')(); });
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: { ...initial, photoUrl: 'fictitious://partner' } });
+  await refresh();
+  if (restored) {
+    (useSession as jest.Mock).mockReturnValue({ ...session, couple: initial });
+    await refresh();
+  }
+  await act(async () => { finish(stage === 'selection' ? { uri: 'fictitious://picked' } : 'fictitious://uploaded'); await pending; });
+  expect(backend.uploadPhoto).toHaveBeenCalledTimes(stage === 'selection' ? 0 : 1);
+  expect(backend.updateCouple).not.toHaveBeenCalled();
+  expect(root.root.findByType('sheet' as never).props.title).toBe('Votre histoire');
+  expect(showDialog).toHaveBeenCalledWith('Photo de couple actualisée', expect.stringContaining('Relance'));
+  expect(root.root.findByProps({ label: 'Enregistrer la date' }).props.disabled).toBe(false);
+  await act(async () => button(empty && restored ? 'Ajouter une photo de couple' : 'Changer la photo de couple')());
+  expect(backend.updateCouple).toHaveBeenCalledTimes(1);
+  expect(root.root.findByType('sheet' as never).props.title).toBe('Cadrer la photo');
+});
+
+test('une date reçue pendant la sélection ne bloque pas le remplacement de photo', async () => {
+  let finish!: (value: unknown) => void;
+  (pickPhoto as jest.Mock).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = button('Changer la photo de couple')(); });
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: { ...couple, since: '2023-01-01' } });
+  await refresh();
+  await act(async () => { finish({ uri: 'fictitious://picked' }); await pending; });
+  expect(backend.updateCouple).toHaveBeenCalledWith({ photoUrl: 'fictitious://uploaded', photoFrame: { x: 0.5, y: 0.5, zoom: 1 } });
+  expect(showDialog).not.toHaveBeenCalled();
+});
+
+test('la notification de sa propre photo pendant la sauvegarde autorise le cadrage', async () => {
+  let finish!: () => void;
+  backend.updateCouple.mockReturnValueOnce(new Promise<void>(resolve => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = button('Changer la photo de couple')(); });
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: { ...couple, photoUrl: 'fictitious://uploaded' } });
+  await refresh();
+  await act(async () => { finish(); await pending; });
+  expect(root.root.findByType('editor' as never).props.uri).toBe('fictitious://uploaded');
+  expect(root.root.findByType('editor' as never).props.disabled).toBe(false);
+  expect(showDialog).not.toHaveBeenCalled();
+});
+
 test.each(['unmount', 'backend'])('sélecteur tardif après %s : aucun upload', async (kind) => {
   let finish!: (result: unknown) => void;
   (pickPhoto as jest.Mock).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
