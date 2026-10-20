@@ -7,6 +7,7 @@ import { useSession } from '@/lib/couple-context';
 import { todayKey } from '@/lib/dates';
 import { pickPhoto } from '@/lib/photos';
 import { useAsyncAction } from '@/lib/use-async-action';
+import { useSharedDraft } from '@/lib/use-shared-draft';
 
 /** Réglages de la carte « Ensemble depuis » : date de rencontre et photo de couple. */
 export function CounterSheet({ onClose }: { onClose: () => void }) {
@@ -16,7 +17,11 @@ export function CounterSheet({ onClose }: { onClose: () => void }) {
 
 function CounterForm({ onClose }: { onClose: () => void }) {
   const { backend, couple } = useSession();
-  const [value, setValue] = useState(couple?.since ?? todayKey());
+  const { values, setValues } = useSharedDraft(
+    { since: couple?.since ?? todayKey() },
+    couple ? { since: couple.since ?? todayKey() } : null,
+  );
+  const value = values.since;
   const [frame, setFrame] = useState(couple?.photoFrame ?? DEFAULT_FRAME);
   const [framing, setFraming] = useState<{ uri: string } | null>(null);
   const context = useMemo(() => ({ backend }), [backend]);
@@ -87,7 +92,7 @@ function CounterForm({ onClose }: { onClose: () => void }) {
       <DateField label="Date de votre rencontre" value={value} disabled={busy || !couple} onChange={(next) => run(() => {
         if (canWrite() && latest.current?.framing === null) {
           latest.current.value = next;
-          setValue(next);
+          setValues(previous => ({ ...previous, since: next }));
         }
       })} maximumDate={new Date()} />
       <Button
@@ -96,6 +101,7 @@ function CounterForm({ onClose }: { onClose: () => void }) {
         onPress={() => runCurrent(async () => {
           const current = latest.current;
           if (!current || current.framing !== null || current.value > todayKey()) return;
+          if (current.value === current.couple?.since) { close(); return; }
           await backend.updateCouple({ since: current.value });
           close();
         })}

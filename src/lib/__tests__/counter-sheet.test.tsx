@@ -108,14 +108,58 @@ test('une ancienne fermeture de cadrage ne ferme pas un nouveau cadrage', async 
   expect(root.root.findByType('sheet' as never).props.title).toBe('Cadrer la photo');
 });
 
+test('une date intacte suit celle reçue du partenaire sans la réécrire', async () => {
+  const save = button('Enregistrer la date');
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: { ...couple, since: '2022-04-05' } });
+  await refresh();
+  expect(root.root.findByType('date' as never).props.value).toBe('2022-04-05');
+  await act(async () => save());
+  expect(backend.updateCouple).not.toHaveBeenCalled();
+  expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+test('valider une date inchangée ferme la fiche sans écriture', async () => {
+  await act(async () => button('Enregistrer la date')());
+  expect(backend.updateCouple).not.toHaveBeenCalled();
+  expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+test('une date saisie survit aux changements du partenaire et reste le seul champ envoyé', async () => {
+  await act(async () => root.root.findByType('date' as never).props.onChange('2021-02-03'));
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: { ...couple, since: '2022-04-05', photoUrl: 'fictitious://new-photo' } });
+  await refresh();
+  expect(root.root.findByType('date' as never).props.value).toBe('2021-02-03');
+  await act(async () => button('Enregistrer la date')());
+  expect(backend.updateCouple).toHaveBeenCalledWith({ since: '2021-02-03' });
+});
+
+test.each([true, false])('la reprise de lecture actualise seulement une date intacte (%s)', async (dirty) => {
+  if (dirty) await act(async () => root.root.findByType('date' as never).props.onChange('2021-02-03'));
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: null });
+  await refresh();
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: { ...couple, since: '2022-04-05' } });
+  await refresh();
+  expect(root.root.findByType('date' as never).props.value).toBe(dirty ? '2021-02-03' : '2022-04-05');
+});
+
+test('une date jamais définie peut être enregistrée', async () => {
+  await act(async () => root.unmount());
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: { ...couple, since: undefined } });
+  await act(async () => { root = create(<CounterSheet onClose={onClose} />); });
+  const value = root.root.findByType('date' as never).props.value;
+  await act(async () => button('Enregistrer la date')());
+  expect(backend.updateCouple).toHaveBeenCalledWith({ since: value });
+});
+
 test('la date reste figée pendant la sauvegarde et modifiable après échec', async () => {
   const date = () => root.root.findByType('date' as never);
+  await act(async () => date().props.onChange('2020-02-03'));
   const change = date().props.onChange;
   let reject!: (error: Error) => void;
   backend.updateCouple.mockReturnValueOnce(new Promise<void>((_, fail) => { reject = fail; }));
   let pending!: Promise<void>;
   await act(async () => { pending = button('Enregistrer la date')(); await change('2021-02-03'); });
-  expect(date().props.value).toBe(couple.since);
+  expect(date().props.value).toBe('2020-02-03');
   expect(date().props.disabled).toBe(true);
   await act(async () => { reject(new Error('Échec fictif')); await pending; });
   expect(date().props.disabled).toBe(false);
@@ -186,6 +230,7 @@ test.each(['unmount', 'backend'])('upload tardif après %s : aucune association'
 });
 
 test.each(['success', 'error'])('réponse %s d’une ancienne sauvegarde ne ferme pas le nouveau formulaire', async (outcome) => {
+  await act(async () => root.root.findByType('date' as never).props.onChange('2021-02-03'));
   let finish!: () => void;
   backend.updateCouple.mockReturnValueOnce(new Promise<void>((resolve, reject) => { finish = () => outcome === 'success' ? resolve() : reject(new Error('Ancien échec')); }));
   let pending!: Promise<void>;
@@ -197,6 +242,7 @@ test.each(['success', 'error'])('réponse %s d’une ancienne sauvegarde ne ferm
 });
 
 test('sélection, date et fermeture partagent un verrou immédiat', async () => {
+  await act(async () => root.root.findByType('date' as never).props.onChange('2021-02-03'));
   let finish!: (result: unknown) => void;
   (pickPhoto as jest.Mock).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
   const photo = button('Changer la photo de couple');
@@ -211,7 +257,7 @@ test('sélection, date et fermeture partagent un verrou immédiat', async () => 
   expect(onClose).not.toHaveBeenCalled();
   await act(async () => { finish(null); await pending; });
   await act(async () => { await button('Enregistrer la date')(); });
-  expect(backend.updateCouple).toHaveBeenCalledWith({ since: '2020-01-02' });
+  expect(backend.updateCouple).toHaveBeenCalledWith({ since: '2021-02-03' });
 });
 
 test('fermer invalide immédiatement un ancien gestionnaire', async () => {
