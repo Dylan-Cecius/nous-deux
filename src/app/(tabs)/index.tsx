@@ -163,6 +163,15 @@ function DateSheet({ onClose }: { onClose: () => void }) {
   const unavailable = collection.loading || collection.error;
   const canWrite = () => isCurrent() && latest.current && !latest.current.collection.loading && !latest.current.collection.error;
   const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
+  const change = (patch: Partial<{ title: string; date: string; yearly: boolean }>) => run(() => {
+    const current = latest.current;
+    if (!current || !isCurrent()) return;
+    const next = { ...current, ...patch };
+    latest.current = next;
+    setTitle(next.title);
+    setDate(next.date);
+    setYearly(next.yearly);
+  });
   const save = () => run(async () => {
     const current = latest.current;
     if (!current?.title.trim() || !canWrite()) return;
@@ -174,8 +183,8 @@ function DateSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <Sheet visible title="Nouvelle date" onClose={() => run(close)}>
-      <Field label="Quoi ?" value={title} maxLength={200} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setTitle(value); })} placeholder="Nos vacances en Italie" />
-      <DateField label="Date" value={date} disabled={pending} onChange={(value) => run(() => { if (isCurrent()) setDate(value); })} />
+      <Field label="Quoi ?" value={title} maxLength={200} editable={!pending} onChangeText={(value) => change({ title: value })} placeholder="Nos vacances en Italie" />
+      <DateField label="Date" value={date} disabled={pending} onChange={(value) => change({ date: value })} />
       <Row style={{ justifyContent: 'space-between' }}>
         <View style={{ flex: 1 }}>
           <T variant="bodyBold">Revient chaque année</T>
@@ -183,7 +192,7 @@ function DateSheet({ onClose }: { onClose: () => void }) {
             Anniversaires, date de rencontre…
           </T>
         </View>
-        <Switch value={yearly} disabled={pending} accessibilityLabel="Revient chaque année" onValueChange={(value) => run(() => { if (isCurrent()) setYearly(value); })} trackColor={{ true: t.primary }} />
+        <Switch value={yearly} disabled={pending} accessibilityLabel="Revient chaque année" onValueChange={(value) => change({ yearly: value })} trackColor={{ true: t.primary }} />
       </Row>
       {unavailable && <T variant="small" muted>Dates indisponibles. Ton brouillon est conservé ; recharge les dates avant de continuer.</T>}
       {collection.error && <Button label="Recharger les dates du formulaire" variant="outline" onPress={collection.retry} />}

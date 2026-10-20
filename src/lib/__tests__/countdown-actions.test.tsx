@@ -40,6 +40,30 @@ const mount = async () => { await act(async () => { root = create(<Home />); });
 const refresh = async () => { await act(async () => root.update(<Home />)); };
 const open = async () => { await act(async () => root.root.findByProps({ title: 'À venir' }).props.onAction()); };
 const fill = async () => { await open(); await act(async () => field().props.onChangeText(' Brouillon fictif ')); };
+
+test.each(['title', 'date', 'yearly', 'all'])('dernière saisie de date à venir avant rendu : %s', async (kind) => {
+  await mount(); await fill();
+  const submit = button('Ajouter');
+  await act(async () => {
+    if (kind === 'title' || kind === 'all') field().props.onChangeText(' Dernier titre ');
+    if (kind === 'date' || kind === 'all') root.root.findByType('date' as never).props.onChange('2030-03-04');
+    if (kind === 'yearly' || kind === 'all') root.root.findByType(Switch).props.onValueChange(true);
+    await submit();
+  });
+  expect(backend.add).toHaveBeenCalledWith('dates', {
+    title: kind === 'title' || kind === 'all' ? 'Dernier titre' : 'Brouillon fictif',
+    date: kind === 'date' || kind === 'all' ? '2030-03-04' : todayKey(),
+    yearly: kind === 'yearly' || kind === 'all', emoji: '',
+  });
+});
+
+test('effacer le titre avant le rendu ne crée pas une ancienne date à venir', async () => {
+  await mount(); await fill();
+  const submit = button('Ajouter');
+  await act(async () => { field().props.onChangeText(' '); await submit(); });
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(root.root.findAllByType('sheet' as never)).toHaveLength(1);
+});
 const ask = async () => {
   await act(async () => root.root.findAllByType(Pressable).find((node) => node.props.onLongPress)!.props.onLongPress());
   return (confirmDelete as jest.Mock).mock.calls.at(-1)[1];

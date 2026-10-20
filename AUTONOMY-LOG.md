@@ -1368,3 +1368,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Les valeurs et la répétition sont synchronisées immédiatement dans la référence de validation puis dans le brouillon affiché. Les changements successifs se composent ; champs intacts reçus, patch minimal, verrou et notification déjà contextualisée conservés. Aucune modification de suppression, règles ou serveur.
 - Preuves : 98 tests agenda/brouillon partagé réussis en 2,471 s ; lint/TypeScript/diff check réussis, diff relu. Revue React : calcul suivant basé sur les dernières valeurs, aucun effet/dependance ajouté.
 - Limites : notifications et backend doublés, aucune notification envoyée ni écriture réelle ; pas de recette de sélecteur natif ou de concurrence serveur.
+
+## 2026-10-20 — 21:44 Europe/Brussels — Dernière saisie des dates à venir
+
+- Cinq régressions rouges : titre/date/récurrence annuelle modifiés avant validation perdaient leur dernière valeur ; un titre effacé pouvait créer l’ancien brouillon.
+- Les trois champs synchronisent la référence de validation dans l’événement, sous le verrou existant, avant leur rendu. Aucun changement du calcul des anniversaires, de la programmation des rappels ou de la suppression.
+- Preuves : 29 tests réussis en 1,077 s ; lint/TypeScript/diff check réussis, diff relu. Revue React : changements cumulés sur l’état courant, aucun effet ou dépendance ajouté.
+- Limites : données et sélecteurs doublés, aucun rappel réel, essai natif ou écriture distante.
