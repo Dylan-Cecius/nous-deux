@@ -204,3 +204,5 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 | P2 | Visibilité et cibles des cœurs de notation | Le 21 octobre à 09:39 : cœurs vides contrastés, commandes minimales 44 × 44 avec retour à la ligne ; huit cas rouges puis verts, 155 tests ciblés et lint/TypeScript réussis. Essai tactile et rendu restant. |
 
 | P2 | Contrôle global commandes secondaires du 21 octobre, 09:42 | Trois checkpoints, 11 tests nouveaux rouges puis verts ; 66 suites / 1 784 tests et lint/TypeScript réussis, 192 blobs SHA exacts. Trois recettes natives préparées, non exécutées ; environ 14 minutes observées, aucun autre défaut prêt étayé dans le périmètre. Aucune build/distribution/dépense. |
+
+| P2 | Assistance : limites de confidentialité du mode local | Le 21 octobre à 10:39 : FAQ, tableau et section de partage distinguent compte synchronisé et accès sur le même téléphone ; aucune promesse de cadeaux secrets en mode sans compte. Trois pages brouillon générées et inspectées dans le DOM, publication publique refusée ; 95 tests ciblés et lint/TypeScript réussis. Texte seulement, aucun rendu navigateur ou changement de sécurité. |
