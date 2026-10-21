@@ -180,6 +180,18 @@ Préparée seulement, **non exécutée sur appareil**. Utiliser un montage autor
 | Correction de saisie | Essayer un code de dix caractères contenant 0/1, I/O ou ponctuation ; corriger avec le code fictif du montage, en minuscules puis avec séparateur. | Conseil visible et bouton désactivé pour une forme invalide ; pas de jonction déclenchée. Saisie valide normalisée avant le double de jonction. Aucun compte réel. |
 | Sélection et renouvellement | Sélectionner le code fictif dans la carte ; faire expirer puis créer une nouvelle invitation via le double. | Sélection native utilisable pour copie manuelle ; message d’expiration retiré lors du renouvellement et nouveau code affiché. Ne rien transmettre ni coller dans un service tiers ; la propriété selectable seule ne valide pas le geste natif. |
 
+## Recette complémentaire — années et navigation agenda (21 octobre, 02 h)
+
+Préparée seulement, **aucune recette native exécutée**. Utiliser des données fictives, une horloge de test et les ressources originales. Garder les notifications doublées pour contrôler les dates sans envoi ; ne pas modifier l’horloge d’un téléphone personnel. Les prérequis de coût, de serveur et de distribution restent applicables.
+
+| Parcours | Manipulation prévue | Résultat attendu et limite |
+| --- | --- | --- |
+| Première date annuelle future | Depuis une horloge de test en octobre 2026, ajouter le 30 novembre 2028 avec répétition annuelle ; refaire avec le 29 février 2028. | Compte à rebours vers la date choisie, aucune occurrence anticipée en 2026/2027. Le double de programmation reçoit la veille et le jour de la première date ; réception native non validée. |
+| Année des historiques | Afficher des mots, cœurs et dépenses fictifs du même jour/mois sur plusieurs années ; vérifier aussi aujourd’hui et le 31 décembre vu le 1er janvier. | Année indiquée hors année courante, aujourd’hui/hier conservés. Lire avec texte agrandi et lecteur d’écran ; aucun contenu intime réel nécessaire. |
+| Semaine entre deux mois | Consulter le 1er novembre depuis la semaine du 26 octobre 2026, puis le 3 janvier depuis celle du 28 décembre ; ouvrir une fiche horaire. | En-tête couvrant les deux mois/années, date complète du jour choisi et dans la fiche. Vérifier les retours à la ligne et la largeur disponible en portrait/paysage. |
+| Appuis rapides de navigation | Toucher deux fois semaine suivante/précédente, puis faire un aller-retour rapide ; revenir à aujourd’hui. | Chaque appui pris en compte, jour sélectionné toujours dans la semaine affichée. Les tests couvrent aussi un ancien callback de jour, sans prétendre reproduire le geste matériel. |
+| Horaires superposés et titres longs | Ajouter deux horaires fictifs du même membre aux mêmes heures, puis un horaire commun recouvrant un horaire individuel ; utiliser un titre long. | Chaque fiche reste accessible via Détail des horaires sous la grille, titre complet, heures et membre lisibles. Contrôler le défilement et VoiceOver/TalkBack. La grille conserve son placement actuel ; l’alternative détaillée ne constitue pas une correction visuelle de la superposition. |
+
 ## Nettoyage technique : cible et déploiement
 
 `functions/src/retention.ts` prévoit un passage quotidien et au plus 500 documents par collection et par passage :
