@@ -1,13 +1,13 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { router } from 'expo-router';
 import Depenses from '@/app/depenses';
-import { useCollectionState } from '../couple-context';
+import { useCollectionState, useSession } from '../couple-context';
 import { AppState } from 'react-native';
 
 jest.mock('../couple-context', () => ({
   useCollection: jest.fn(() => []),
   useCollectionState: jest.fn(),
-  useSession: () => ({ backend: {}, me: { id: 'alice' }, partner: { id: 'bob', name: 'Bob' }, members: [], nameOf: jest.fn(), colorOf: jest.fn() }),
+  useSession: jest.fn(),
 }));
 jest.mock('@/constants/theme', () => ({ useTheme: () => ({}), cardShadow: () => ({}) }));
 jest.mock('../haptics', () => ({ success: jest.fn() }));
@@ -20,7 +20,33 @@ jest.mock('@/components/ui', () => {
 });
 
 let root: ReactTestRenderer;
+const session = { backend: {}, me: { id: 'alice' }, partner: { id: 'bob', name: 'Bob' }, members: [], nameOf: jest.fn(), colorOf: jest.fn() };
+beforeEach(() => (useSession as jest.Mock).mockReturnValue(session));
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
+
+test.each(['me', 'partner'])('un profil %s absent ne signifie pas que les dépenses sont à l’équilibre', async missing => {
+  (useSession as jest.Mock).mockReturnValue({ ...session, [missing]: undefined });
+  (useCollectionState as jest.Mock).mockReturnValue({ items: [{ id: 'test', title: 'Course fictive', amount: 40, paidBy: 'alice', createdAt: 1 }], loading: false, error: false });
+  await act(async () => { root = create(<Depenses />); });
+  const text = JSON.stringify(root.toJSON());
+  expect(text).toContain('Solde indisponible');
+  expect(text).not.toContain('Vous êtes à l’équilibre');
+  expect(text).not.toContain('Marquer comme remboursé');
+  expect(text).toContain('Course fictive');
+});
+
+test('le retour du partenaire rétablit le solde sans perdre une saisie de dépense', async () => {
+  (useSession as jest.Mock).mockReturnValue({ ...session, partner: undefined });
+  (useCollectionState as jest.Mock).mockReturnValue({ items: [{ id: 'test', title: 'Course fictive', amount: 40, paidBy: 'alice', createdAt: 1 }], loading: false, error: false });
+  await act(async () => { root = create(<Depenses />); });
+  await act(async () => root.root.findByProps({ label: 'Ajouter une dépense' }).props.onPress());
+  await act(async () => root.root.findByProps({ label: 'Quoi ?' }).props.onChangeText('Brouillon conservé'));
+  (useSession as jest.Mock).mockReturnValue(session);
+  await act(async () => root.update(<Depenses />));
+  expect(JSON.stringify(root.toJSON())).toContain('Bob te doit cette somme');
+  expect(JSON.stringify(root.toJSON())).not.toContain('Solde indisponible');
+  expect(root.root.findByProps({ label: 'Quoi ?' }).props.value).toBe('Brouillon conservé');
+});
 
 test('la date de dépense devient hier à minuit en conservant le formulaire ouvert', async () => {
   jest.useFakeTimers();

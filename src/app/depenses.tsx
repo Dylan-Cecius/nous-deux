@@ -104,7 +104,12 @@ function DepensesContent() {
               <T variant="caption" color={t.onFeatureMuted}>
                 Solde
               </T>
-              {balance === 0 || !partner ? (
+              {!me || !partner ? (
+                <>
+                  <T variant="h2" color={t.onFeature}>Solde indisponible</T>
+                  <T color={t.onFeatureMuted}>Les deux profils doivent être disponibles pour afficher qui doit combien à qui. Les dépenses restent consultables.</T>
+                </>
+              ) : balance === 0 ? (
                 <T variant="h2" color={t.onFeature}>
                   Vous êtes à l’équilibre
                 </T>
