@@ -458,3 +458,32 @@ describe('cadrage par actions de lecteur d’écran', () => {
     } finally { replacement.restore(); }
   });
 });
+
+describe('déplacement du cadrage par boutons web', () => {
+  const surface = () => root.root.findAllByType(View).find(node => node.props.onResponderMove)!;
+  const buttons = () => root.root.findAllByType('button' as never);
+  test.each([
+    ['gauche', 0.6, 0.5], ['droite', 0.4, 0.5], ['haut', 0.5, 0.6], ['bas', 0.5, 0.4],
+  ] as const)('un bouton nommé permet de déplacer la photo vers %s', async (direction, x, y) => {
+    const replacement = jest.replaceProperty(Platform, 'OS', 'web');
+    const changes = jest.fn();
+    try {
+      const render = (disabled = false) => <PhotoFrameEditor uri="fictitious://photo" frame={frame} disabled={disabled} onChange={changes} />;
+      await act(async () => { root = create(render()); });
+      await act(async () => {
+        surface().props.onLayout({ nativeEvent: { layout: { width: 100, height: 100 } } });
+        root.root.findByType('image' as never).props.onLoad({ source: { width: 100, height: 100 } });
+      });
+      const label = `Déplacer la photo vers ${direction === 'gauche' || direction === 'droite' ? 'la' : 'le'} ${direction}`;
+      const button = buttons().find(button => button.props.label === label);
+      expect(button).toBeDefined();
+      const press = button!.props.onPress;
+      await act(async () => press());
+      expect(changes).toHaveBeenLastCalledWith({ x, y, zoom: 2 });
+      await act(async () => root.update(render(true)));
+      expect(buttons().find(button => button.props.label === label)!.props.disabled).toBe(true);
+      await act(async () => press());
+      expect(changes).toHaveBeenCalledTimes(1);
+    } finally { replacement.restore(); }
+  });
+});

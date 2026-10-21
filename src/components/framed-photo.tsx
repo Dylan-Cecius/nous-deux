@@ -240,8 +240,18 @@ function PhotoFrameEditorContent({
       <T variant="small" muted style={{ textAlign: 'center' }}>
         {imageFailed
           ? 'Impossible d’afficher la photo. Vérifie ta connexion ou ferme puis rouvre le cadrage.'
-          : unavailable ? 'Cadrage temporairement indisponible' : 'Fais glisser la photo pour la repositionner'}
+          : unavailable ? 'Cadrage temporairement indisponible'
+            : Platform.OS === 'web' ? 'Fais glisser la photo ou utilise les flèches pour la repositionner'
+              : 'Fais glisser la photo pour la repositionner'}
       </T>
+      {Platform.OS === 'web' && (
+        <Row style={{ justifyContent: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <IconButton icon="arrow-back" label="Déplacer la photo vers la gauche" disabled={unavailable} onPress={() => moveBy(-0.1, 0)} />
+          <IconButton icon="arrow-forward" label="Déplacer la photo vers la droite" disabled={unavailable} onPress={() => moveBy(0.1, 0)} />
+          <IconButton icon="arrow-up" label="Déplacer la photo vers le haut" disabled={unavailable} onPress={() => moveBy(0, -0.1)} />
+          <IconButton icon="arrow-down" label="Déplacer la photo vers le bas" disabled={unavailable} onPress={() => moveBy(0, 0.1)} />
+        </Row>
+      )}
       <Row style={{ justifyContent: 'center', gap: 12 }}>
         <IconButton icon="remove" label="Dézoomer" disabled={unavailable} onPress={() => zoomBy(-0.15)} />
         <IconButton icon="expand-outline" label="Photo entière" disabled={unavailable} onPress={() => resetFrame({ x: 0.5, y: 0.5, zoom: 0 })} />

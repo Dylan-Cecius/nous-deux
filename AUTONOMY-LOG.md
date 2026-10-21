@@ -1785,3 +1785,9 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Neuf tests nouveaux (contrats, quatre directions, cumul/bornes, absence de débordement, désactivation/reprise, exclusion web). Documentation officielle React Native 0.86 consultée : https://reactnative.dev/docs/0.86/accessibility. Amélioration par inspection, pas neuf bugs reproduits.
 - 65 suites / 1 706 tests réussis (10,790 s), lint/TypeScript code retour 0 et diff propre/revu. Les actions spécifiques iOS/Android ne créent pas un faux rôle ajustable sur le web ; accessibilité clavier du déplacement web non traitée.
 - Aucun aspect visible ajouté, stockage ou requête supplémentaire. VoiceOver/TalkBack, annonce des valeurs, focus et gestes doivent encore être essayés sur appareil ; ceci n’est pas une validation native.
+
+### 21 octobre 2026, 06:47 — Repositionnement web sans glissement
+- Complément de l’accessibilité : quatre boutons web nommés appellent les mêmes déplacements bornés que les actions natives. Aide adaptée ; ligne autorisant le retour à la ligne sur petit écran. Les contrôles visibles natifs restent inchangés.
+- Quatre scénarios de présence/direction absents avant ajout puis verts, avec désactivation et ancien événement contrôlés. 193 tests cadrage/fiche/UI réussis (1,435 s), lint/TypeScript code retour 0 et diff propre/revu.
+- Réutilisation d’IconButton (Pressable avec rôle bouton). Inspection du PressResponder de react-native-web installé : prise en charge Entrée/Espace pour ces boutons. Cela ne vaut pas essai de clavier/focus dans un navigateur réel ; Chromium reste indisponible selon le diagnostic précédent, pas de téléchargement répété.
+- Aucun nouveau service, paquet, stockage ou appel réseau. La limite web du checkpoint précédent est traitée côté code ; rendu, parcours au clavier et lecteur d’écran restent à vérifier.
