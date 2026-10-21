@@ -47,6 +47,24 @@ beforeEach(() => { (useCollectionState as jest.Mock).mockReturnValue(ready); (us
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); jest.useRealTimers(); });
 const text = () => root.root.findAllByType('t' as never).map((node) => node.children.filter((child) => typeof child === 'string').join('')).join('\n');
 
+test.each([
+  [new Date(2026, 9, 26, 12), '2026-11-01', 'octobre 2026 – novembre 2026', 'dimanche 1 novembre 2026'],
+  [new Date(2026, 11, 28, 12), '2027-01-03', 'décembre 2026 – janvier 2027', 'dimanche 3 janvier 2027'],
+  [new Date(2026, 9, 19, 12), '2026-10-25', 'octobre 2026', 'dimanche 25 octobre 2026'],
+])('les mois de la semaine et la date choisie restent explicites : %s', async (now, selected, range, dayLabel) => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(now);
+  await act(async () => { root = create(<Agenda />); });
+  const day = root.root.findAllByProps({ accessibilityLabel: formatLong(selected) }).find(node => typeof node.props.onPress === 'function')!;
+  await act(async () => day.props.onPress());
+  expect(root.root.findByType('screen' as never).props.overline).toBe(range);
+  expect(text()).toContain(dayLabel);
+  await act(async () => root.root.findByType('fab' as never).props.onPress());
+  const form = root.root.findByType('sheet' as never);
+  expect(form.findAllByType('t' as never).map(node => node.children.join('')).join(' ')).toContain(dayLabel);
+  expect(backend.addEvents).not.toHaveBeenCalled();
+});
+
 test.each(['Semaine précédente', 'Semaine suivante'])('retour au jour courant après navigation : %s', async direction => {
   jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
   jest.setSystemTime(new Date(2026, 9, 25, 23, 59, 59));

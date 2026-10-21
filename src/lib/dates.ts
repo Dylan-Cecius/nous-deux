@@ -39,8 +39,10 @@ export function nextOccurrence(key: string, yearly: boolean): string {
   return thisYear >= today ? thisYear : occurrence(year + 1);
 }
 
-export function formatLong(key: string): string {
-  return fromKey(key).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+export function formatLong(key: string, includeYear = false): string {
+  return fromKey(key).toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: includeYear ? 'numeric' : undefined,
+  });
 }
 
 export function formatShort(key: string): string {

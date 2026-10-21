@@ -1635,3 +1635,8 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Trois cas reproduits : les entrées du 3 octobre 2024, 2025 et 2026 produisaient le même libellé « 3 oct. » ; au nouvel an, une entrée de l’avant-veille omettait aussi l’année. Dans les mots doux, cœurs et dépenses, l’année apparaît maintenant lorsqu’elle diffère du jour consulté.
 - Six cas ajoutés, dont trois rouges puis verts ; les contrôles préservent année courante, aujourd’hui et hier au passage du nouvel an. Référence annuelle issue du paramètre today existant, sans nouvelle horloge ni abonnement.
 - Trois suites / 81 tests réussis en 1,387 s, lint/TypeScript et diff --check réussis, diff relu. Formatage pur partagé seulement ; historique, stockage, montant et actions inchangés. Aucun rendu natif ni opération financière validé/déclenché.
+## 2026-10-21 — 02:37 Europe/Brussels — semaine à cheval sur deux mois
+
+- Défaut d’affichage reproduit : semaine du 26 octobre au 1er novembre étiquetée seulement octobre, et du 28 décembre au 3 janvier seulement décembre ; le jour choisi omettait mois et année. Le titre de semaine inclut les deux mois/années quand nécessaire ; jour choisi et fiche horaire affichent la date complète.
+- Trois parcours rouges puis verts (changement de mois, d’année et semaine ordinaire), incluant ouverture du formulaire sans écriture. 3 suites / 150 tests réussis en 3,023 s, lint/TypeScript et diff --check réussis, diff relu.
+- formatLong reçoit une option d’année explicite ; ses autres consommateurs gardent le format existant, sélecteurs compris. Aucun changement de navigation, stockage, suppression ou API native. Textes non bornés en lignes, formulaire déjà flexible ; agencement réel avec texte agrandi restant à vérifier sur appareil.

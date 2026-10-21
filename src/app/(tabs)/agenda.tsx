@@ -105,7 +105,9 @@ function AgendaContent() {
     }));
   };
 
-  const monthLabel = fromKey(weekStart).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const monthStart = fromKey(weekStart).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const monthEnd = fromKey(days[6]).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const monthLabel = monthStart === monthEnd ? monthStart : `${monthStart} – ${monthEnd}`;
 
   return (
     <>
@@ -175,7 +177,7 @@ function AgendaContent() {
         {/* Jour sélectionné */}
         <Row style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
           <T variant="h2" style={{ textTransform: 'capitalize' }}>
-            {fromKey(selected).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' })}
+            {formatLong(selected, true)}
           </T>
           {bestSlot && (
             <Row style={{ backgroundColor: t.successSoft, borderRadius: 14, paddingVertical: 6, paddingHorizontal: 12, gap: 6 }}>
@@ -448,7 +450,7 @@ function EventSheet({
         <Card style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 8 }}>
           <IconButton icon="chevron-back" label="Jour précédent" disabled={busy} onPress={() => run(() => { if (isCurrent()) shiftDate(-1); })} size={40} />
           <T variant="bodyBold" style={{ flex: 1, textAlign: 'center', textTransform: 'capitalize' }}>
-            {formatLong(date)}
+            {formatLong(date, true)}
           </T>
           <IconButton icon="chevron-forward" label="Jour suivant" disabled={busy} onPress={() => run(() => { if (isCurrent()) shiftDate(1); })} size={40} />
         </Card>
