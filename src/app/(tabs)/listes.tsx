@@ -393,17 +393,22 @@ function ItemSheet({ item, tab, onClose }: { item?: Entry; tab: Tab; onClose: ()
     const current = latest.current!.draft;
     if (!current.title.trim()) return;
     const base = { title: current.title.trim(), detail: current.detail.trim() };
-    if (item) {
-      const patch: { title?: string; detail?: string; media?: 'film' | 'serie' } = {};
-      if (base.title !== current.baseTitle) patch.title = base.title;
-      if (base.detail !== current.baseDetail) patch.detail = base.detail;
-      if (kind === 'films' && current.media !== current.baseMedia) patch.media = current.media;
-      if (Object.keys(patch).length) await backend.update(kind === 'gifts' ? 'gifts' : 'items', item.id, patch);
-    } else if (kind === 'gifts') {
-      await backend.add('gifts', { ...base, done: false, createdBy: backend.userId, createdAt: Date.now() });
-    } else {
-      const data = { ...base, media: kind === 'films' ? current.media : undefined };
-      await backend.add('items', { ...data, list: kind, done: false, createdBy: backend.userId, createdAt: Date.now() });
+    try {
+      if (item) {
+        const patch: { title?: string; detail?: string; media?: 'film' | 'serie' } = {};
+        if (base.title !== current.baseTitle) patch.title = base.title;
+        if (base.detail !== current.baseDetail) patch.detail = base.detail;
+        if (kind === 'films' && current.media !== current.baseMedia) patch.media = current.media;
+        if (Object.keys(patch).length) await backend.update(kind === 'gifts' ? 'gifts' : 'items', item.id, patch);
+      } else if (kind === 'gifts') {
+        await backend.add('gifts', { ...base, done: false, createdBy: backend.userId, createdAt: Date.now() });
+      } else {
+        const data = { ...base, media: kind === 'films' ? current.media : undefined };
+        await backend.add('items', { ...data, list: kind, done: false, createdBy: backend.userId, createdAt: Date.now() });
+      }
+    } catch {
+      if (isCurrent()) showDialog('Enregistrement non confirmé', 'Vérifie la liste après son actualisation avant de réessayer : la modification peut déjà avoir été enregistrée. Ton brouillon est conservé.');
+      return;
     }
     close();
   });

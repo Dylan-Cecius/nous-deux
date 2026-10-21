@@ -1698,3 +1698,8 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Un test de reprise renforcé et un scénario d’écriture simulée suivie de rejet d’abord rouges ; contrôle du brouillon, absence de relance automatique et absence de vibration de succès. 72 tests formulaire/actions réussis (1,244 s), lint/TypeScript et diff réussis.
 - Une assertion textuelle intermédiaire a été ajustée pour inclure « avoir » dans la phrase attendue ; résultat final entièrement vert avant sauvegarde.
 - Affichage d’erreur côté client uniquement, sans idempotence nouvelle ni garantie contre une répétition manuelle. Marque de remboursement, suppression, stockage et serveur inchangés. Aucun accès à un montant réel ni mouvement d’argent.
+### 21 octobre 2026, 04:36 — Sauvegardes des listes non confirmées
+- Même défaut reproduit sur ajout et modification : rejet après écriture simulée affichant une erreur technique brute sous « Action impossible ». Le formulaire donne maintenant une indication fixe de confirmation inconnue et conseille de vérifier la liste actualisée avant de réessayer.
+- Gestion limitée au bloc de sauvegarde ; brouillon et verrou conservés, aucun retry automatique. Suppression et gestionnaire de suppression inchangés. Le garde de contexte continue de masquer les retours d’anciennes fiches.
+- Trois cas rouges puis verts (deux nouveaux, un test de reprise renforcé) ; 87 tests formulaires/actions des quatre listes réussis (1,635 s), lint/TypeScript et diff réussis. Revue du diff : contenu des écritures et fermeture après succès inchangés.
+- Stockage doublé et données fictives ; aucune preuve d’idempotence inter-appareils ni recette native. Aucune dépense ni service distant.

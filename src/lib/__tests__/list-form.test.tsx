@@ -175,10 +175,25 @@ test('une erreur conserve le brouillon et permet de réessayer', async () => {
   await editTitle();
   backend.update.mockRejectedValueOnce(new Error('Erreur fictive'));
   await act(async () => { await button('Enregistrer')(); });
-  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Erreur fictive');
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('Vérifie la liste'));
   expect(root.root.findByProps({ label: 'Quoi ?' }).props.value).toBe('Brouillon fictif');
   await act(async () => { await button('Enregistrer')(); });
   expect(backend.update).toHaveBeenCalledTimes(2);
+});
+
+test.each([false, true])('une réponse de liste perdue garde le brouillon sans exposer l’erreur (création : %s)', async fresh => {
+  await open(fresh);
+  await editTitle();
+  const write = fresh ? backend.add : backend.update;
+  let stored = false;
+  write.mockImplementationOnce(async () => { stored = true; throw new Error('Détail privé fictif : couples/test-secret/items/one'); });
+  await act(async () => { await button('Enregistrer')(); });
+  expect(stored).toBe(true);
+  expect(write).toHaveBeenCalledTimes(1);
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('avant de réessayer'));
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('test-secret');
+  expect(root.root.findByProps({ label: 'Quoi ?' }).props.value).toBe('Brouillon fictif');
+  expect(sheet()).toBeTruthy();
 });
 
 test('le nouveau brouillon ne change pas de catégorie avec l’onglet derrière le formulaire', async () => {
