@@ -11,6 +11,7 @@ import { useCollectionState, useSession } from '@/lib/couple-context';
 import { fromKey, todayKey } from '@/lib/dates';
 import type { Memory } from '@/lib/types';
 import { useAsyncAction } from '@/lib/use-async-action';
+import { useToday } from '@/lib/use-today';
 
 export default function Souvenirs() {
   const { backend } = useSession();
@@ -72,6 +73,7 @@ function SouvenirsContent() {
 }
 
 function MemorySheet({ memory, onClose }: { memory: Memory; onClose: () => void }) {
+  const today = useToday();
   const { backend } = useSession();
   const collection = useCollectionState('memories');
   const context = useMemo(() => ({ backend }), [backend]);
@@ -138,11 +140,11 @@ function MemorySheet({ memory, onClose }: { memory: Memory; onClose: () => void 
     <Sheet visible title="Souvenir" onClose={() => run(close)}>
       {received && <Image source={{ uri: received.photoUrl }} style={{ width: '100%', aspectRatio: 1, borderRadius: 20 }} contentFit="cover" />}
       <Field label="Légende" value={caption} maxLength={4000} editable={!pending} onChangeText={(value) => changeDraft({ caption: value })} placeholder="Notre premier week-end à la mer" />
-      <DateField label="Date" value={date} disabled={pending} onChange={(value) => changeDraft({ date: value })} maximumDate={new Date()} />
-      {date > todayKey() && <T variant="small">La date du souvenir ne peut pas être dans le futur.</T>}
+      <DateField label="Date" value={date} disabled={pending} onChange={(value) => changeDraft({ date: value })} maximumDate={fromKey(today)} />
+      {date > today && <T variant="small">La date du souvenir ne peut pas être dans le futur.</T>}
       {unavailable && <T variant="small" muted>Album indisponible ou souvenir retiré. Ton brouillon est conservé ; recharge l’album avant de continuer.</T>}
       {collection.error && <Button label="Recharger l’album du formulaire" variant="outline" onPress={collection.retry} />}
-      <Button label="Enregistrer" disabled={pending || unavailable || date > todayKey()} onPress={save} />
+      <Button label="Enregistrer" disabled={pending || unavailable || date > today} onPress={save} />
       <Button
         label="Supprimer"
         variant="danger"

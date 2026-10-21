@@ -1799,3 +1799,9 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Six recettes ajoutées à TESTFLIGHT-REVIEW.md, non cochées. Les preuves d’exports précédentes restent attachées à leurs anciens commits ; aucun nouvel export, rendu visuel, build native signée, essai iPhone ou statut Apple revendiqué ici.
 - Aucun contenu/compte réel, invitation, notification, opération financière, build EAS ou déploiement. Configuration publique non modifiée ; fonctionnalités payantes laissées désactivées.
 - Durée observée avant sauvegarde finale : environ 17 minutes (06:31:43–06:48), pas une heure. L’audit borné du cadrage a livré six lots ; aucune autre anomalie étayée dans ce périmètre. Les vérifications utiles suivantes sont le rendu, les gestes et les technologies d’assistance, dont les moyens manquent encore ; pas de modification artificielle ni d’attente pour remplir la durée.
+
+### 21 octobre 2026, 07:35 — Journée courante dans la fiche souvenir
+- PR #3 relue ouverte/en brouillon au SHA b23bd317, consignes relues. La copie locale propre était antérieure au dernier checkpoint : cinq fichiers texte reconstruits depuis GitHub, puis 187 blobs SHA vérifiés (sept PNG originaux inclus). Aucun changement distant perdu ; règle multi-tâches déjà conforme.
+- Deux régressions reproduites avec horloge simulée et sans rendu forcé : date maximale restée à la veille après minuit ; bouton encore actif et absence d’explication après un recul de l’horloge rendant la date future.
+- MemorySheet utilise l’horloge locale partagée pour la borne, le message et le bouton ; brouillon et fiche conservés. Revalidation immédiate dans l’action de sauvegarde inchangée.
+- Deux tests rouges puis verts ; 45 tests fiche/horloge réussis (1,346 s), lint/TypeScript code retour 0 et diff propre/revu. Aucun serveur, règle ou mécanisme de suppression modifié ; pas d’essai natif ni de nouvelle requête.

@@ -11,7 +11,10 @@ jest.mock('@/components/home/memories-strip', () => ({ useAddMemory: () => ({ ad
 jest.mock('expo-router', () => ({ router: { back: jest.fn() } }));
 jest.mock('expo-image', () => ({ Image: 'image' }));
 jest.mock('@/components/pickers', () => ({ DateField: 'date' }));
-jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), { Pressable: { value: 'pressable' } }));
+jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), {
+  Pressable: { value: 'pressable' },
+  AppState: { value: { currentState: 'active', addEventListener: jest.fn(() => ({ remove: jest.fn() })) } },
+}));
 jest.mock('@/components/ui', () => ({ confirmDelete: jest.fn(), ...Object.fromEntries(['Screen', 'Card', 'T', 'Button', 'Empty', 'Fab', 'Field', 'Sheet'].map((name) => [name, name.toLowerCase()])) }));
 
 let root: ReactTestRenderer;
@@ -38,6 +41,41 @@ const ask = async () => {
   await act(async () => button('Supprimer')());
   return (confirmDelete as jest.Mock).mock.calls.at(-1)[1];
 };
+
+describe('fiche souvenir au changement de jour', () => {
+  beforeEach(() => jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] }));
+  afterEach(async () => {
+    if (root) await act(async () => root.unmount());
+    jest.useRealTimers();
+  });
+
+  test('la date maximale suit minuit sans perdre la légende ni rouvrir la fiche', async () => {
+    jest.setSystemTime(new Date(2026, 9, 20, 23, 59, 59));
+    await open();
+    await changeCaption('Brouillon de minuit');
+    await act(async () => jest.advanceTimersByTime(1025));
+    const maximum = root.root.findByType('date' as never).props.maximumDate as Date;
+    expect([maximum.getFullYear(), maximum.getMonth(), maximum.getDate()]).toEqual([2026, 9, 21]);
+    expect(root.root.findByProps({ label: 'Légende' }).props.value).toBe('Brouillon de minuit');
+    expect(sheet()).toBeTruthy();
+    expect(backend.update).not.toHaveBeenCalled();
+  });
+
+  test('un recul de l’horloge explique et désactive une date désormais future', async () => {
+    jest.setSystemTime(new Date(2026, 9, 21, 12));
+    await open();
+    await act(async () => root.root.findByType('date' as never).props.onChange('2026-10-21'));
+    jest.setSystemTime(new Date(2026, 9, 20, 12));
+    await act(async () => jest.advanceTimersByTime(60000));
+    expect(root.root.findByProps({ label: 'Enregistrer' }).props.disabled).toBe(true);
+    expect(JSON.stringify(root.toJSON())).toContain('La date du souvenir ne peut pas être dans le futur.');
+    expect(root.root.findByType('date' as never).props.value).toBe('2026-10-21');
+    expect(backend.update).not.toHaveBeenCalled();
+    jest.setSystemTime(new Date(2026, 9, 21, 12));
+    await act(async () => jest.advanceTimersByTime(60000));
+    expect(root.root.findByProps({ label: 'Enregistrer' }).props.disabled).toBe(false);
+  });
+});
 
 test.each(['closed', 'reopened', 'backend', 'member', 'loading', 'error', 'removed'])('confirmation de souvenir ignorée après %s', async (kind) => {
   await open();
