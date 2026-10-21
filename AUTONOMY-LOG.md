@@ -1800,8 +1800,14 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Aucun contenu/compte réel, invitation, notification, opération financière, build EAS ou déploiement. Configuration publique non modifiée ; fonctionnalités payantes laissées désactivées.
 - Durée observée avant sauvegarde finale : environ 17 minutes (06:31:43–06:48), pas une heure. L’audit borné du cadrage a livré six lots ; aucune autre anomalie étayée dans ce périmètre. Les vérifications utiles suivantes sont le rendu, les gestes et les technologies d’assistance, dont les moyens manquent encore ; pas de modification artificielle ni d’attente pour remplir la durée.
 
-### 21 octobre 2026, 07:35 — Journée courante dans la fiche souvenir
+### 21 octobre 2026, 07:34 — Journée courante dans la fiche souvenir
 - PR #3 relue ouverte/en brouillon au SHA b23bd317, consignes relues. La copie locale propre était antérieure au dernier checkpoint : cinq fichiers texte reconstruits depuis GitHub, puis 187 blobs SHA vérifiés (sept PNG originaux inclus). Aucun changement distant perdu ; règle multi-tâches déjà conforme.
 - Deux régressions reproduites avec horloge simulée et sans rendu forcé : date maximale restée à la veille après minuit ; bouton encore actif et absence d’explication après un recul de l’horloge rendant la date future.
 - MemorySheet utilise l’horloge locale partagée pour la borne, le message et le bouton ; brouillon et fiche conservés. Revalidation immédiate dans l’action de sauvegarde inchangée.
 - Deux tests rouges puis verts ; 45 tests fiche/horloge réussis (1,346 s), lint/TypeScript code retour 0 et diff propre/revu. Aucun serveur, règle ou mécanisme de suppression modifié ; pas d’essai natif ni de nouvelle requête.
+
+### 21 octobre 2026, 07:35 — Confirmation de modification du profil
+- Trois échecs reproduits (un test existant renforcé et deux nouveaux) : détails techniques bruts affichés après une réponse perdue de prénom/couleur, y compris quand le double avait déjà appliqué la modification.
+- Message fixe de confirmation inconnue demandant de vérifier le profil actualisé avant reprise ; prénom saisi conservé et aucune relance automatique. Gardes de contexte et verrou prénom/couleur inchangés.
+- 58 tests profil/réglages réussis (1,749 s), lint/TypeScript code retour 0, diff propre et relu. Aucun changement de stockage, serveur/règle ou suppression ; aucun incident réel observé, aucun essai natif.
+- Horodatage du checkpoint précédent rectifié à 07:34 selon la lecture d’horloge au moment de sa sauvegarde.

@@ -106,10 +106,29 @@ test.each(['empty', 'same', 'invalidColor', 'sameColor'])('une valeur %s ne déc
 test('un échec courant garde le prénom et permet une reprise', async () => {
   await mount(); backend.updateMember.mockRejectedValueOnce(new Error('Échec fictif'));
   await act(async () => { await save().props.onPress(); });
-  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Échec fictif');
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('Vérifie ce profil'));
   expect(input().props.value).toBe(' Nouveau prénom fictif ');
   await act(async () => { await save().props.onPress(); });
   expect(backend.updateMember).toHaveBeenLastCalledWith(member.id, { name: 'Nouveau prénom fictif' });
+});
+
+test.each(['name', 'color'])('une réponse perdue de %s ne révèle pas le détail privé et ne relance rien', async kind => {
+  await mount();
+  let applied = false;
+  backend.updateMember.mockImplementationOnce(async () => {
+    applied = true;
+    throw new Error('Détail privé fictif : couples/test-secret/members/alice');
+  });
+  await act(async () => {
+    if (kind === 'name') await save().props.onPress();
+    else await color().props.onChange('#222222');
+  });
+  expect(applied).toBe(true);
+  expect(backend.updateMember).toHaveBeenCalledTimes(1);
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('peut déjà avoir été enregistrée'));
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('test-secret');
+  expect(input().props.value).toBe(' Nouveau prénom fictif ');
+  expect(input().props.editable).toBe(true);
 });
 
 test('une ancienne erreur ne perturbe pas le profil courant', async () => {

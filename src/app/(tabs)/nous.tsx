@@ -277,7 +277,9 @@ function MemberCard({ member, editable, isMe }: { member: Member; editable: bool
     if (changes.name !== undefined && (!changes.name || changes.name === current.name)) return;
     if (changes.color !== undefined && (!MemberColors.includes(changes.color) || changes.color === current.color)) return;
     try { await backend.updateMember(member.id, changes); }
-    catch (error) { if (isCurrent()) throw error; }
+    catch {
+      if (isCurrent()) showDialog('Enregistrement non confirmé', 'Vérifie ce profil après son actualisation avant de réessayer : la modification peut déjà avoir été enregistrée. Ton prénom saisi est conservé.');
+    }
   });
 
   return (
