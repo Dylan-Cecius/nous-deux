@@ -6,6 +6,14 @@ if (form) {
   const preview = document.querySelector('[data-message]');
   const emailLink = document.querySelector('[data-email-link]');
   const copy = document.querySelector('[data-copy]');
+  const message = form.elements.namedItem('message');
+  const validateMessage = () => message.setCustomValidity(
+    message.required && !message.value.trim() ? 'Décris le problème avant de préparer ton e-mail.' : '',
+  );
+  message.addEventListener('input', validateMessage);
+  message.addEventListener('change', validateMessage);
+  // Reset restores the initial value after this event; do not keep an old error.
+  form.addEventListener('reset', () => message.setCustomValidity(''));
   let revision = 0;
   let copying = false;
   const invalidate = () => {
@@ -25,6 +33,7 @@ if (form) {
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     invalidate();
+    validateMessage();
     if (!form.reportValidity()) return;
     const data = new FormData(form);
     const deleting = form.dataset.requestForm === 'deletion';

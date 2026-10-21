@@ -15,7 +15,7 @@ function mount(kind = 'support', recipient = 'support@example.test') {
       <input name="accountEmail" type="email" value="account@example.test">
       <select name="mode"><option>Local</option><option>Cloud</option></select>
       <select name="reason"><option>Autre</option><option>Connexion</option></select>
-      <textarea name="message">Message fictif initial</textarea>
+      <textarea name="message" ${kind === 'support' ? 'required' : ''}>Message fictif initial</textarea>
       <input name="ownAccount" type="checkbox" checked>
       <p data-status role="status"></p>
       <div data-result hidden>
@@ -229,4 +229,48 @@ test('sans API clipboard, sélection manuelle proposée sans faux succès', asyn
   expect(select).toHaveBeenCalledTimes(1);
   expect(page.status.textContent).toContain('Sélectionne et copie');
   expect(page.copy.disabled).toBe(false);
+});
+
+test.each(['   ', '\n\t', '\u00a0'])('une demande d’assistance sans description utile est refusée (%j)', value => {
+  const page = mount();
+  page.submit();
+  page.change('message', value);
+  page.submit();
+  expect(page.result.hidden).toBe(true);
+  expect(page.preview.value).toBe('');
+  expect(page.link.hasAttribute('href')).toBe(false);
+  expect(page.form.checkValidity()).toBe(false);
+});
+
+test('corriger une description vide rend la préparation de nouveau possible', () => {
+  const page = mount();
+  page.change('message', '   ');
+  page.submit();
+  expect(page.result.hidden).toBe(true);
+  page.change('message', '  Un problème fictif à expliquer.  ');
+  expect(page.form.checkValidity()).toBe(true);
+  page.submit();
+  expect(page.result.hidden).toBe(false);
+  expect(new URL(page.link.href).searchParams.get('body')).toContain('\nUn problème fictif à expliquer.\n');
+});
+
+test('réinitialiser après une description vide retire aussi son erreur de validation', () => {
+  const page = mount();
+  page.change('message', '   ');
+  page.submit();
+  expect(page.form.checkValidity()).toBe(false);
+  page.form.reset();
+  expect(page.form.checkValidity()).toBe(true);
+  page.submit();
+  expect(page.result.hidden).toBe(false);
+  expect(page.preview.value).toContain('Message fictif initial');
+});
+
+test('la précision facultative d’une demande de suppression peut rester vide', () => {
+  const page = mount('deletion');
+  page.change('message', '   ');
+  page.submit();
+  expect(page.form.checkValidity()).toBe(true);
+  expect(page.result.hidden).toBe(false);
+  expect(page.preview.value).toContain('Je demande la suppression');
 });
