@@ -131,7 +131,7 @@ function HomeContent() {
                 {d.title}
               </T>
               <T variant="small" muted>
-                {fromKey(d.next).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long' })}
+                {fromKey(d.next).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', year: d.next.slice(0, 4) !== today.slice(0, 4) ? 'numeric' : undefined })}
               </T>
             </Pressable>
           ))}

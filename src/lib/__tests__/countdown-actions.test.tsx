@@ -287,3 +287,21 @@ test('une action obtenue avant saisie utilise la nouvelle date valide', async ()
   await act(async () => { await oldSave(); });
   expect(backend.add).toHaveBeenCalledWith('dates', expect.objectContaining({ title: 'Fictif' }));
 });
+
+
+test.each([
+  ['2026-12-25', false, null],
+  ['2027-01-02', false, '2027'],
+  ['2999-01-02', false, '2999'],
+  ['2020-01-02', true, '2027'],
+])('année de la prochaine occurrence %s (annuelle : %s)', async (key, yearly, year) => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(new Date(2026, 9, 21, 12));
+  dates = { ...ready, items: [{ ...date, date: key, yearly }] };
+  await mount();
+  const card = root.root.findAllByType(Pressable).find(node => typeof node.props.onLongPress === 'function')!;
+  const label = card.findAllByType('t' as never).map(node => node.props.children).join(' ');
+  if (year) expect(label).toContain(year);
+  else expect(label).not.toContain('2026');
+  if (yearly) expect(label).not.toContain('2020');
+});
