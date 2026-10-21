@@ -61,13 +61,16 @@ export function quote(text: string): string {
   return `« ${text} »`;
 }
 
-/** « aujourd'hui à 8:15 », « hier », « 3 oct. ». */
+/** « aujourd'hui à 8:15 », « hier », « 3 oct. », avec l’année si elle diffère. */
 export function formatRelative(timestamp: number, today = todayKey()): string {
   const d = new Date(timestamp);
   const diff = daysBetween(toKey(d), today);
   if (diff === 0) return `aujourd’hui à ${d.getHours()}:${pad(d.getMinutes())}`;
   if (diff === 1) return 'hier';
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  return d.toLocaleDateString('fr-FR', {
+    day: 'numeric', month: 'short',
+    year: d.getFullYear() === Number(today.slice(0, 4)) ? undefined : 'numeric',
+  });
 }
 
 /** Prochain cap symbolique (100, 200… puis tous les 500 jours) et progression vers lui. */

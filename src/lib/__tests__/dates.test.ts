@@ -3,6 +3,7 @@ import {
   addDays,
   daysBetween,
   formatNumber,
+  formatRelative,
   nextMilestone,
   nextOccurrence,
   parseFrenchDate,
@@ -67,6 +68,21 @@ describe('dates', () => {
   test('formatNumber et quote utilisent des espaces insécables', () => {
     expect(formatNumber(1337)).toBe('1 337');
     expect(quote('Je t’aime')).toBe('« Je t’aime »');
+  });
+});
+
+describe('année des dates relatives', () => {
+  test.each([
+    ['2025-10-03', '2026-10-21', '3 oct. 2025'],
+    ['2024-10-03', '2026-10-21', '3 oct. 2024'],
+    ['2026-10-03', '2026-10-21', '3 oct.'],
+    ['2026-12-30', '2027-01-01', '30 déc. 2026'],
+    ['2026-12-31', '2027-01-01', 'hier'],
+    ['2027-01-01', '2027-01-01', 'aujourd’hui à 8:05'],
+  ])('%s vu le %s : %s', (date, today, expected) => {
+    const at = fromKey(date);
+    at.setHours(8, 5);
+    expect(formatRelative(at.getTime(), today)).toBe(expected);
   });
 });
 

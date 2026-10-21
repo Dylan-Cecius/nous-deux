@@ -1630,3 +1630,8 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Défaut reproduit : une date annuelle au 30 novembre 2028 était ramenée au 30 novembre 2026, y compris dans les demandes de rappels simulées ; le 29 février 2028 devenait le 1er mars 2027. nextOccurrence conserve maintenant la première date future et ne répète qu’après celle-ci ; l’année de référence vient du même instantané du jour.
 - Trois régressions rouges puis vertes et un contrôle ajouté ; 3 suites / 79 tests réussis en 1,169 s, lint/TypeScript et diff --check réussis, diff relu. Anniversaires passés, jour courant et reports du 29 février existants conservés.
 - Documentation Expo SDK 57/index/notifications consultée. API native inchangée, notifications entièrement doublées ; aucune programmation réelle ni preuve de livraison sur appareil. Aucun serveur/règle/suppression modifié, aucune dépense, build ou distribution.
+## 2026-10-21 — 02:35 Europe/Brussels — année dans les historiques
+
+- Trois cas reproduits : les entrées du 3 octobre 2024, 2025 et 2026 produisaient le même libellé « 3 oct. » ; au nouvel an, une entrée de l’avant-veille omettait aussi l’année. Dans les mots doux, cœurs et dépenses, l’année apparaît maintenant lorsqu’elle diffère du jour consulté.
+- Six cas ajoutés, dont trois rouges puis verts ; les contrôles préservent année courante, aujourd’hui et hier au passage du nouvel an. Référence annuelle issue du paramètre today existant, sans nouvelle horloge ni abonnement.
+- Trois suites / 81 tests réussis en 1,387 s, lint/TypeScript et diff --check réussis, diff relu. Formatage pur partagé seulement ; historique, stockage, montant et actions inchangés. Aucun rendu natif ni opération financière validé/déclenché.
