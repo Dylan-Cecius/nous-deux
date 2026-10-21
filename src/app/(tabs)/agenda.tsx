@@ -59,8 +59,10 @@ function AgendaContent() {
   const events = unavailable ? [] : eventState.items;
   const assistant = useAssistant();
 
-  const [selected, setSelected] = useState(todayKey());
-  const [weekStart, setWeekStart] = useState(mondayOf(todayKey()));
+  const [{ selected, weekStart }, setNavigation] = useState(() => {
+    const day = todayKey();
+    return { selected: day, weekStart: mondayOf(day) };
+  });
   const [editing, setEditing] = useState<AgendaEvent | 'new' | null>(null);
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -79,15 +81,15 @@ function AgendaContent() {
   const colIndex = (who: string) => columns.findIndex((m) => m.id === who);
 
   const shiftWeek = (delta: number) => {
-    const next = addDays(weekStart, delta * 7);
-    setWeekStart(next);
-    setSelected(next);
+    setNavigation(previous => {
+      const next = addDays(previous.weekStart, delta * 7);
+      return { weekStart: next, selected: next };
+    });
   };
 
   const returnToToday = () => {
     const currentDay = todayKey();
-    setWeekStart(mondayOf(currentDay));
-    setSelected(currentDay);
+    setNavigation({ weekStart: mondayOf(currentDay), selected: currentDay });
   };
 
   const askRemove = (event: AgendaEvent) => {
@@ -132,7 +134,10 @@ function AgendaContent() {
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 accessibilityLabel={formatLong(d)}
-                onPress={() => setSelected(d)}
+                onPress={() => setNavigation(previous => (
+                  d < previous.weekStart || d > addDays(previous.weekStart, 6)
+                    ? previous : { ...previous, selected: d }
+                ))}
                 style={{
                   flex: 1,
                   alignItems: 'center',

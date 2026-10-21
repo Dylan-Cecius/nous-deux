@@ -1640,3 +1640,8 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Défaut d’affichage reproduit : semaine du 26 octobre au 1er novembre étiquetée seulement octobre, et du 28 décembre au 3 janvier seulement décembre ; le jour choisi omettait mois et année. Le titre de semaine inclut les deux mois/années quand nécessaire ; jour choisi et fiche horaire affichent la date complète.
 - Trois parcours rouges puis verts (changement de mois, d’année et semaine ordinaire), incluant ouverture du formulaire sans écriture. 3 suites / 150 tests réussis en 3,023 s, lint/TypeScript et diff --check réussis, diff relu.
 - formatLong reçoit une option d’année explicite ; ses autres consommateurs gardent le format existant, sélecteurs compris. Aucun changement de navigation, stockage, suppression ou API native. Textes non bornés en lignes, formulaire déjà flexible ; agencement réel avec texte agrandi restant à vérifier sur appareil.
+## 2026-10-21 — 02:39 Europe/Brussels — navigation rapide de semaine
+
+- Quatre cas rouges puis verts : deux appuis rapides dans un sens ne comptaient qu’une semaine, aller puis retour avant rendu aboutissait à la mauvaise semaine, ancien jour cliqué après changement de semaine laissait une sélection invisible.
+- Navigation réunie dans un état semaine/jour, mises à jour fonctionnelles pures pour cumuler les appuis ; sélection de jour bornée à la semaine actuellement affichée. Retour à aujourd’hui reste basé sur la date relue au clic.
+- 103 tests agenda réussis en 2,896 s ; lint/TypeScript et diff --check réussis, diff relu. Aucun effet nouveau, listener, écriture de données ou mécanisme de suppression modifié. Gestes rapides réels non testés sur appareil.

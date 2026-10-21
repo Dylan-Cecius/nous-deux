@@ -48,6 +48,20 @@ afterEach(async () => { if (root) await act(async () => root.unmount()); jest.cl
 const text = () => root.root.findAllByType('t' as never).map((node) => node.children.filter((child) => typeof child === 'string').join('')).join('\n');
 
 test.each([
+  [['Semaine suivante', 'Semaine suivante'], '2026-11-02'],
+  [['Semaine précédente', 'Semaine précédente'], '2026-10-05'],
+  [['Semaine suivante', 'Semaine précédente'], '2026-10-19'],
+] as const)('la navigation cumule les appuis avant le rendu : %s', async (directions, expected) => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(new Date(2026, 9, 21, 12));
+  await act(async () => { root = create(<Agenda />); });
+  const callbacks = directions.map(label => root.root.findByProps({ label }).props.onPress);
+  await act(async () => callbacks.forEach(callback => callback()));
+  const selected = root.root.findAllByProps({ accessibilityLabel: formatLong(expected) }).find(node => typeof node.props.onPress === 'function');
+  expect(selected?.props.accessibilityState.selected).toBe(true);
+});
+
+test.each([
   [new Date(2026, 9, 26, 12), '2026-11-01', 'octobre 2026 – novembre 2026', 'dimanche 1 novembre 2026'],
   [new Date(2026, 11, 28, 12), '2027-01-03', 'décembre 2026 – janvier 2027', 'dimanche 3 janvier 2027'],
   [new Date(2026, 9, 19, 12), '2026-10-25', 'octobre 2026', 'dimanche 25 octobre 2026'],
@@ -63,6 +77,21 @@ test.each([
   const form = root.root.findByType('sheet' as never);
   expect(form.findAllByType('t' as never).map(node => node.children.join('')).join(' ')).toContain(dayLabel);
   expect(backend.addEvents).not.toHaveBeenCalled();
+});
+
+test('un ancien bouton de jour ne sélectionne pas une date hors de la semaine affichée', async () => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(new Date(2026, 9, 21, 12));
+  await act(async () => { root = create(<Agenda />); });
+  const day = (key: string) => root.root.findAllByProps({ accessibilityLabel: formatLong(key) }).find(node => typeof node.props.onPress === 'function')!;
+  const oldDay = day('2026-10-23').props.onPress;
+  await act(async () => {
+    root.root.findByProps({ label: 'Semaine suivante' }).props.onPress();
+    oldDay();
+  });
+  expect(day('2026-10-26').props.accessibilityState.selected).toBe(true);
+  await act(async () => oldDay());
+  expect(day('2026-10-26').props.accessibilityState.selected).toBe(true);
 });
 
 test.each(['Semaine précédente', 'Semaine suivante'])('retour au jour courant après navigation : %s', async direction => {
