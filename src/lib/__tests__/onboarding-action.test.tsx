@@ -56,7 +56,7 @@ test('une action conservée après sortie ne démarre aucune demande', async () 
 test('un échec courant permet une nouvelle demande volontaire', async () => {
   const request = jest.fn().mockRejectedValueOnce(new Error('Échec fictif')).mockResolvedValueOnce(backend);
   await act(async () => { await action.run(request); });
-  expect(showDialog).toHaveBeenCalledWith('Oups', 'Échec fictif');
+  expect(showDialog).toHaveBeenCalledWith('Oups', 'L’ouverture de votre espace n’a pas pu être confirmée. Vérifie ta connexion, puis réessaie. Ta saisie est conservée.');
   expect(action.busy).toBe(false);
   await act(async () => { await action.run(request); });
   expect(request).toHaveBeenCalledTimes(2);
@@ -93,4 +93,28 @@ test('les interactions ordinaires se composent sans rendre le formulaire occupé
   await act(async () => { action.interact(change); action.interact(change); });
   expect(change).toHaveBeenCalledTimes(2);
   expect(action.busy).toBe(false);
+});
+
+
+test.each([
+  new Error('private fictitious storage key and profile'),
+  { toString() { throw new Error('private fictitious conversion'); } },
+])('un rejet d’entrée ne révèle aucun détail et libère le formulaire : %#', async error => {
+  const request = jest.fn().mockRejectedValueOnce(error);
+  await act(async () => { await action.run(request); });
+  expect(showDialog).toHaveBeenCalledWith('Oups', 'L’ouverture de votre espace n’a pas pu être confirmée. Vérifie ta connexion, puis réessaie. Ta saisie est conservée.');
+  expect(request).toHaveBeenCalledTimes(1);
+  expect(action.busy).toBe(false);
+  expect(setBackend).not.toHaveBeenCalled();
+});
+
+
+test.each([
+  'Invitation invalide, expirée ou déjà utilisée. Demande un nouveau code à ta moitié.',
+  'Limite atteinte. Réessaie plus tard.',
+  'Le compte a changé. Rouvre la connexion avant de réessayer.',
+])('l’entrée conserve une explication publique utile : %s', async message => {
+  await act(async () => { await action.run(jest.fn().mockRejectedValueOnce(new Error(message))); });
+  expect(showDialog).toHaveBeenCalledWith('Oups', message);
+  expect(setBackend).not.toHaveBeenCalled();
 });

@@ -290,7 +290,7 @@ test('une erreur courante reste visible et permet une nouvelle tentative volonta
   (createCoupleInvitation as jest.Mock).mockRejectedValueOnce(new Error('Échec fictif')).mockResolvedValueOnce(invitation);
   const { pending } = await start();
   await act(async () => { await pending; });
-  expect(showDialog).toHaveBeenCalledWith('Invitation indisponible', 'Échec fictif');
+  expect(showDialog).toHaveBeenCalledWith('Invitation indisponible', 'La création du code n’a pas pu être confirmée. Vérifie ta connexion puis crée une nouvelle invitation. Ne réutilise pas un ancien code.');
   await act(async () => { await root.root.findByProps({ label: 'Créer une invitation' }).props.onPress(); });
   expect(text()).toContain('ABCD234567');
   expect(createCoupleInvitation).toHaveBeenCalledTimes(2);
@@ -305,4 +305,26 @@ test('le même contexte conserve sa requête même si l’objet backend est reco
   await act(async () => { resolve(invitation); await pending; });
   expect(text()).toContain('ABCD234567');
   expect(root.root.findByProps({ label: 'Remplacer cette invitation' }).props.disabled).toBe(false);
+});
+
+
+test('un rejet contenant un code privé reste masqué après remplacement', async () => {
+  (createCoupleInvitation as jest.Mock).mockResolvedValueOnce(invitation).mockRejectedValueOnce(new Error('private fictitious invitation: ABCD234567'));
+  const { pending } = await start();
+  await act(async () => pending);
+  await act(async () => root.root.findByProps({ label: 'Remplacer cette invitation' }).props.onPress());
+  expect(showDialog).toHaveBeenCalledWith('Invitation indisponible', 'La création du code n’a pas pu être confirmée. Vérifie ta connexion puis crée une nouvelle invitation. Ne réutilise pas un ancien code.');
+  expect(text()).not.toContain(invitation.code);
+  expect(Share.share).not.toHaveBeenCalled();
+  expect(createCoupleInvitation).toHaveBeenCalledTimes(2);
+});
+
+
+test('la création d’invitation conserve le refus d’un espace déjà partagé', async () => {
+  const message = 'Une invitation est possible uniquement lorsque tu es seul dans cet espace.';
+  (createCoupleInvitation as jest.Mock).mockRejectedValueOnce(new Error(message));
+  const { pending } = await start();
+  await act(async () => pending);
+  expect(showDialog).toHaveBeenCalledWith('Invitation indisponible', message);
+  expect(root.root.findAllByProps({ label: 'Partager l’invitation' })).toHaveLength(0);
 });

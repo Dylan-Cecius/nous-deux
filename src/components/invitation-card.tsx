@@ -4,7 +4,7 @@ import { showDialog } from './dialog';
 import { Button, Card, T } from './ui';
 import { createCoupleInvitation, type Invitation } from '@/lib/backend';
 import { useSession } from '@/lib/couple-context';
-import { userError } from '@/lib/errors';
+import { entryErrorMessage } from '@/lib/entry-errors';
 import { parseInvitationCode } from '@/lib/invitation-code';
 
 function verifiedInvitation(value: unknown): Invitation | null {
@@ -80,7 +80,7 @@ function InvitationForm() {
         setInvitation(verified);
       }
     } catch (error) {
-      if (active.current) showDialog('Invitation indisponible', userError(error));
+      if (active.current) showDialog('Invitation indisponible', entryErrorMessage(error) ?? 'La création du code n’a pas pu être confirmée. Vérifie ta connexion puis crée une nouvelle invitation. Ne réutilise pas un ancien code.');
     } finally {
       locked.current = false;
       if (active.current) setBusy(null);

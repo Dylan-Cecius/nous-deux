@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { showDialog } from '@/components/dialog';
 import type { Backend } from './backend';
+import { entryErrorMessage } from './entry-errors';
 import { useAsyncAction } from './use-async-action';
 
 /** Request state for the entry flow, independent of its decorative native assets. */
@@ -18,7 +19,7 @@ export function useOnboardingAction(setBackend: (backend: Backend) => void, cont
       const backend = await action();
       if (active.current === scope) setBackend(backend);
     } catch (e) {
-      if (active.current === scope) showDialog('Oups', e instanceof Error ? e.message : String(e));
+      if (active.current === scope) showDialog('Oups', entryErrorMessage(e) ?? 'L’ouverture de votre espace n’a pas pu être confirmée. Vérifie ta connexion, puis réessaie. Ta saisie est conservée.');
     }
   });
   const interact = (action: () => void) => guarded(() => { if (active.current === scope) action(); });
