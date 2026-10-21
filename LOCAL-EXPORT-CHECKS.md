@@ -41,3 +41,10 @@ Source : `d79247babf904ef20246b802d38d88a1497ac84c`, le 21 octobre vers 03:45. L
 - Export web, mêmes indicateurs de sécurité ci-dessus, sortie `../nous-deux-web-final` : code retour 0, 1 080 modules web / 1 180 modules de rendu statique, 16 routes et 3 bundles ; 47 fichiers, 4 080 749 octets.
 - Export iOS, mêmes indicateurs, sortie `../nous-deux-ios-final` : code retour 0, 1 359 modules, 31 ressources, `entry-8b0d6b1641e56da6fa375468fd5b0b28.hbc` ; 33 fichiers, 5 898 082 octets.
 - Les écarts de comptage Metro entre les exports ne constituent pas une mesure de performance. Les limites de rendu, de compilation native et de distribution décrites ci-dessus restent inchangées.
+## Contrôle des alias et du bandeau — 21 octobre à 05:46
+Source : `07f13016211e47042c8d9c97acc270e9c2e10e47`, 187 blobs comparés au SHA Git, aucun écart. Contrôle justifié par l’ordre des alias dans tsconfig.json et les modifications d’affichage.
+- Même environnement hors ligne et mêmes commandes ci-dessus, avec les sorties `../nous-deux-web-0533` et `../nous-deux-ios-0533`. Aucun chargement dotenv, Firebase désactivé, IA/Places faux, télémétrie désactivée.
+- Web : code retour 0 ; 1 076 modules web / 1 234 de rendu statique, 16 routes, 3 bundles ; 47 fichiers / 4 074 123 octets. Bundle principal `entry-82733e6451e08c5cdb41e4a7b1463fa6.js`.
+- iOS : code retour 0 ; 1 359 modules, 31 ressources, bundle `entry-449e724a15d4b2bef1335121c4d5f3b3.hbc` ; 33 fichiers / 5 895 351 octets. Logo original annoncé parmi les ressources.
+- Suite complète : 65 suites / 1 677 tests réussis (11,799 s), lint et TypeScript réussis. Les nombres de modules/octets ne constituent pas une mesure de performance comparable.
+- Avertissement web expo-notifications sans effet déjà connu ; aucun jeton ou envoi. Aucun téléchargement de navigateur relancé. Aucun aperçu, build native signée ni essai iPhone ; ces preuves n’autorisent pas la distribution.
