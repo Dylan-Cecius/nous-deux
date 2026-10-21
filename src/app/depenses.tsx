@@ -11,6 +11,7 @@ import { success } from '@/lib/haptics';
 import type { Backend } from '@/lib/backend';
 import type { Expense } from '@/lib/types';
 import { balanceFor, parseExpenseAmount } from '@/lib/expenses';
+import { settlementErrorMessage } from '@/lib/settlement-errors';
 import { useAsyncAction } from '@/lib/use-async-action';
 import { useToday } from '@/lib/use-today';
 
@@ -76,7 +77,7 @@ function DepensesContent() {
       recorded.current = snapshot;
       setRecordedSnapshot(snapshot);
       success();
-    } catch (failure) { if (isCurrent()) throw failure; }
+    } catch (failure) { if (isCurrent()) showDialog('Action impossible', settlementErrorMessage(failure)); }
   });
   const remove = (id: string, title: string) => {
     const contains = () => latest.current?.expenses.some((entry) => entry.id === id);

@@ -5,6 +5,7 @@ import { useCollectionState, useSession } from '../couple-context';
 import { confirmDelete } from '@/components/ui';
 import { showDialog } from '@/components/dialog';
 import { success } from '../haptics';
+import { functionMessage } from '../service-errors';
 
 jest.mock('../couple-context', () => ({ useCollectionState: jest.fn(), useSession: jest.fn() }));
 jest.mock('@/components/dialog', () => ({ showDialog: jest.fn() }));
@@ -86,7 +87,7 @@ test.each(['settle', 'delete'])('l’échec courant de %s reste visible et rées
   const method = action === 'settle' ? backend.call : backend.remove;
   method.mockRejectedValueOnce(new Error('Échec fictif'));
   await act(async () => { await run(); });
-  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Échec fictif');
+  expect(showDialog).toHaveBeenCalledWith('Action impossible', action === 'settle' ? 'Vérifie l’historique après son actualisation avant de réessayer : la marque peut déjà avoir été enregistrée.' : 'Échec fictif');
   await act(async () => { await run(); });
   expect(method).toHaveBeenCalledTimes(2);
 });
@@ -175,11 +176,38 @@ test.each([undefined, null, {}, { settlementId: '' }, { settlementId: 'other/pat
 });
 
 test('une fonction absente ne retombe jamais sur un ajout direct non protégé', async () => {
-  backend.call.mockRejectedValueOnce(new Error('Fonction non déployée'));
+  const message = functionMessage({ code: 'functions/not-found' });
+  backend.call.mockRejectedValueOnce(new Error(message));
   await mount();
   await act(async () => { await settleButton().props.onPress(); });
   expect(backend.add).not.toHaveBeenCalled();
-  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Fonction non déployée');
+  expect(showDialog).toHaveBeenCalledWith('Action impossible', message);
+});
+
+test.each(['local', 'cloud'])('une marque %s appliquée sans confirmation ne divulgue pas de détail privé', async mode => {
+  (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...backend, mode } });
+  const method = mode === 'local' ? backend.add : backend.call;
+  method.mockImplementationOnce(async () => {
+    (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [...ready.items, { id: 'settled', title: 'Remboursement', amount: 20, paidBy: 'bob', kind: 'settle', createdAt: 2 }] });
+    throw new Error('Dépense intime fictive, clé interne du relevé');
+  });
+  await mount();
+  await act(async () => { await settleButton().props.onPress(); });
+  await refresh();
+  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Vérifie l’historique après son actualisation avant de réessayer : la marque peut déjà avoir été enregistrée.');
+  expect(success).not.toHaveBeenCalled();
+  expect(method).toHaveBeenCalledTimes(1);
+  expect(JSON.stringify(root.toJSON())).toContain('Vous êtes à l’équilibre');
+});
+
+test.each([
+  'Le relevé a changé. Attends son actualisation avant de marquer le remboursement.',
+  'Deux membres sont nécessaires pour marquer un remboursement.',
+])('un refus métier connu reste explicite : %s', async message => {
+  backend.call.mockRejectedValueOnce(new Error(message));
+  await mount();
+  await act(async () => { await settleButton().props.onPress(); });
+  expect(showDialog).toHaveBeenCalledWith('Action impossible', message);
 });
 
 test('un relevé réellement différent reçoit une nouvelle intention', async () => {
