@@ -47,6 +47,29 @@ beforeEach(() => { (useCollectionState as jest.Mock).mockReturnValue(ready); (us
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); jest.useRealTimers(); });
 const text = () => root.root.findAllByType('t' as never).map((node) => node.children.filter((child) => typeof child === 'string').join('')).join('\n');
 
+test.each(['alice', 'both'])('les horaires superposés restent ouvrables dans le détail du jour : %s', async who => {
+  const entries = [event, { ...event, id: 'overlap', title: 'Autre rendez-vous fictif', who }];
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: entries });
+  await act(async () => { root = create(<Agenda />); });
+  const details = () => root.root.findAllByType('card' as never).filter(node => node.props.accessibilityHint === 'Ouvre la fiche de cet horaire.');
+  expect(details()).toHaveLength(2);
+  for (let i = 0; i < entries.length; i++) {
+    const card = details()[i];
+    expect(card.findAllByType('t' as never)[0].props.numberOfLines).toBeUndefined();
+    await act(async () => card.props.onPress());
+    expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(entries[i].title);
+    await act(async () => root.root.findByType('sheet' as never).props.onClose());
+  }
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(backend.remove).not.toHaveBeenCalled();
+});
+
+test.each(['loading', 'error'])('le détail du jour ne réaffiche pas les horaires obsolètes pendant %s', async status => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [event], [status]: true });
+  await act(async () => { root = create(<Agenda />); });
+  expect(root.root.findAllByType('card' as never).filter(node => node.props.accessibilityHint === 'Ouvre la fiche de cet horaire.')).toHaveLength(0);
+});
+
 test.each([
   [['Semaine suivante', 'Semaine suivante'], '2026-11-02'],
   [['Semaine précédente', 'Semaine précédente'], '2026-10-05'],

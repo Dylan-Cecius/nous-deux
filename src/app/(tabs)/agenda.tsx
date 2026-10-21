@@ -13,6 +13,7 @@ import {
   Ionicons,
   Row,
   Screen,
+  SectionTitle,
   Sheet,
   T,
 } from '@/components/ui';
@@ -46,7 +47,7 @@ export default function Agenda() {
 function AgendaContent() {
   const t = useTheme();
   const today = useToday();
-  const { backend, members, colorOf } = useSession();
+  const { backend, members, colorOf, nameOf } = useSession();
   const eventState = useCollectionState('events');
   const context = useMemo(() => ({ backend }), [backend]);
   const latest = useRef<{ context: typeof context; state: typeof eventState } | null>(null);
@@ -288,6 +289,22 @@ function AgendaContent() {
             </View>
           </View>
         </View>}
+
+        {!unavailable && ofDay.length > 0 && (
+          <View style={{ gap: 10 }}>
+            <SectionTitle title="Détail des horaires" />
+            {ofDay.map(e => (
+              <Card
+                key={e.id}
+                onPress={() => setEditing(e)}
+                accessibilityLabel={`${e.title}, ${e.start} à ${e.end}, ${nameOf(e.who)}`}
+                accessibilityHint="Ouvre la fiche de cet horaire.">
+                <T variant="h3">{e.title}</T>
+                <T variant="small" muted>{e.start} – {e.end} · {nameOf(e.who)}</T>
+              </Card>
+            ))}
+          </View>
+        )}
 
         {!unavailable && ofDay.length === 0 && (
           <T muted style={{ textAlign: 'center' }}>
