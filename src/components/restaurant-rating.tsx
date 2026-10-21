@@ -13,7 +13,7 @@ export function RestaurantRating({ value, onChange, size = 18, disabled = false 
     current.current = { context, onChange };
     return () => { current.current = null; };
   }, [context, onChange]);
-  const icon = (i: number) => <Ionicons name={i <= value ? 'heart' : 'heart-outline'} size={size} color={i <= value ? t.primary : t.border} accessible={false} />;
+  const icon = (i: number) => <Ionicons name={i <= value ? 'heart' : 'heart-outline'} size={size} color={i <= value ? t.primary : t.textSecondary} accessible={false} />;
   if (!onChange) {
     return (
       <View accessible accessibilityRole="text" accessibilityLabel={value ? `Note : ${value} sur 5` : 'Aucune note'}>
@@ -24,7 +24,7 @@ export function RestaurantRating({ value, onChange, size = 18, disabled = false 
     );
   }
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
       {[1, 2, 3, 4, 5].map((i) => (
         <Pressable
           key={i}
@@ -37,7 +37,7 @@ export function RestaurantRating({ value, onChange, size = 18, disabled = false 
             const latest = current.current;
             if (!disabled && latest?.context === context) return latest.onChange?.(i === value ? 0 : i);
           }}
-          hitSlop={4}>
+          style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
           {icon(i)}
         </Pressable>
       ))}

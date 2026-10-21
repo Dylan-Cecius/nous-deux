@@ -200,3 +200,5 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 | P2 | Commande accessible d’historique des mots doux | Le 21 octobre à 09:32 : rôle bouton, état déplié et cible minimale ; deux commandes rapprochées composées correctement. Deux tests rouges puis verts, 52 tests ciblés et lint/TypeScript réussis ; essai natif restant. |
 
 | P2 | État coché du sélecteur de thème | Le 21 octobre à 09:37 : checked remplace selected sur les radios de ThemePicker ; restauration et changement exclusif contrôlés. Un test rouge puis vert, 106 tests ciblés et lint/TypeScript réussis ; rendu/annonce native non vérifiés. |
+
+| P2 | Visibilité et cibles des cœurs de notation | Le 21 octobre à 09:39 : cœurs vides contrastés, commandes minimales 44 × 44 avec retour à la ligne ; huit cas rouges puis verts, 155 tests ciblés et lint/TypeScript réussis. Essai tactile et rendu restant. |

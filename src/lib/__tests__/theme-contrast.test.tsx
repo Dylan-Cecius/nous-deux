@@ -7,6 +7,7 @@ import { Avatar, Button, Card, Chips, Fab, T } from '@/components/ui';
 import { foregroundOnColor } from '../color-contrast';
 import Home from '@/app/(tabs)/index';
 import { MemoryPhoto } from '@/components/memory-photo';
+import { RestaurantRating } from '@/components/restaurant-rating';
 
 jest.mock('../couple-context', () => ({
   useSession: () => ({ backend: { mode: 'local', coupleId: 'contrast', userId: 'alice' } }),
@@ -118,6 +119,17 @@ test('le bouton dégradé garde le même premier plan pour son indicateur d’at
 });
 
 describe.each(['light', 'dark'])('contraste du thème %s', (scheme) => {
+  test.each(Object.keys(AccentThemes))('%s : les cinq commandes de notation restent visibles, remplies ou vides', async accent => {
+    (useColorScheme as jest.Mock).mockReturnValue(scheme);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(accent);
+    await act(async () => { root = create(<PrefsProvider><Probe /><RestaurantRating value={3} size={32} onChange={() => {}} /></PrefsProvider>); });
+    const icons = root.root.findAllByType('icon' as never);
+    expect(icons.map(node => node.props.name)).toEqual(['heart', 'heart', 'heart', 'heart-outline', 'heart-outline']);
+    for (const icon of icons) {
+      expect(contrast(icon.props.color, palette.background)).toBeGreaterThanOrEqual(3);
+      expect(contrast(icon.props.color, palette.card)).toBeGreaterThanOrEqual(3);
+    }
+  });
   test.each(Object.keys(AccentThemes))('%s : petit texte secondaire lisible sur les fonds clairs et doux', async accent => {
     (useColorScheme as jest.Mock).mockReturnValue(scheme);
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(accent);

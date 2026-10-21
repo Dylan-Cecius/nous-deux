@@ -1889,3 +1889,8 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Audit des radios : Chips et ColorPicker exposaient déjà checked ; ThemePicker utilisait encore selected. Une régression reproduite après stabilisation du double Pressable du test (sélecteur initial vide puis doublonné, sans changement produit à ces étapes).
 - La restauration de Bleu nuit puis le choix Sauge exposent maintenant exactement une option cochée, tout en conservant le stockage existant. Changement d’une prop de présentation seulement.
 - 106 tests ciblés réussis (1,825 s), lint/TypeScript code retour 0, diff relu et propre. Contrat accessibilityState de RN 0.86 lu ; grille React appliquée, aucun effet ou appel ajouté. Essai VoiceOver/TalkBack restant, aucune donnée réelle.
+
+### 21 octobre 2026, 09:39 — Cœurs de notation visibles et cibles séparées
+- Huit cas rouges puis verts, quatre thèmes en clair/sombre : les cœurs vides utilisaient la couleur de bordure, ratio 1,171 sur le fond clair et 1,331 sur le fond sombre de fiche. Ils utilisent désormais textSecondary ; tous les cœurs de commande dépassent 3:1 sur fond de fiche/carte.
+- Zones d’appui minimales 44 × 44 remplaçant le simple hitSlop de 4 autour de l’icône ; ligne pouvant revenir à la ligne sur largeur réduite. Les petits résumés en lecture seule restent compacts. Sélection, retrait, désactivation et gardes inchangés.
+- 155 tests ciblés réussis (1,681 s), lint/TypeScript code retour 0, diff propre et relu. Aucune écriture réelle, serveur/règle ou suppression changé ; dimensions contrôlées dans le code et contraste numérique seulement. Rendu, gestes et lecteur d’écran restent à essayer.
