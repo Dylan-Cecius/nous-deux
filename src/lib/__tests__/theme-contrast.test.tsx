@@ -6,6 +6,7 @@ import { AccentThemes, MemberColors, PrefsProvider, useTheme } from '@/constants
 import { Avatar, Button, Chips, Fab } from '@/components/ui';
 import { foregroundOnColor } from '../color-contrast';
 import Home from '@/app/(tabs)/index';
+import { MemoryPhoto } from '@/components/memory-photo';
 
 jest.mock('../couple-context', () => ({
   useSession: () => ({ backend: { mode: 'local', coupleId: 'contrast', userId: 'alice' } }),
@@ -26,6 +27,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn
 jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), { useColorScheme: { value: jest.fn() } }));
 jest.mock('@expo/vector-icons/Ionicons', () => 'icon');
 jest.mock('expo-linear-gradient', () => ({ LinearGradient: 'gradient' }));
+jest.mock('expo-image', () => ({ Image: 'image' }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) }));
 jest.mock('@/components/assistant-context', () => ({ useAssistant: () => null }));
 jest.mock('@/components/dialog', () => ({ showDialog: jest.fn() }));
@@ -154,4 +156,16 @@ test('le bouton flottant reprend la couleur contrastée du thème, y compris pen
   await act(async () => { pending = button.props.onPress(); });
   expect(root.root.findByType(ActivityIndicator).props.color).toBe(palette.onPrimary);
   await act(async () => { finish(); await pending; });
+});
+
+
+describe.each(['light', 'dark'])('photo indisponible, thème %s', scheme => {
+  test.each(Object.keys(AccentThemes))('%s : indication textuelle au moins 4,5:1', async accent => {
+    (useColorScheme as jest.Mock).mockReturnValue(scheme);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(accent);
+    await act(async () => { root = create(<PrefsProvider><Probe /><MemoryPhoto uri="fictitious://unavailable" style={{ width: 104, height: 132 }} /></PrefsProvider>); });
+    await act(async () => { root.root.findByType('image' as never).props.onError({ error: 'fictitious' }); });
+    const label = root.root.findAllByType(Text).find(node => node.props.children === 'Photo indisponible')!;
+    expect(contrast(StyleSheet.flatten(label.props.style).color, palette.primarySoft)).toBeGreaterThanOrEqual(4.5);
+  });
 });

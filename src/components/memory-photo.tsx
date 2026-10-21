@@ -24,7 +24,7 @@ function MemoryPhotoSource({ uri, style }: Props) {
       {failed && (
         <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: t.primarySoft, alignItems: 'center', justifyContent: 'center', padding: 8, gap: 6 }]}>
           <Ionicons name="image-outline" size={24} color={t.textSecondary} />
-          <T variant="small" muted style={{ textAlign: 'center' }}>Photo indisponible</T>
+          <T variant="small" color={t.primaryDark} style={{ textAlign: 'center' }}>Photo indisponible</T>
         </View>
       )}
     </View>
