@@ -94,7 +94,8 @@ function PhotoFrameEditorContent({
 }: PhotoFrameEditorProps) {
   const t = useTheme();
   const { box, natural, layout, onLayout, onLoad } = useFramedLayout(frame);
-  const unavailable = disabled || !layout;
+  const [imageFailed, setImageFailed] = useState(false);
+  const unavailable = disabled || imageFailed || !layout;
   // Point de départ du glissement (doigt et cadrage).
   const start = useRef<{ pageX: number; pageY: number; frame: PhotoFrame; layout: ReturnType<typeof layoutFor> } | null>(null);
   // Plusieurs commandes peuvent arriver avant le retour du cadrage par le parent.
@@ -186,7 +187,8 @@ function PhotoFrameEditorContent({
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <Image
             source={{ uri }}
-            onLoad={onLoad}
+            onLoad={event => { setImageFailed(false); onLoad(event); }}
+            onError={() => setImageFailed(true)}
             contentFit="cover"
             style={
               layout
@@ -198,7 +200,9 @@ function PhotoFrameEditorContent({
         </View>
       </View>
       <T variant="small" muted style={{ textAlign: 'center' }}>
-        {unavailable ? 'Cadrage temporairement indisponible' : 'Fais glisser la photo pour la repositionner'}
+        {imageFailed
+          ? 'Impossible d’afficher la photo. Vérifie ta connexion ou ferme puis rouvre le cadrage.'
+          : unavailable ? 'Cadrage temporairement indisponible' : 'Fais glisser la photo pour la repositionner'}
       </T>
       <Row style={{ justifyContent: 'center', gap: 12 }}>
         <IconButton icon="remove" label="Dézoomer" disabled={unavailable} onPress={() => zoomBy(-0.15)} />

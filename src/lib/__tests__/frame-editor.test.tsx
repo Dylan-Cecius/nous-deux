@@ -310,3 +310,63 @@ test.each([true, false])('désactivé=%s : commandes et déplacement respectent 
   });
   expect(onChange).toHaveBeenCalledTimes(disabled ? 0 : 5);
 });
+
+describe('échec de chargement dans le cadrage', () => {
+  const image = () => root.root.findByType('image' as never);
+  const surface = () => root.root.findAllByType(View).find(node => node.props.onResponderMove)!;
+  const buttons = () => root.root.findAllByType('button' as never);
+  const error = { error: 'fictitious://private-photo?token=private-token' };
+  const setup = async () => {
+    const onChange = jest.fn();
+    const render = (uri = 'fictitious://photo') => <PhotoFrameEditor uri={uri} frame={frame} onChange={onChange} />;
+    await act(async () => { root = create(render()); });
+    await act(async () => surface().props.onLayout({ nativeEvent: { layout: { width: 100, height: 100 } } }));
+    return { onChange, render };
+  };
+
+  test('un échec est expliqué sans exposer le détail technique', async () => {
+    await setup();
+    await act(async () => image().props.onError?.(error));
+    const content = JSON.stringify(root.toJSON());
+    expect(content).toContain('Impossible d’afficher la photo');
+    expect(content).toContain('rouvre le cadrage');
+    expect(content).not.toContain('private-token');
+    expect(buttons().every(button => button.props.disabled)).toBe(true);
+  });
+
+  test('un échec après chargement bloque les anciens gestes et commandes, puis un succès permet de reprendre', async () => {
+    const { onChange } = await setup();
+    await act(async () => image().props.onLoad({ source: { width: 100, height: 100 } }));
+    const old = surface().props;
+    const oldCommands = buttons().map(button => button.props.onPress);
+    await act(async () => old.onResponderGrant({ nativeEvent: { pageX: 0, pageY: 0 } }));
+    await act(async () => image().props.onError?.(error));
+    expect(buttons().every(button => button.props.disabled)).toBe(true);
+    await act(async () => {
+      old.onResponderMove({ nativeEvent: { pageX: 10, pageY: 10 } });
+      oldCommands.forEach(command => command());
+    });
+    expect(onChange).not.toHaveBeenCalled();
+    await act(async () => image().props.onLoad({ source: { width: 100, height: 100 } }));
+    expect(JSON.stringify(root.toJSON())).not.toContain('Impossible d’afficher la photo');
+    expect(buttons().every(button => !button.props.disabled)).toBe(true);
+    await act(async () => oldCommands.forEach(command => command()));
+    expect(onChange).not.toHaveBeenCalled();
+    await act(async () => buttons().find(button => button.props.label === 'Zoomer')!.props.onPress());
+    expect(onChange).toHaveBeenLastCalledWith({ ...frame, zoom: 2.15 });
+  });
+
+  test('une ancienne erreur ne contamine pas une autre photo', async () => {
+    const { render } = await setup();
+    const oldError = image().props.onError;
+    await act(async () => oldError?.(error));
+    await act(async () => root.update(render('fictitious://other')));
+    await act(async () => {
+      surface().props.onLayout({ nativeEvent: { layout: { width: 100, height: 100 } } });
+      image().props.onLoad({ source: { width: 100, height: 100 } });
+      oldError?.(error);
+    });
+    expect(JSON.stringify(root.toJSON())).not.toContain('Impossible d’afficher la photo');
+    expect(buttons().every(button => !button.props.disabled)).toBe(true);
+  });
+});

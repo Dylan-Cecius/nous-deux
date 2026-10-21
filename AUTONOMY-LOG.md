@@ -1767,8 +1767,14 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Cinq tests ajoutés, quatre rouges puis verts et un contrôle de mesure identique ; 120 tests cadrage/fiche réussis (1,229 s), lint/TypeScript code retour 0, diff propre et relu.
 - Aucune API supplémentaire, écriture, règle ou suppression ; rotations et événements simulés seulement. Essai tactile natif toujours requis.
 
-### 21 octobre 2026, 06:41 — Cadrage remplacé pendant un geste
+### 21 octobre 2026, 06:40 — Cadrage remplacé pendant un geste
 - Deux régressions reproduites : un cadrage reçu du parent pendant un glissement (position ou zoom différents) était écrasé par le mouvement suivant, calculé depuis l’ancien départ.
 - Un remplacement distinct du dernier cadrage émis termine maintenant le geste ; une nouvelle prise part de la valeur reçue. Le retour normal de la valeur émise conserve le glissement.
 - Deux tests rouges puis verts ; 122 tests cadrage/fiche réussis (1,389 s), lint/TypeScript code retour 0 et diff propre/revu. Le test existant de retour parent a été précisé pour renvoyer x ET y réellement émis, comme le parent de production, plutôt qu’un retour partiel.
 - Aucune transaction entre appareils ajoutée : protection d’interface seulement. Stockage, serveur/règles et suppression inchangés ; photos et événements fictifs, aucun essai natif.
+
+### 21 octobre 2026, 06:42 — Photo impossible à afficher dans le cadrage
+- Deux défauts reproduits en injectant un échec de chargement : absence d’explication spécifique et commandes encore actives si une géométrie avait déjà été reçue.
+- Message fixe invitant à vérifier la connexion ou rouvrir le cadrage, sans reprendre le détail technique de l’erreur. Gestes/commandes désactivés jusqu’à un chargement réussi ; une erreur ancienne ne contamine pas la source suivante.
+- Trois tests ajoutés, deux rouges puis verts ; 125 tests cadrage/fiche réussis (1,266 s), lint/TypeScript code retour 0, diff propre et relu. Contrat onError/onLoad vérifié dans https://docs.expo.dev/versions/v57.0.0/sdk/image/.
+- Aucun nouvel appel réseau explicite, retry automatique, upload ou modification du stockage. Essai de chargement/erreur simulé, pas de photo réelle ni rendu natif. Horodatage du checkpoint précédent corrigé à 06:40 selon l’horloge observée.
