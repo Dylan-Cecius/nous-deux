@@ -561,16 +561,18 @@ export function ColorPicker({
 }
 
 /** Bouton rond « + » en bas à droite de l'écran. */
-export function Fab({ onPress, label = 'Ajouter' }: { onPress: () => void; label?: string }) {
+export function Fab({ onPress, label = 'Ajouter', busy = false }: { onPress: () => void; label?: string; busy?: boolean }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
-  const { run, pending } = useAsyncAction(onPress);
+  const canPress = useEnabledControl(busy);
+  const { run, pending } = useAsyncAction(() => { if (canPress()) return onPress(); });
+  const unavailable = busy || pending;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      disabled={pending}
-      accessibilityState={{ disabled: pending, busy: pending }}
+      disabled={unavailable}
+      accessibilityState={{ disabled: unavailable, busy: unavailable }}
       onPress={run}
       style={({ pressed }) => [
         styles.fab,
@@ -581,7 +583,7 @@ export function Fab({ onPress, label = 'Ajouter' }: { onPress: () => void; label
           transform: [{ scale: pressed ? 0.94 : 1 }],
         },
       ]}>
-      {pending ? <ActivityIndicator color={t.onPrimary} /> : <Ionicons name="add" size={30} color={t.onPrimary} />}
+      {unavailable ? <ActivityIndicator color={t.onPrimary} /> : <Ionicons name="add" size={30} color={t.onPrimary} />}
     </Pressable>
   );
 }

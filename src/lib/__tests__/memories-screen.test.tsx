@@ -189,3 +189,21 @@ test('une photo en échec laisse les autres souvenirs disponibles', async () => 
   await act(async () => { tiles[0].props.onPress(); });
   expect(root.root.findByType('sheet' as never)).toBeTruthy();
 });
+
+
+test('le bouton d’ajout remonté pendant une sélection annonce encore l’attente', async () => {
+  let finish!: (value: unknown) => void;
+  (pickPhoto as jest.Mock).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+  await act(async () => { root = create(<Souvenirs />); });
+  let pending!: Promise<void>;
+  await act(async () => { pending = root.root.findByType('fab' as never).props.onPress(); });
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, error: true });
+  await act(async () => { root.update(<Souvenirs />); });
+  expect(root.root.findAllByType('fab' as never)).toHaveLength(0);
+  (useCollectionState as jest.Mock).mockReturnValue(ready);
+  await act(async () => { root.update(<Souvenirs />); });
+  const busy = root.root.findByType('fab' as never).props.busy;
+  await act(async () => { finish(null); await pending; });
+  expect(busy).toBe(true);
+  expect(root.root.findByType('fab' as never).props.busy).toBe(false);
+});

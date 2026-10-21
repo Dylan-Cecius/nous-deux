@@ -1,6 +1,6 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Modal, Pressable, StyleSheet, Text, TextInput } from 'react-native';
-import { Button, Card, Chips, ColorPicker, Empty, Field, IconButton, Screen, SectionTitle, Segmented, Sheet, T } from '@/components/ui';
+import { Button, Card, Chips, ColorPicker, Empty, Fab, Field, IconButton, Screen, SectionTitle, Segmented, Sheet, T } from '@/components/ui';
 import { tap } from '../haptics';
 import { useReducedMotion } from '../use-reduced-motion';
 import { MemberColors } from '@/constants/member-colors';
@@ -300,4 +300,28 @@ test('un formulaire peut désactiver les pastilles sans perdre la sélection', a
 test('les onglets conservent leur état selected, distinct des choix radio', async () => {
   await act(async () => { root = create(<Segmented options={options} value="alice" onChange={jest.fn()} />); });
   expect(root.root.findAllByType(Pressable).map((b) => b.props.accessibilityState.selected)).toEqual([true, false]);
+});
+
+
+test('le bouton flottant reflète une opération encore occupée après remontage', async () => {
+  const onPress = jest.fn();
+  await act(async () => { root = create(<Fab onPress={onPress} busy label="Envoi en cours" />); });
+  const busyButton = root.root.findByType(Pressable);
+  expect(busyButton.props.accessibilityState).toEqual({ disabled: true, busy: true });
+  expect(busyButton.props.disabled).toBe(true);
+  await act(async () => { await busyButton.props.onPress(); });
+  expect(onPress).not.toHaveBeenCalled();
+  await act(async () => { root.update(<Fab onPress={onPress} label="Ajouter une photo" />); });
+  await act(async () => { await root.root.findByType(Pressable).props.onPress(); });
+  expect(onPress).toHaveBeenCalledTimes(1);
+});
+
+test('une ancienne action flottante ne reprend pas après un aller-retour occupé', async () => {
+  const onPress = jest.fn();
+  await act(async () => { root = create(<Fab onPress={onPress} />); });
+  const oldPress = root.root.findByType(Pressable).props.onPress;
+  await act(async () => { root.update(<Fab onPress={onPress} busy />); });
+  await act(async () => { root.update(<Fab onPress={onPress} />); });
+  await act(async () => { await oldPress(); });
+  expect(onPress).not.toHaveBeenCalled();
 });

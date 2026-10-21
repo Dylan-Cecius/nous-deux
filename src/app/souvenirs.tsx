@@ -66,7 +66,7 @@ function SouvenirsContent() {
           ))
         )}
       </Screen>
-      {!unavailable && <Fab onPress={add} label={busy ? 'Envoi en cours' : 'Ajouter une photo'} />}
+      {!unavailable && <Fab onPress={add} busy={busy} label={busy ? 'Envoi en cours' : 'Ajouter une photo'} />}
       {editing && <MemorySheet key={editing.id} memory={editing} onClose={() => setEditing(null)} />}
     </>
   );
