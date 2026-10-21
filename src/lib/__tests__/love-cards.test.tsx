@@ -358,6 +358,32 @@ const openHistory = async () => {
 const longPress = () => root.root.findAll((node) => typeof node.props.onLongPress === 'function')[0].props.onLongPress;
 const confirm = () => (confirmDelete as jest.Mock).mock.calls.at(-1)![1];
 
+test('l’historique expose un bouton dépliable et conserve le brouillon après ouverture et fermeture', async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [ownNote, note] });
+  await act(async () => { root = create(<NoteCard />); });
+  await act(async () => field().props.onChangeText('Brouillon fictif conservé'));
+  const toggle = () => root.root.findAllByProps({ hitSlop: 8 })[0];
+  expect(toggle().props.accessibilityRole).toBe('button');
+  expect(toggle().props.accessibilityState).toEqual({ expanded: false });
+  expect(text()).not.toContain(ownNote.text);
+  await act(async () => toggle().props.onPress());
+  expect(toggle().props.accessibilityState).toEqual({ expanded: true });
+  expect(text()).toContain(ownNote.text);
+  await act(async () => toggle().props.onPress());
+  expect(toggle().props.accessibilityState).toEqual({ expanded: false });
+  expect(text()).not.toContain(ownNote.text);
+  expect(field().props.value).toBe('Brouillon fictif conservé');
+  expect(sendLoveNote).not.toHaveBeenCalled();
+});
+
+test('deux commandes successives d’historique avant rendu reviennent à l’état initial', async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [ownNote, note] });
+  await act(async () => { root = create(<NoteCard />); });
+  const toggle = root.root.findAllByProps({ hitSlop: 8 })[0].props.onPress;
+  await act(async () => { toggle(); toggle(); });
+  expect(text()).not.toContain(ownNote.text);
+});
+
 test.each(['unmount', 'account', 'backend', 'loading', 'error', 'removed', 'changed', 'owner'])('une confirmation de suppression périmée (%s) n’efface rien', async (change) => {
   await openHistory();
   await act(async () => { longPress()(); });

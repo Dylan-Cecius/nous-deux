@@ -1878,3 +1878,9 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - 192 blobs exacts au SHA a3a3691, sept PNG originaux présents et état local propre avant ces seules notes finales. Quatre recettes natives ajoutées non cochées ; aucun export, rendu visuel, build signée, essai appareil ou statut Apple revendiqué.
 - Aucun compte/contenu réel, e-mail, invitation, notification, paiement, dépense, build EAS ou déploiement. Public draft, retentionVerified:false et fonctions payantes inchangés. Aucun nouvel incident réel ni blocage nécessitant l’intervention du propriétaire.
 - Durée observée avant sauvegarde finale : environ 14 minutes (08:29:54–08:44), pas une heure. Quatre lots bornés terminés ; pas d’autre anomalie prête démontrée après cet audit. Les étapes utiles suivantes restent les recettes de rendu/interaction et les travaux serveur soumis aux prérequis existants ; pas d’attente ni de répétition des contrôles pour remplir la durée.
+
+### 21 octobre 2026, 09:32 — Commande d’historique des mots doux
+- PR #3 ouverte/en brouillon au SHA b3eec29 ; consignes relues via GitHub, 192 blobs locaux vérifiés exacts, sept PNG originaux inclus. Règle multi-tâches déjà conforme.
+- Deux régressions rouges puis vertes : rôle/état dépliable absents, deux commandes avant rendu laissant l’historique ouvert. Bouton avec expanded, hauteur minimale 44 et mise à jour fonctionnelle ; brouillon conservé.
+- 52 tests ciblés réussis (1,714 s), lint/TypeScript code retour 0, diff relu et propre. Expo 57/package et index relus ; contrats RN 0.86 consultés : https://reactnative.dev/docs/0.86/accessibility et https://reactnative.dev/docs/0.86/pressable.
+- Affichage de l’historique uniquement : envoi, suppression, serveur et règles inchangés. Aucun contenu réel ni requête ; focus/clavier/VoiceOver/TalkBack et grande police restent à vérifier sur appareil.

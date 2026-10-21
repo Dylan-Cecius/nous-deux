@@ -233,7 +233,12 @@ function ScopedNoteCard() {
         <IconButton icon={backend.mode === 'local' ? 'checkmark' : 'arrow-forward'} label={backend.mode === 'local' ? 'Enregistrer le mot' : 'Envoyer'} variant="primary" onPress={send} disabled={busy || !note.trim()} size={50} />
       </Row>
       {written.length > 1 && (
-        <Pressable onPress={() => setShowAll(!showAll)} hitSlop={8}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showAll }}
+          onPress={() => setShowAll(previous => !previous)}
+          hitSlop={8}
+          style={{ minHeight: 44, justifyContent: 'center' }}>
           <T variant="small" color={t.primaryDark} style={{ fontFamily: Fonts.bodyBold }}>
             {showAll ? 'Masquer l’historique' : `Voir les ${written.length} mots doux`}
           </T>
