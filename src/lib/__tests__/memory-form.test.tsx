@@ -90,10 +90,24 @@ test('un échec conserve le brouillon et permet une nouvelle tentative', async (
   await changeCaption('Brouillon à enregistrer');
   backend.update.mockRejectedValueOnce(new Error('Échec fictif'));
   await act(async () => { await button('Enregistrer')(); });
-  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Échec fictif');
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('Vérifie le souvenir'));
   expect(root.root.findByProps({ label: 'Légende' }).props.editable).toBe(true);
   await act(async () => { await button('Enregistrer')(); });
   expect(backend.update).toHaveBeenCalledTimes(2);
+});
+
+test('une réponse perdue de légende conserve la saisie sans afficher le détail privé', async () => {
+  await open();
+  await changeCaption('Brouillon fictif');
+  let stored = false;
+  backend.update.mockImplementationOnce(async () => { stored = true; throw new Error('Détail privé fictif : couples/test-secret/memories/one'); });
+  await act(async () => { await button('Enregistrer')(); });
+  expect(stored).toBe(true);
+  expect(backend.update).toHaveBeenCalledTimes(1);
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('avant de réessayer'));
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('test-secret');
+  expect(root.root.findByProps({ label: 'Légende' }).props.value).toBe('Brouillon fictif');
+  expect(sheet()).toBeTruthy();
 });
 
 test.each(['success', 'error'])('un retour %s d’un ancien backend ne ferme pas la fiche courante', async (outcome) => {

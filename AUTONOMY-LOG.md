@@ -1712,3 +1712,7 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Deux scénarios ajoutés (création/modification) et contrôle de reprise renforcé ; 109 tests agenda réussis (2,916 s), lint/TypeScript code retour 0 et diff propre/revu. Le chemin assistant.test.ts donné avec la commande ne correspond à aucune suite ; seul le total agenda est revendiqué.
 - Catch limité à addEvents/update ; notification après confirmation de sauvegarde seulement, inchangée. Inspection de notifyPartner : son rejet distant est déjà absorbé, donc ne transforme pas une sauvegarde confirmée en échec. Anciennes réponses et suppressions restent couvertes par les tests existants et inchangées.
 - Aucun envoi réel, serveur/règle modifié ou idempotence ajoutée ; notification doublée et données fictives uniquement.
+### 21 octobre 2026, 04:43 — Réponse ambiguë de modification d’un souvenir
+- Légende/date : même défaut confirmé après rejet suivant une écriture fictive. Message de confirmation inconnue sans détail technique, invitant à vérifier le souvenir actualisé avant reprise ; fiche et brouillon conservés.
+- Deux cas rouges puis verts (un scénario nouveau, un contrôle renforcé). 57 tests formulaire/ajout de souvenirs réussis (1,245 s), lint/TypeScript et diff réussis. Le test existant vérifie qu’une valeur déjà confirmée par lecture n’est pas renvoyée.
+- Patch minimal, suppression et association des images inchangés ; aucune photo réelle consultée, aucun upload effectué. Pas de validation native ni garantie de concurrence serveur.

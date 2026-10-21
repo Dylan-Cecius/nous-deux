@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { useAddMemory } from '@/components/home/memories-strip';
+import { showDialog } from '@/components/dialog';
 import { DateField } from '@/components/pickers';
 import { Button, Card, confirmDelete, Empty, Fab, Field, Screen, Sheet, T } from '@/components/ui';
 import { useCollectionState, useSession } from '@/lib/couple-context';
@@ -117,7 +118,12 @@ function MemorySheet({ memory, onClose }: { memory: Memory; onClose: () => void 
     const patch: { caption?: string; date?: string } = {};
     if (current.caption.trim() !== current.baseCaption) patch.caption = current.caption.trim();
     if (current.date !== current.baseDate) patch.date = current.date;
-    if (Object.keys(patch).length) await backend.update('memories', memory.id, patch);
+    try {
+      if (Object.keys(patch).length) await backend.update('memories', memory.id, patch);
+    } catch {
+      if (isCurrent()) showDialog('Enregistrement non confirmé', 'Vérifie le souvenir après l’actualisation de l’album avant de réessayer : la modification peut déjà avoir été enregistrée. Ton brouillon est conservé.');
+      return;
+    }
     close();
   });
   const remove = () => {
