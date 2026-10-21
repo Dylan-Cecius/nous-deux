@@ -223,3 +223,9 @@ Preuves actuelles : structure et événements simulés ; parcours natifs non ex�
 - [ ] Cocher un élément fictif sans ouvrir sa fiche ; ouvrir la fiche sans cocher l’élément. Vérifier texte agrandi et cibles étroites.
 - [ ] Vérifier que le tirage de films possède une cible unique. L’appui long de la fiche garde la confirmation existante ; ne tester aucune suppression sur des données réelles.
 Contrôles automatisés seulement ; recette native non exécutée.
+### Profils et sauvegardes non confirmées — recette préparée le 21 octobre à 04:46
+- [ ] Sur des données fictives uniquement, rendre un des deux profils indisponible : les dépenses restent consultables, le solde indique « Solde indisponible » et aucun remboursement n’est proposé. Restaurer les profils : le solde réapparaît sans perte du brouillon.
+- [ ] Dans un environnement de test isolé permettant de perdre la réponse après l’écriture, vérifier séparément : dépense, liste, restaurant, agenda, légende/date de souvenir et date à venir. Le dialogue « Enregistrement non confirmé » recommande de vérifier les données actualisées avant une reprise ; il ne contient ni chemin interne, ni détail de l’erreur, ni contenu privé.
+- [ ] Vérifier que le brouillon reste dans le formulaire, que le bouton redevient utilisable et qu’aucune écriture n’est relancée automatiquement. Vérifier texte agrandi, lecture du dialogue et retour du focus sur iOS/Android. La fermeture volontaire du formulaire ne promet pas de conserver le brouillon.
+- [ ] Pour l’agenda, un résultat non confirmé n’entraîne pas de notification de succès ; utiliser uniquement un double de notification, aucun envoi réel.
+Preuves disponibles : scénarios automatisés avec données et backends fictifs ; aucune de ces recettes natives exécutée. Une erreur réseau ne prouve pas que l’écriture a échoué. Ces messages ne constituent pas un protocole d’idempotence et ne garantissent pas l’absence de doublons après une reprise manuelle.
