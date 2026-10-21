@@ -1707,3 +1707,8 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Ajout et modification reproduits avec une écriture fictive suivie d’une réponse perdue : le formulaire montrait le détail technique brut. Message fixe de confirmation inconnue, vérification de la liste avant reprise et brouillon conservé ; aucune relance automatique.
 - Trois cas rouges puis verts (deux nouveaux, un renforcé) ; 86 tests formulaires/actions restaurants-listes réussis (1,635 s), lint et TypeScript code retour 0, diff revu et propre.
 - Bloc de sauvegarde uniquement ; données écrites, garde de contexte, suppression et serveur inchangés. Tests sur doubles, pas d’idempotence ajoutée ni essai natif.
+### 21 octobre 2026, 04:41 — Réponse de sauvegarde agenda ambiguë
+- Trois échecs reproduits avant correction : le formulaire affichait le message technique après rejet, y compris après une écriture fictive déjà appliquée. Message fixe invitant à vérifier les horaires actualisés avant reprise ; brouillon conservé.
+- Deux scénarios ajoutés (création/modification) et contrôle de reprise renforcé ; 109 tests agenda réussis (2,916 s), lint/TypeScript code retour 0 et diff propre/revu. Le chemin assistant.test.ts donné avec la commande ne correspond à aucune suite ; seul le total agenda est revendiqué.
+- Catch limité à addEvents/update ; notification après confirmation de sauvegarde seulement, inchangée. Inspection de notifyPartner : son rejet distant est déjà absorbé, donc ne transforme pas une sauvegarde confirmée en échec. Anciennes réponses et suppressions restent couvertes par les tests existants et inchangées.
+- Aucun envoi réel, serveur/règle modifié ou idempotence ajoutée ; notification doublée et données fictives uniquement.

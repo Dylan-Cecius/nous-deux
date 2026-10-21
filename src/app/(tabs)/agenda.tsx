@@ -411,13 +411,20 @@ function EventSheet({
     const { title, who, kind, date, start, end } = current.values;
     if (!title.trim() || start >= end || (who !== BOTH && !current.members.some((member) => member.id === who))) return;
     const data = { title: title.trim(), who, kind, date, start, end };
-    if (event) {
-      const patch = draftPatch(current.base, data);
-      if (Object.keys(patch).length) await backend.update('events', event.id, patch);
-    } else {
-      const weeks = Number(current.repeat);
-      const seriesId = weeks > 0 ? `${Date.now()}` : undefined;
-      await backend.addEvents(Array.from({ length: Math.max(1, weeks) }, (_, i) => ({ ...data, date: addDays(date, i * 7), seriesId, createdBy: backend.userId })));
+    try {
+      if (event) {
+        const patch = draftPatch(current.base, data);
+        if (Object.keys(patch).length) await backend.update('events', event.id, patch);
+      } else {
+        const weeks = Number(current.repeat);
+        const seriesId = weeks > 0 ? `${Date.now()}` : undefined;
+        await backend.addEvents(Array.from({ length: Math.max(1, weeks) }, (_, i) => ({ ...data, date: addDays(date, i * 7), seriesId, createdBy: backend.userId })));
+      }
+    } catch {
+      if (isCurrent()) showDialog('Enregistrement non confirmé', 'Vérifie l’agenda après son actualisation avant de réessayer : les horaires peuvent déjà avoir été enregistrés. Ton brouillon est conservé.');
+      return;
+    }
+    if (!event) {
       if (!isCurrent()) return;
       await notifyPartner(session, 'Agenda', `${session.me?.name ?? 'Ta moitié'} a ajouté « ${data.title} ».`);
     }

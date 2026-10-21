@@ -537,11 +537,29 @@ test('un échec de sauvegarde reste visible, conserve la saisie et permet une re
   await changeTitle();
   backend.update.mockRejectedValueOnce(new Error('Échec fictif'));
   await act(async () => { await root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); });
-  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Échec fictif');
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('Vérifie l’agenda'));
   expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe('Titre saisi');
   await act(async () => { await root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); });
   expect(backend.update).toHaveBeenCalledTimes(2);
   expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
+});
+
+test.each([false, true])('une réponse agenda perdue conserve le brouillon sans détail privé (création : %s)', async fresh => {
+  if (fresh) {
+    await act(async () => { root = create(<Agenda />); });
+    await act(async () => formField('Ajouter un horaire').props.onPress());
+  } else await openSeries();
+  await changeTitle();
+  const write = fresh ? backend.addEvents : backend.update;
+  let stored = false;
+  write.mockImplementationOnce(async () => { stored = true; throw new Error('Détail privé fictif : couples/test-secret/events/one'); });
+  await act(async () => { await formField('Enregistrer').props.onPress(); });
+  expect(stored).toBe(true);
+  expect(write).toHaveBeenCalledTimes(1);
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('avant de réessayer'));
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('test-secret');
+  expect(formField('Titre').props.value).toBe('Titre saisi');
+  expect(notifyPartner).not.toHaveBeenCalled();
 });
 
 test.each(['loading', 'error'])('un agenda en %s ne ressemble pas à une journée vide', async (status) => {
