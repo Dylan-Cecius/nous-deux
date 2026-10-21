@@ -218,3 +218,8 @@ Preuves disponibles : tests de propriétés et callbacks simulés uniquement ; a
 - [ ] Avec VoiceOver puis TalkBack, atteindre séparément la fiche d’un restaurant fictif et son bouton de carte ; la fiche annonce nom/détails/auteur ou note, la carte annonce sa destination.
 - [ ] Ouvrir la fiche sans lancer Maps ; ouvrir Maps sans ouvrir la fiche. Le tirage au sort possède une cible dédiée. Vérifier les cibles en texte agrandi et sur écran étroit.
 Preuves actuelles : structure et événements simulés ; parcours natifs non exécutés.
+### Actions des listes — recette préparée le 21 octobre à 03:43
+- [ ] Dans chaque rubrique, atteindre séparément la case et la fiche avec VoiceOver/TalkBack. La case annonce titre et état ; la fiche annonce titre/détail/type de média et son action.
+- [ ] Cocher un élément fictif sans ouvrir sa fiche ; ouvrir la fiche sans cocher l’élément. Vérifier texte agrandi et cibles étroites.
+- [ ] Vérifier que le tirage de films possède une cible unique. L’appui long de la fiche garde la confirmation existante ; ne tester aucune suppression sur des données réelles.
+Contrôles automatisés seulement ; recette native non exécutée.

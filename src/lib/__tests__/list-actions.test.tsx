@@ -36,6 +36,42 @@ const open = async () => {
   await switchTab('shopping');
 };
 
+test.each(['bucket', 'films', 'shopping', 'gifts'])('la case %s n’est pas contenue dans la cible de modification', async tab => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, list: tab }] });
+  await open();
+  await switchTab(tab);
+  const box = root.root.findAllByProps({ accessibilityRole: 'checkbox' }).find(node => typeof node.props.onPress === 'function')!;
+  let ancestor = box.parent;
+  while (ancestor) {
+    if (ancestor.props.accessibilityRole !== 'checkbox') expect(ancestor.props.onPress).toBeUndefined();
+    ancestor = ancestor.parent;
+  }
+});
+
+test('le tirage de film a une cible sans bouton englobant', async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, list: 'films', done: false }] });
+  await open();
+  await switchTab('films');
+  let ancestor = root.root.findByProps({ label: 'Tirer un film au sort' }).parent;
+  while (ancestor) {
+    if (ancestor.props.label !== 'Tirer un film au sort') expect(ancestor.props.onPress).toBeUndefined();
+    ancestor = ancestor.parent;
+  }
+});
+
+test('cocher un article et ouvrir sa fiche restent deux actions indépendantes', async () => {
+  await open();
+  const box = root.root.findAllByProps({ accessibilityRole: 'checkbox' }).find(node => typeof node.props.onPress === 'function')!;
+  await act(async () => { await box.props.onPress(); });
+  expect(backend.update).toHaveBeenCalledWith('items', item.id, { done: false });
+  expect(root.root.findAllByType('sheet' as never)).toHaveLength(0);
+  const edit = root.root.findAllByProps({ accessibilityRole: 'button', accessibilityLabel: item.title }).find(node => typeof node.props.onPress === 'function')!;
+  await act(async () => edit.props.onPress());
+  expect(root.root.findByType('sheet' as never)).toBeTruthy();
+  expect(backend.update).toHaveBeenCalledTimes(1);
+  expect(confirmDelete).not.toHaveBeenCalled();
+});
+
 test('les cases de la liste portent le nom de leur article et une action distincte', async () => {
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [item, { ...item, id: 'two', title: 'Autre course fictive', done: false }] });
   await open();

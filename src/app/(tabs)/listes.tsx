@@ -173,11 +173,9 @@ function ListesContent() {
   };
 
   const renderItem = (item: Entry, index: number) => (
-    <Pressable
+    <View
       key={item.id}
-      onPress={() => setEditing({ item, tab })}
-      onLongPress={() => askRemove(item)}
-      style={({ pressed }) => ({
+      style={{
         flexDirection: 'row',
         alignItems: 'center',
         gap: 14,
@@ -185,8 +183,7 @@ function ListesContent() {
         paddingHorizontal: 16,
         borderTopWidth: index === 0 ? 0 : 1,
         borderTopColor: t.line,
-        opacity: pressed ? 0.7 : 1,
-      })}>
+      }}>
       <Pressable
         accessibilityRole="checkbox"
         accessibilityState={{ checked: item.done, disabled: pending, busy: pending }}
@@ -207,27 +204,35 @@ function ListesContent() {
         }}>
         {item.done && <Ionicons name="checkmark" size={17} color={t.onPrimary} />}
       </Pressable>
-      <View style={{ flex: 1, gap: 2 }}>
-        <T
-          style={[
-            { fontFamily: Fonts.bodyMedium },
-            item.done ? { textDecorationLine: 'line-through', color: t.textSecondary } : undefined,
-          ]}>
-          {item.title}
-        </T>
-        {(!!item.detail || !!item.media) && (
-          <Row style={{ gap: 6 }}>
-            {!!item.media && (
-              <Ionicons name={item.media === 'serie' ? 'tv-outline' : 'film-outline'} size={13} color={t.textSecondary} />
-            )}
-            <T variant="small" muted numberOfLines={1}>
-              {[item.media === 'serie' ? 'Série' : item.media === 'film' ? 'Film' : '', item.detail].filter(Boolean).join(' · ')}
-            </T>
-          </Row>
-        )}
-      </View>
-      {tab !== 'gifts' && <Dot color={colorOf(item.createdBy)} />}
-    </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={[item.title, item.media === 'serie' ? 'Série' : item.media === 'film' ? 'Film' : '', item.detail].filter(Boolean).join('. ')}
+        accessibilityHint="Ouvre la fiche de cet élément. Un appui long propose sa suppression."
+        onPress={() => setEditing({ item, tab })}
+        onLongPress={() => askRemove(item)}
+        style={({ pressed }) => ({ flex: 1, minWidth: 0, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 14, opacity: pressed ? 0.7 : 1 })}>
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <T
+            style={[
+              { fontFamily: Fonts.bodyMedium },
+              item.done ? { textDecorationLine: 'line-through', color: t.textSecondary } : undefined,
+            ]}>
+            {item.title}
+          </T>
+          {(!!item.detail || !!item.media) && (
+            <Row style={{ gap: 6 }}>
+              {!!item.media && (
+                <Ionicons name={item.media === 'serie' ? 'tv-outline' : 'film-outline'} size={13} color={t.textSecondary} />
+              )}
+              <T variant="small" muted numberOfLines={1}>
+                {[item.media === 'serie' ? 'Série' : item.media === 'film' ? 'Film' : '', item.detail].filter(Boolean).join(' · ')}
+              </T>
+            </Row>
+          )}
+        </View>
+        {tab !== 'gifts' && <Dot color={colorOf(item.createdBy)} />}
+      </Pressable>
+    </View>
   );
 
   return (
@@ -256,7 +261,7 @@ function ListesContent() {
         )}
 
         {tab === 'films' && sorted.length > 0 && (
-          <Card tone="feature" onPress={pickMovie} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <Card tone="feature" style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View style={{ flex: 1, gap: 4 }}>
               <T variant="h2" color={t.onFeature} style={{ fontFamily: Fonts.displayMedium }}>
                 On regarde quoi ?
