@@ -35,3 +35,9 @@ Le message Expo sur les changements de jetons de notifications non pris en charg
 ## Suite
 
 Reprendre les recettes de `TESTFLIGHT-REVIEW.md` dans un navigateur disponible, puis séparément sur les appareils autorisés. Les exigences serveur, émulateurs de sécurité, coût nul supplémentaire, confidentialité et distribution restent intégralement applicables. Un export local réussi ne lève aucun de ces prérequis.
+## Nouveau contrôle après les correctifs d’interface
+Source : `d79247babf904ef20246b802d38d88a1497ac84c`, le 21 octobre vers 03:45. Les 187 blobs du dépôt (document présent inclus) ont été comparés au SHA Git sans écart ni fichier manquant.
+- Suite complète : 65 suites / 1 656 tests réussis en 12,879 s ; lint et TypeScript code retour 0.
+- Export web, mêmes indicateurs de sécurité ci-dessus, sortie `../nous-deux-web-final` : code retour 0, 1 080 modules web / 1 180 modules de rendu statique, 16 routes et 3 bundles ; 47 fichiers, 4 080 749 octets.
+- Export iOS, mêmes indicateurs, sortie `../nous-deux-ios-final` : code retour 0, 1 359 modules, 31 ressources, `entry-8b0d6b1641e56da6fa375468fd5b0b28.hbc` ; 33 fichiers, 5 898 082 octets.
+- Les écarts de comptage Metro entre les exports ne constituent pas une mesure de performance. Les limites de rendu, de compilation native et de distribution décrites ci-dessus restent inchangées.
