@@ -5,6 +5,7 @@ import Souvenirs from '@/app/souvenirs';
 import { MemoriesStrip } from '@/components/home/memories-strip';
 import { useCollectionState } from '../couple-context';
 import { pickPhoto } from '../photos';
+import { todayKey } from '../dates';
 
 jest.mock('../couple-context', () => {
   const state = jest.fn();
@@ -124,4 +125,67 @@ test('l’ajout de l’accueil annonce son attente puis son retour disponible', 
   expect(getButton().props.accessibilityState).toEqual({ busy: true, disabled: true });
   await act(async () => { finish(null); await pending; });
   expect(getButton().props.accessibilityState).toEqual({ busy: false, disabled: false });
+});
+
+
+describe.each([['album', Souvenirs], ['accueil', MemoriesStrip]] as const)('photo indisponible : %s', (_name, Component) => {
+  test('une erreur d’image est expliquée sans masquer le souvenir', async () => {
+    (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [memory] });
+    await act(async () => { root = create(<Component />); });
+    const photo = root.root.findAllByType('image' as never)[0];
+    await act(async () => { photo.props.onError?.({ error: 'private fictitious image token' }); });
+    expect(text()).toContain('Photo indisponible');
+    expect(text()).not.toContain('private fictitious image token');
+    expect(root.root.findAllByType(Pressable).some(node => node.props.accessibilityLabel?.includes('Souvenir du'))).toBe(true);
+    await act(async () => { photo.props.onLoad?.({ source: { width: 640, height: 480 } }); });
+    expect(text()).not.toContain('Photo indisponible');
+  });
+});
+
+test('l’erreur de photo dans la fiche conserve la légende en préparation', async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [memory] });
+  await act(async () => { root = create(<Souvenirs />); });
+  await act(async () => { root.root.findAllByType(Pressable)[0].props.onPress(); });
+  await act(async () => { root.root.findByProps({ label: 'Légende' }).props.onChangeText('Légende intacte'); });
+  const sheet = root.root.findByType('sheet' as never);
+  await act(async () => { sheet.findByType('image' as never).props.onError?.({ error: 'private fictitious image token' }); });
+  expect(sheet.findAllByProps({ children: 'Photo indisponible' }).length).toBeGreaterThan(0);
+  expect(root.root.findByProps({ label: 'Légende' }).props.value).toBe('Légende intacte');
+});
+
+
+test('la carte anniversaire explique aussi un échec de sa photo', async () => {
+  const today = todayKey();
+  const date = `${Number(today.slice(0, 4)) - 4}${today.slice(4)}`;
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...memory, date }] });
+  await act(async () => { root = create(<MemoriesStrip />); });
+  const card = root.root.findByType('card' as never);
+  await act(async () => { card.findByType('image' as never).props.onError({ error: 'private fictitious token' }); });
+  expect(card.findAllByProps({ children: 'Photo indisponible' }).length).toBeGreaterThan(0);
+  await act(async () => { card.props.onPress(); });
+  expect(router.push).toHaveBeenCalledWith('/souvenirs');
+});
+
+test('changer la source rétablit l’affichage et isole les anciennes erreurs', async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [memory] });
+  await act(async () => { root = create(<Souvenirs />); });
+  const oldError = root.root.findByType('image' as never).props.onError;
+  await act(async () => { oldError({ error: 'private old image' }); });
+  expect(text()).toContain('Photo indisponible');
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...memory, photoUrl: 'test://new-photo' }] });
+  await act(async () => { root.update(<Souvenirs />); });
+  await act(async () => { oldError({ error: 'private late image' }); });
+  expect(text()).not.toContain('Photo indisponible');
+  expect(root.root.findByType('image' as never).props.source.uri).toBe('test://new-photo');
+});
+
+test('une photo en échec laisse les autres souvenirs disponibles', async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [memory, { ...memory, id: 'two', photoUrl: 'test://other' }] });
+  await act(async () => { root = create(<Souvenirs />); });
+  const tiles = root.root.findAllByType(Pressable);
+  await act(async () => { tiles[0].findByType('image' as never).props.onError({ error: 'private fictitious token' }); });
+  expect(tiles[0].findAllByProps({ children: 'Photo indisponible' }).length).toBeGreaterThan(0);
+  expect(tiles[1].findAllByProps({ children: 'Photo indisponible' })).toHaveLength(0);
+  await act(async () => { tiles[0].props.onPress(); });
+  expect(root.root.findByType('sheet' as never)).toBeTruthy();
 });

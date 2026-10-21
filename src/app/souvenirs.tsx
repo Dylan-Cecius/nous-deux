@@ -1,10 +1,10 @@
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { useAddMemory } from '@/components/home/memories-strip';
 import { showDialog } from '@/components/dialog';
+import { MemoryPhoto } from '@/components/memory-photo';
 import { DateField } from '@/components/pickers';
 import { Button, Card, confirmDelete, Empty, Fab, Field, Screen, Sheet, T } from '@/components/ui';
 import { useCollectionState, useSession } from '@/lib/couple-context';
@@ -55,7 +55,7 @@ function SouvenirsContent() {
                       accessibilityLabel={`Souvenir du ${fromKey(m.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}${m.caption ? ` : ${m.caption}` : ''}`}
                       accessibilityHint="Ouvre la fiche pour modifier ce souvenir."
                       style={{ width: '48%', flexGrow: 1, gap: 6 }}>
-                      <Image source={{ uri: m.photoUrl }} style={{ width: '100%', aspectRatio: 0.8, borderRadius: 18 }} contentFit="cover" />
+                      <MemoryPhoto uri={m.photoUrl} style={{ width: '100%', aspectRatio: 0.8, borderRadius: 18 }} />
                       <T variant="small" numberOfLines={1}>
                         {m.caption || fromKey(m.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
                       </T>
@@ -138,7 +138,7 @@ function MemorySheet({ memory, onClose }: { memory: Memory; onClose: () => void 
 
   return (
     <Sheet visible title="Souvenir" onClose={() => run(close)}>
-      {received && <Image source={{ uri: received.photoUrl }} style={{ width: '100%', aspectRatio: 1, borderRadius: 20 }} contentFit="cover" />}
+      {received && <MemoryPhoto uri={received.photoUrl} style={{ width: '100%', aspectRatio: 1, borderRadius: 20 }} />}
       <Field label="Légende" value={caption} maxLength={4000} editable={!pending} onChangeText={(value) => changeDraft({ caption: value })} placeholder="Notre premier week-end à la mer" />
       <DateField label="Date" value={date} disabled={pending} onChange={(value) => changeDraft({ date: value })} maximumDate={fromKey(today)} />
       {date > today && <T variant="small">La date du souvenir ne peut pas être dans le futur.</T>}

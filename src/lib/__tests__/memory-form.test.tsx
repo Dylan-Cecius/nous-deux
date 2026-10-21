@@ -7,6 +7,7 @@ import { showDialog } from '@/components/dialog';
 
 jest.mock('../couple-context', () => ({ useCollectionState: jest.fn(), useSession: jest.fn() }));
 jest.mock('@/components/dialog', () => ({ showDialog: jest.fn() }));
+jest.mock('@/constants/theme', () => ({ useTheme: () => ({}) }));
 jest.mock('@/components/home/memories-strip', () => ({ useAddMemory: () => ({ add: jest.fn(), busy: false }) }));
 jest.mock('expo-router', () => ({ router: { back: jest.fn() } }));
 jest.mock('expo-image', () => ({ Image: 'image' }));
@@ -15,7 +16,7 @@ jest.mock('react-native', () => Object.create(jest.requireActual('react-native')
   Pressable: { value: 'pressable' },
   AppState: { value: { currentState: 'active', addEventListener: jest.fn(() => ({ remove: jest.fn() })) } },
 }));
-jest.mock('@/components/ui', () => ({ confirmDelete: jest.fn(), ...Object.fromEntries(['Screen', 'Card', 'T', 'Button', 'Empty', 'Fab', 'Field', 'Sheet'].map((name) => [name, name.toLowerCase()])) }));
+jest.mock('@/components/ui', () => ({ confirmDelete: jest.fn(), ...Object.fromEntries(['Screen', 'Card', 'T', 'Button', 'Empty', 'Fab', 'Field', 'Sheet', 'Ionicons'].map((name) => [name, name.toLowerCase()])) }));
 
 let root: ReactTestRenderer;
 const memory = { id: 'one', caption: 'Souvenir fictif', date: '2020-01-02', photoUrl: 'fictitious://photo', createdBy: 'alice', createdAt: 1 };

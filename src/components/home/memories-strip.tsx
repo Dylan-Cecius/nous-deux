@@ -1,9 +1,9 @@
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
 import { showDialog } from '@/components/dialog';
+import { MemoryPhoto } from '@/components/memory-photo';
 import { Button, Card, Ionicons, Row, SectionTitle, T } from '@/components/ui';
 import { useTheme } from '@/constants/theme';
 import { useCollectionState, useSession } from '@/lib/couple-context';
@@ -99,7 +99,7 @@ export function MemoriesStrip() {
           accessibilityLabel={`Souvenir du ${fromKey(onThisDay.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}${onThisDay.caption ? ` : ${onThisDay.caption}` : ''}`}
           accessibilityHint="Ouvre l’album des souvenirs."
           style={{ padding: 0, overflow: 'hidden', gap: 0 }}>
-          <Image source={{ uri: onThisDay.photoUrl }} style={{ width: '100%', height: 180 }} contentFit="cover" />
+          <MemoryPhoto uri={onThisDay.photoUrl} style={{ width: '100%', height: 180 }} />
           <View style={{ padding: 16, gap: 2 }}>
             <T variant="caption" color={t.onFeatureMuted}>
               Il y a {yearsAgo} an{yearsAgo > 1 ? 's' : ''}
@@ -140,7 +140,7 @@ export function MemoriesStrip() {
             accessibilityRole="button"
             accessibilityLabel={`Souvenir du ${fromKey(m.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}${m.caption ? ` : ${m.caption}` : ''}`}
             accessibilityHint="Ouvre l’album des souvenirs.">
-            <Image source={{ uri: m.photoUrl }} style={{ width: 104, height: 132, borderRadius: 18 }} contentFit="cover" />
+            <MemoryPhoto uri={m.photoUrl} style={{ width: 104, height: 132, borderRadius: 18 }} />
           </Pressable>
         ))}
       </ScrollView>
