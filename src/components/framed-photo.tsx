@@ -42,7 +42,7 @@ function useFramedLayout(frame: PhotoFrame) {
   const onLayout = (e: LayoutChangeEvent) => setBox(validSize(e.nativeEvent.layout.width, e.nativeEvent.layout.height));
   const onLoad = (e: { source: { width: number; height: number } }) =>
     setNatural(validSize(e.source.width, e.source.height));
-  return { box, layout, onLayout, onLoad };
+  return { box, natural, layout, onLayout, onLoad };
 }
 
 /** Photo affichée selon le cadrage choisi. Remplit son parent. */
@@ -93,7 +93,7 @@ function PhotoFrameEditorContent({
   disabled = false,
 }: PhotoFrameEditorProps) {
   const t = useTheme();
-  const { box, layout, onLayout, onLoad } = useFramedLayout(frame);
+  const { box, natural, layout, onLayout, onLoad } = useFramedLayout(frame);
   const unavailable = disabled || !layout;
   // Plusieurs commandes peuvent arriver avant le retour du cadrage par le parent.
   const latest = useRef({ frame, onChange });
@@ -104,8 +104,14 @@ function PhotoFrameEditorContent({
   };
 
   // Point de départ du glissement (doigt et cadrage).
-  const start = useRef<{ pageX: number; pageY: number; frame: PhotoFrame } | null>(null);
-  const context = useMemo(() => ({ unavailable }), [unavailable]);
+  const start = useRef<{ pageX: number; pageY: number; frame: PhotoFrame; layout: ReturnType<typeof layoutFor> } | null>(null);
+  const width = box?.w, heightMeasured = box?.h;
+  const naturalWidth = natural?.w, naturalHeight = natural?.h;
+  // Une rotation ou un nouveau ratio termine le geste ; une mesure identique le conserve.
+  const context = useMemo(
+    () => ({ unavailable, width, heightMeasured, naturalWidth, naturalHeight }),
+    [unavailable, width, heightMeasured, naturalWidth, naturalHeight],
+  );
   const current = useRef<typeof context | null>(null);
   useEffect(() => {
     current.current = context;
@@ -126,8 +132,12 @@ function PhotoFrameEditorContent({
     onResponderRelease: endGesture,
     onResponderTerminate: endGesture,
     onResponderGrant: (e: GestureResponderEvent) => {
-      if (!canEdit()) return;
-      start.current = { pageX: e.nativeEvent.pageX, pageY: e.nativeEvent.pageY, frame: latest.current.frame };
+      if (!canEdit() || !box || !natural) return;
+      const currentFrame = latest.current.frame;
+      start.current = {
+        pageX: e.nativeEvent.pageX, pageY: e.nativeEvent.pageY, frame: currentFrame,
+        layout: layoutFor(box, natural, currentFrame),
+      };
     },
     onResponderMove: (e: GestureResponderEvent) => {
       if (!canEdit() || !layout || !box || !start.current) return;
@@ -135,8 +145,8 @@ function PhotoFrameEditorContent({
       const dx = e.nativeEvent.pageX - from.pageX;
       const dy = e.nativeEvent.pageY - from.pageY;
       // left = (largeur cadre − largeur image) × x : glisser de dx déplace l'image de dx.
-      const x = box.w !== layout.width ? clamp(from.frame.x + dx / (box.w - layout.width)) : from.frame.x;
-      const y = box.h !== layout.height ? clamp(from.frame.y + dy / (box.h - layout.height)) : from.frame.y;
+      const x = box.w !== from.layout.width ? clamp(from.frame.x + dx / (box.w - from.layout.width)) : from.frame.x;
+      const y = box.h !== from.layout.height ? clamp(from.frame.y + dy / (box.h - from.layout.height)) : from.frame.y;
       changeFrame({ ...from.frame, x, y });
     },
   };

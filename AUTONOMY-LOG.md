@@ -1760,3 +1760,9 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Cadrage courant mémorisé dès chaque commande et repris par la suivante avant le rendu du parent. Les commandes terminent le glissement précédent pour ne pas annuler le choix avec un mouvement tardif ; les gardes de désactivation/source/démontage restent en place.
 - Dix tests ajoutés, dont les cinq rouges puis verts ; 115 tests cadrage/fiche réussis (1,409 s), lint/TypeScript code retour 0 et diff propre/revu. Documentation Expo 57, llms et contrat Gesture Responder React Native consultés ; aucune nouvelle API ni dépendance.
 - Tests de logique sur photos fictives, aucun essai tactile/visuel natif. Stockage, suppression, serveur/règles inchangés ; aucune build, distribution ou dépense.
+
+### 21 octobre 2026, 06:39 — Géométrie des gestes de cadrage
+- Quatre nouveaux échecs reproduits : ancien glissement encore actif après changement de taille du cadre, ratio chargé ou aller-retour de taille ; geste démarré immédiatement après zoom calculé avec les anciennes dimensions.
+- Contexte du geste lié aux dimensions mesurées, avec invalidation même après aller-retour. Chaque début de glissement capture la géométrie de son cadrage courant. Mesure identique et retour normal du cadrage par le parent conservent le geste.
+- Cinq tests ajoutés, quatre rouges puis verts et un contrôle de mesure identique ; 120 tests cadrage/fiche réussis (1,229 s), lint/TypeScript code retour 0, diff propre et relu.
+- Aucune API supplémentaire, écriture, règle ou suppression ; rotations et événements simulés seulement. Essai tactile natif toujours requis.

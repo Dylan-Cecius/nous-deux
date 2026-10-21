@@ -72,6 +72,19 @@ describe('commandes rapprochées de cadrage', () => {
     await act(async () => { for (let i = 0; i < 30; i++) press(); });
     expect(changes.mock.calls.at(-1)?.[0].zoom).toBe(expected);
   });
+
+  test('un geste commencé après zoom utilise les nouvelles dimensions avant le rendu', async () => {
+    const { changes, command, surface } = await setup();
+    const zoom = command('Zoomer');
+    const event = (value: number) => ({ nativeEvent: { pageX: value, pageY: value } });
+    await act(async () => {
+      zoom();
+      surface().props.onResponderGrant(event(0));
+      surface().props.onResponderMove(event(11.5));
+    });
+    expect(changes.mock.calls.at(-1)?.[0].x).toBeCloseTo(0.4);
+    expect(changes.mock.calls.at(-1)?.[0].zoom).toBe(2.15);
+  });
 });
 
 describe.each(['photo', 'editor'])('dimensions de %s', mode => {
@@ -193,6 +206,38 @@ describe('cycle de vie du glissement', () => {
     await act(async () => root.update(render(0.4)));
     await act(async () => surface().props.onResponderMove(event(20)));
     expect(onChange).toHaveBeenLastCalledWith({ x: 0.3, y: 0.3, zoom: 2 });
+  });
+
+  test.each(['cadre', 'image', 'aller-retour'])('changer la géométrie (%s) termine le geste et invalide ses callbacks', async change => {
+    const { onChange } = await setup();
+    const old = surface().props;
+    await act(async () => old.onResponderGrant(event(0)));
+    const resize = async (width: number) => act(async () => {
+      if (change === 'image') root.root.findByType('image' as never).props.onLoad({ source: { width, height: 100 } });
+      else surface().props.onLayout({ nativeEvent: { layout: { width, height: 100 } } });
+    });
+    await resize(200);
+    if (change === 'aller-retour') await resize(100);
+    await act(async () => {
+      old.onResponderMove(event(10));
+      old.onResponderGrant(event(0));
+      old.onResponderMove(event(20));
+      surface().props.onResponderMove(event(30));
+    });
+    expect(onChange).not.toHaveBeenCalled();
+    await act(async () => {
+      surface().props.onResponderGrant(event(0));
+      surface().props.onResponderMove(event(10));
+    });
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  test('une mesure identique ne coupe pas le glissement', async () => {
+    const { onChange } = await setup();
+    await act(async () => surface().props.onResponderGrant(event(0)));
+    await act(async () => surface().props.onLayout({ nativeEvent: { layout: { width: 100, height: 100 } } }));
+    await act(async () => surface().props.onResponderMove(event(10)));
+    expect(onChange).toHaveBeenLastCalledWith({ x: 0.4, y: 0.4, zoom: 2 });
   });
 });
 
