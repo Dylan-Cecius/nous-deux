@@ -1693,3 +1693,8 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Défaut reproduit : un profil courant ou partenaire absent affichait « Vous êtes à l’équilibre », même avec 40 € de dépenses fictives. L’interface indique désormais « Solde indisponible » et explique le besoin des deux profils ; historique conservé, marque de remboursement absente.
 - Deux régressions rouges puis vertes et un contrôle de reprise avec brouillon conservé. 81 tests dépenses/actions/formulaire réussis (1,797 s), lint/TypeScript/diff réussis ; diff examiné.
 - Affichage seulement : calcul du solde, écritures, protocole serveur et suppression inchangés. Aucune opération financière ni compte réel ; recette native restante.
+### 21 octobre 2026, 04:35 — Réponse de sauvegarde des dépenses perdue
+- Simulation d’un ajout réussi dont la réponse échoue : l’écran affichait « Action impossible » avec le message technique brut. Désormais la confirmation est explicitement inconnue, le conseil est de vérifier les dépenses actualisées avant une nouvelle tentative, et le détail de l’erreur n’est pas inspecté/affiché.
+- Un test de reprise renforcé et un scénario d’écriture simulée suivie de rejet d’abord rouges ; contrôle du brouillon, absence de relance automatique et absence de vibration de succès. 72 tests formulaire/actions réussis (1,244 s), lint/TypeScript et diff réussis.
+- Une assertion textuelle intermédiaire a été ajustée pour inclure « avoir » dans la phrase attendue ; résultat final entièrement vert avant sauvegarde.
+- Affichage d’erreur côté client uniquement, sans idempotence nouvelle ni garantie contre une répétition manuelle. Marque de remboursement, suppression, stockage et serveur inchangés. Aucun accès à un montant réel ni mouvement d’argent.

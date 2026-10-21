@@ -141,10 +141,27 @@ test('un échec conserve la saisie et permet de réessayer', async () => {
   await mount();
   backend.add.mockRejectedValueOnce(new Error('Échec fictif'));
   await act(async () => { await save()(); });
-  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Échec fictif');
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('Vérifie les dépenses'));
   expect(field('Montant (€)').props).toMatchObject({ value: '42,50', editable: true });
   await act(async () => { await save()(); });
   expect(backend.add).toHaveBeenCalledTimes(2);
+});
+
+test('une réponse perdue après ajout ne révèle pas l’erreur et ne relance pas l’écriture', async () => {
+  await mount();
+  const committed: unknown[] = [];
+  backend.add.mockImplementationOnce(async (_collection, value) => {
+    committed.push(value);
+    throw new Error('Détail privé fictif : couples/test-secret/expenses/one');
+  });
+  await act(async () => { await save()(); });
+  expect(committed).toHaveLength(1);
+  expect(backend.add).toHaveBeenCalledTimes(1);
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('peut déjà avoir été enregistrée'));
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('test-secret');
+  expect(field('Montant (€)').props.value).toBe('42,50');
+  expect(root.root.findAllByType('sheet' as never)).toHaveLength(1);
+  expect(success).not.toHaveBeenCalled();
 });
 
 test.each(['success', 'error'])('un ancien résultat %s ne ferme pas le brouillon ni ne vibre', async (result) => {

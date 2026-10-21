@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Button, Card, Chips, confirmDelete, Dot, Empty, Fab, Field, Ionicons, Row, Screen, Sheet, T } from '@/components/ui';
+import { showDialog } from '@/components/dialog';
 import { cardShadow, useTheme } from '@/constants/theme';
 import { useCollectionState, useSession } from '@/lib/couple-context';
 import { formatRelative } from '@/lib/dates';
@@ -225,7 +226,9 @@ function ExpenseSheet({ onClose }: { onClose: () => void }) {
       if (!isCurrent()) return;
       success();
       close();
-    } catch (error) { if (isCurrent()) throw error; }
+    } catch {
+      if (isCurrent()) showDialog('Enregistrement non confirmé', 'Vérifie les dépenses après leur actualisation avant de réessayer : la dépense peut déjà avoir été enregistrée. Ton brouillon est conservé.');
+    }
   });
 
   return (
