@@ -1778,3 +1778,10 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Message fixe invitant à vérifier la connexion ou rouvrir le cadrage, sans reprendre le détail technique de l’erreur. Gestes/commandes désactivés jusqu’à un chargement réussi ; une erreur ancienne ne contamine pas la source suivante.
 - Trois tests ajoutés, deux rouges puis verts ; 125 tests cadrage/fiche réussis (1,266 s), lint/TypeScript code retour 0, diff propre et relu. Contrat onError/onLoad vérifié dans https://docs.expo.dev/versions/v57.0.0/sdk/image/.
 - Aucun nouvel appel réseau explicite, retry automatique, upload ou modification du stockage. Essai de chargement/erreur simulé, pas de photo réelle ni rendu natif. Horodatage du checkpoint précédent corrigé à 06:40 selon l’horloge observée.
+
+### 21 octobre 2026, 06:45 — Déplacement accessible du cadrage
+- Amélioration justifiée par inspection : les boutons exposaient le zoom et les réinitialisations, mais le repositionnement exigeait un glissement direct sans action de lecteur d’écran.
+- La surface native expose maintenant un réglage nommé, le zoom et la position, deux actions standard de zoom et quatre déplacements nommés. Déplacements de 10 % du cadre, bornés, cumulables et soumis aux mêmes gardes ; pas de fausse modification sur un axe sans déplacement possible.
+- Neuf tests nouveaux (contrats, quatre directions, cumul/bornes, absence de débordement, désactivation/reprise, exclusion web). Documentation officielle React Native 0.86 consultée : https://reactnative.dev/docs/0.86/accessibility. Amélioration par inspection, pas neuf bugs reproduits.
+- 65 suites / 1 706 tests réussis (10,790 s), lint/TypeScript code retour 0 et diff propre/revu. Les actions spécifiques iOS/Android ne créent pas un faux rôle ajustable sur le web ; accessibilité clavier du déplacement web non traitée.
+- Aucun aspect visible ajouté, stockage ou requête supplémentaire. VoiceOver/TalkBack, annonce des valeurs, focus et gestes doivent encore être essayés sur appareil ; ceci n’est pas une validation native.

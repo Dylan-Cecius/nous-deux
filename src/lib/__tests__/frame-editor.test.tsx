@@ -1,5 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { useState } from 'react';
 import { FramedPhoto, PhotoFrameEditor } from '@/components/framed-photo';
 
@@ -368,5 +368,93 @@ describe('échec de chargement dans le cadrage', () => {
     });
     expect(JSON.stringify(root.toJSON())).not.toContain('Impossible d’afficher la photo');
     expect(buttons().every(button => !button.props.disabled)).toBe(true);
+  });
+});
+
+describe('cadrage par actions de lecteur d’écran', () => {
+  const surface = () => root.root.findAllByType(View).find(node => node.props.onResponderMove)!;
+  const action = (actionName: string) => ({ nativeEvent: { actionName } });
+  const setup = async (initial = frame) => {
+    const changes = jest.fn();
+    function Form({ disabled = false }: { disabled?: boolean }) {
+      const [value, setValue] = useState(initial);
+      return <PhotoFrameEditor uri="fictitious://photo" frame={value} disabled={disabled} onChange={next => { changes(next); setValue(next); }} />;
+    }
+    await act(async () => { root = create(<Form />); });
+    await act(async () => {
+      surface().props.onLayout({ nativeEvent: { layout: { width: 100, height: 100 } } });
+      root.root.findByType('image' as never).props.onLoad({ source: { width: 100, height: 100 } });
+    });
+    return { changes, Form };
+  };
+
+  test('la surface propose les actions nommées et annonce le cadrage courant', async () => {
+    await setup();
+    const props = surface().props;
+    expect(props.accessible).toBe(true);
+    expect(props.accessibilityRole).toBe('adjustable');
+    expect(props.accessibilityLabel).toBe('Cadrage de la photo');
+    expect(props.accessibilityActions).toEqual(expect.arrayContaining([
+      { name: 'moveLeft', label: 'Déplacer la photo vers la gauche' },
+      { name: 'moveDown', label: 'Déplacer la photo vers le bas' },
+    ]));
+    expect(props.accessibilityValue.text).toContain('Zoom 200 %');
+    await act(async () => props.onAccessibilityAction(action('increment')));
+    expect(surface().props.accessibilityValue.text).toContain('Zoom 215 %');
+  });
+
+  test.each([
+    ['moveLeft', 0.6, 0.5], ['moveRight', 0.4, 0.5],
+    ['moveUp', 0.5, 0.6], ['moveDown', 0.5, 0.4],
+  ] as const)('%s déplace la photo dans le sens annoncé', async (name, x, y) => {
+    const { changes } = await setup();
+    await act(async () => surface().props.onAccessibilityAction(action(name)));
+    expect(changes).toHaveBeenLastCalledWith({ x, y, zoom: 2 });
+  });
+
+  test('les déplacements successifs sont cumulés et bornés', async () => {
+    const { changes } = await setup();
+    const invoke = surface().props.onAccessibilityAction;
+    await act(async () => { invoke(action('moveLeft')); invoke(action('moveLeft')); });
+    expect(changes.mock.calls.at(-1)?.[0].x).toBeCloseTo(0.7);
+    expect(surface().props.accessibilityValue.text).toContain('horizontale 70 %');
+    await act(async () => { for (let i = 0; i < 20; i++) invoke(action('moveLeft')); });
+    expect(changes.mock.calls.at(-1)?.[0].x).toBe(1);
+  });
+
+  test('une image ajustée sans débordement ne reçoit pas de faux déplacement', async () => {
+    const { changes } = await setup({ ...frame, zoom: 1 });
+    await act(async () => {
+      surface().props.onAccessibilityAction(action('moveLeft'));
+      surface().props.onAccessibilityAction(action('moveUp'));
+      surface().props.onAccessibilityAction(action('unknown'));
+    });
+    expect(changes).not.toHaveBeenCalled();
+  });
+
+  test('une désactivation masque les actions et invalide les anciens événements après reprise', async () => {
+    const { changes, Form } = await setup();
+    const invoke = surface().props.onAccessibilityAction;
+    await act(async () => root.update(<Form disabled />));
+    expect(surface().props.accessibilityActions).toEqual([]);
+    expect(surface().props.accessibilityState.disabled).toBe(true);
+    await act(async () => {
+      invoke(action('moveLeft'));
+      surface().props.onAccessibilityAction(action('increment'));
+    });
+    await act(async () => root.update(<Form />));
+    await act(async () => invoke(action('moveLeft')));
+    expect(changes).not.toHaveBeenCalled();
+    await act(async () => surface().props.onAccessibilityAction(action('decrement')));
+    expect(changes).toHaveBeenLastCalledWith({ ...frame, zoom: 1.85 });
+  });
+
+  test('le web ne reçoit pas un faux contrôle ajustable sans actions natives', async () => {
+    const replacement = jest.replaceProperty(Platform, 'OS', 'web');
+    try {
+      await setup();
+      expect(surface().props.accessibilityRole).toBeUndefined();
+      expect(surface().props.onAccessibilityAction).toBeUndefined();
+    } finally { replacement.restore(); }
   });
 });

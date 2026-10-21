@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, View, type GestureResponderEvent, type LayoutChangeEvent, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, View, type GestureResponderEvent, type LayoutChangeEvent, type ViewProps, type ViewStyle } from 'react-native';
 
 import { IconButton, Row, T } from './ui';
 import { useTheme } from '@/constants/theme';
@@ -170,10 +170,48 @@ function PhotoFrameEditorContent({
     start.current = null;
     changeFrame(next);
   };
+  const moveBy = (horizontal: number, vertical: number) => {
+    if (!canEdit() || !box || !natural) return;
+    const currentFrame = latest.current.frame;
+    const geometry = layoutFor(box, natural, currentFrame);
+    const x = box.w !== geometry.width ? clamp(currentFrame.x + horizontal * box.w / (box.w - geometry.width)) : currentFrame.x;
+    const y = box.h !== geometry.height ? clamp(currentFrame.y + vertical * box.h / (box.h - geometry.height)) : currentFrame.y;
+    start.current = null;
+    if (x !== currentFrame.x || y !== currentFrame.y) changeFrame({ ...currentFrame, x, y });
+  };
+  const accessibilityProps: ViewProps = Platform.OS === 'web' ? {} : {
+    accessible: true,
+    accessibilityRole: 'adjustable',
+    accessibilityLabel: 'Cadrage de la photo',
+    accessibilityHint: 'Ajuste le zoom ou utilise les actions de déplacement.',
+    accessibilityState: { disabled: unavailable },
+    accessibilityValue: {
+      text: unavailable ? 'Indisponible' : `Zoom ${Math.round((layout?.zoom ?? 1) * 100)} %, position horizontale ${Math.round(frame.x * 100)} %, verticale ${Math.round(frame.y * 100)} %`,
+    },
+    accessibilityActions: unavailable ? [] : [
+      { name: 'increment', label: 'Zoomer' },
+      { name: 'decrement', label: 'Dézoomer' },
+      { name: 'moveLeft', label: 'Déplacer la photo vers la gauche' },
+      { name: 'moveRight', label: 'Déplacer la photo vers la droite' },
+      { name: 'moveUp', label: 'Déplacer la photo vers le haut' },
+      { name: 'moveDown', label: 'Déplacer la photo vers le bas' },
+    ],
+    onAccessibilityAction: event => {
+      switch (event.nativeEvent.actionName) {
+        case 'increment': zoomBy(0.15); break;
+        case 'decrement': zoomBy(-0.15); break;
+        case 'moveLeft': moveBy(-0.1, 0); break;
+        case 'moveRight': moveBy(0.1, 0); break;
+        case 'moveUp': moveBy(0, -0.1); break;
+        case 'moveDown': moveBy(0, 0.1); break;
+      }
+    },
+  };
 
   return (
     <View style={{ gap: 12 }}>
       <View
+        {...accessibilityProps}
         {...responder}
         onLayout={onLayout}
         style={[
