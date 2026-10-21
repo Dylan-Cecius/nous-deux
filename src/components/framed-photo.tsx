@@ -95,6 +95,13 @@ function PhotoFrameEditorContent({
   const t = useTheme();
   const { box, layout, onLayout, onLoad } = useFramedLayout(frame);
   const unavailable = disabled || !layout;
+  // Plusieurs commandes peuvent arriver avant le retour du cadrage par le parent.
+  const latest = useRef({ frame, onChange });
+  useEffect(() => { latest.current = { frame, onChange }; }, [frame, onChange]);
+  const changeFrame = (next: PhotoFrame) => {
+    latest.current.frame = next;
+    latest.current.onChange(next);
+  };
 
   // Point de départ du glissement (doigt et cadrage).
   const start = useRef<{ pageX: number; pageY: number; frame: PhotoFrame } | null>(null);
@@ -120,7 +127,7 @@ function PhotoFrameEditorContent({
     onResponderTerminate: endGesture,
     onResponderGrant: (e: GestureResponderEvent) => {
       if (!canEdit()) return;
-      start.current = { pageX: e.nativeEvent.pageX, pageY: e.nativeEvent.pageY, frame };
+      start.current = { pageX: e.nativeEvent.pageX, pageY: e.nativeEvent.pageY, frame: latest.current.frame };
     },
     onResponderMove: (e: GestureResponderEvent) => {
       if (!canEdit() || !layout || !box || !start.current) return;
@@ -130,14 +137,22 @@ function PhotoFrameEditorContent({
       // left = (largeur cadre − largeur image) × x : glisser de dx déplace l'image de dx.
       const x = box.w !== layout.width ? clamp(from.frame.x + dx / (box.w - layout.width)) : from.frame.x;
       const y = box.h !== layout.height ? clamp(from.frame.y + dy / (box.h - layout.height)) : from.frame.y;
-      onChange({ ...from.frame, x, y });
+      changeFrame({ ...from.frame, x, y });
     },
   };
 
   const zoomBy = (delta: number) => {
     if (!canEdit()) return;
     const min = layout?.minZoom ?? 1;
-    onChange({ ...frame, zoom: Math.min(MAX_ZOOM, Math.max(min, (layout?.zoom ?? frame.zoom) + delta)) });
+    const currentFrame = latest.current.frame;
+    const zoom = Math.min(MAX_ZOOM, Math.max(min, currentFrame.zoom));
+    start.current = null;
+    changeFrame({ ...currentFrame, zoom: Math.min(MAX_ZOOM, Math.max(min, zoom + delta)) });
+  };
+  const resetFrame = (next: PhotoFrame) => {
+    if (!canEdit()) return;
+    start.current = null;
+    changeFrame(next);
   };
 
   return (
@@ -172,8 +187,8 @@ function PhotoFrameEditorContent({
       </T>
       <Row style={{ justifyContent: 'center', gap: 12 }}>
         <IconButton icon="remove" label="Dézoomer" disabled={unavailable} onPress={() => zoomBy(-0.15)} />
-        <IconButton icon="expand-outline" label="Photo entière" disabled={unavailable} onPress={() => { if (canEdit()) onChange({ x: 0.5, y: 0.5, zoom: 0 }); }} />
-        <IconButton icon="scan-outline" label="Remplir le cadre" disabled={unavailable} onPress={() => { if (canEdit()) onChange(DEFAULT_FRAME); }} />
+        <IconButton icon="expand-outline" label="Photo entière" disabled={unavailable} onPress={() => resetFrame({ x: 0.5, y: 0.5, zoom: 0 })} />
+        <IconButton icon="scan-outline" label="Remplir le cadre" disabled={unavailable} onPress={() => resetFrame(DEFAULT_FRAME)} />
         <IconButton icon="add" label="Zoomer" disabled={unavailable} onPress={() => zoomBy(0.15)} />
       </Row>
     </View>

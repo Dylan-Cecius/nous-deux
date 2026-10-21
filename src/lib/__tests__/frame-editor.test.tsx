@@ -1,5 +1,6 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { View } from 'react-native';
+import { useState } from 'react';
 import { FramedPhoto, PhotoFrameEditor } from '@/components/framed-photo';
 
 jest.mock('expo-image', () => ({ Image: 'image' }));
@@ -10,6 +11,68 @@ jest.mock('react-native', () => Object.create(jest.requireActual('react-native')
 let root: ReactTestRenderer;
 const frame = { x: 0.5, y: 0.5, zoom: 2 };
 afterEach(async () => { if (root) await act(async () => root.unmount()); });
+
+describe('commandes rapprochées de cadrage', () => {
+  const setup = async (initial = frame) => {
+    const changes = jest.fn();
+    function Form() {
+      const [value, setValue] = useState(initial);
+      return <PhotoFrameEditor uri="fictitious://photo" frame={value} onChange={next => { changes(next); setValue(next); }} />;
+    }
+    await act(async () => { root = create(<Form />); });
+    const surface = () => root.root.findAllByType(View).find(node => node.props.onResponderMove)!;
+    await act(async () => {
+      surface().props.onLayout({ nativeEvent: { layout: { width: 100, height: 100 } } });
+      root.root.findByType('image' as never).props.onLoad({ source: { width: 100, height: 400 } });
+    });
+    const command = (label: string) => root.root.findAllByType('button' as never).find(node => node.props.label === label)!.props.onPress;
+    return { changes, command, surface };
+  };
+
+  test.each([['Zoomer', 2.3], ['Dézoomer', 1.7]] as const)('deux appuis sur %s sont cumulés avant le prochain rendu', async (label, expected) => {
+    const { changes, command } = await setup();
+    const press = command(label);
+    await act(async () => { press(); press(); });
+    expect(changes.mock.calls.at(-1)?.[0].zoom).toBeCloseTo(expected);
+  });
+
+  test.each([['Photo entière', 0.4], ['Remplir le cadre', 1.15]] as const)('zoomer après %s part du cadrage choisi', async (label, expected) => {
+    const { changes, command } = await setup({ x: 0.2, y: 0.7, zoom: 2 });
+    const reset = command(label), zoom = command('Zoomer');
+    await act(async () => { reset(); zoom(); });
+    expect(changes).toHaveBeenLastCalledWith({ x: 0.5, y: 0.5, zoom: expected });
+  });
+
+  test('zoomer juste après un déplacement conserve sa position', async () => {
+    const { changes, command, surface } = await setup();
+    const zoom = command('Zoomer');
+    const event = (value: number) => ({ nativeEvent: { pageX: value, pageY: value } });
+    await act(async () => {
+      surface().props.onResponderGrant(event(0));
+      surface().props.onResponderMove(event(10));
+      zoom();
+    });
+    expect(changes.mock.calls.at(-1)?.[0]).toEqual({ ...changes.mock.calls[0][0], zoom: 2.15 });
+  });
+
+  test.each(['Zoomer', 'Photo entière', 'Remplir le cadre'])('%s met fin au geste précédent', async label => {
+    const { changes, command, surface } = await setup();
+    const event = (value: number) => ({ nativeEvent: { pageX: value, pageY: value } });
+    await act(async () => surface().props.onResponderGrant(event(0)));
+    const move = surface().props.onResponderMove;
+    await act(async () => command(label)());
+    const count = changes.mock.calls.length;
+    await act(async () => move(event(20)));
+    expect(changes).toHaveBeenCalledTimes(count);
+  });
+
+  test.each([['Zoomer', 3], ['Dézoomer', 0.25]] as const)('les appuis répétés sur %s restent bornés', async (label, expected) => {
+    const { changes, command } = await setup();
+    const press = command(label);
+    await act(async () => { for (let i = 0; i < 30; i++) press(); });
+    expect(changes.mock.calls.at(-1)?.[0].zoom).toBe(expected);
+  });
+});
 
 describe.each(['photo', 'editor'])('dimensions de %s', mode => {
   const render = (uri: string) => mode === 'photo'
