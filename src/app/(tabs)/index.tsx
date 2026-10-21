@@ -185,8 +185,11 @@ function DateSheet({ onClose }: { onClose: () => void }) {
     }
     try {
       await backend.add('dates', { title: current.title.trim(), emoji: '', date: current.date, yearly: current.yearly });
-      close();
-    } catch (error) { if (isCurrent()) throw error; }
+    } catch {
+      if (isCurrent()) showDialog('Enregistrement non confirmé', 'Vérifie les dates après leur actualisation avant de réessayer : la date peut déjà avoir été enregistrée. Ton brouillon est conservé.');
+      return;
+    }
+    close();
   });
 
   return (

@@ -211,10 +211,23 @@ test('un échec conserve le brouillon et permet une nouvelle tentative', async (
   await mount(); await fill();
   backend.add.mockRejectedValueOnce(new Error('Échec fictif'));
   await act(async () => { await button('Ajouter')(); });
-  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Échec fictif');
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('Vérifie les dates'));
   expect(field().props).toMatchObject({ value: ' Brouillon fictif ', editable: true });
   await act(async () => { await button('Ajouter')(); });
   expect(backend.add).toHaveBeenCalledTimes(2);
+});
+
+test('une réponse de création de date perdue conserve le brouillon sans détail privé', async () => {
+  await mount(); await fill();
+  let stored = false;
+  backend.add.mockImplementationOnce(async () => { stored = true; throw new Error('Détail privé fictif : couples/test-secret/dates/one'); });
+  await act(async () => { await button('Ajouter')(); });
+  expect(stored).toBe(true);
+  expect(backend.add).toHaveBeenCalledTimes(1);
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('avant de réessayer'));
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('test-secret');
+  expect(field().props.value).toBe(' Brouillon fictif ');
+  expect(sheet().props.visible).toBe(true);
 });
 
 test.each(['success', 'error'])('un retour %s d’un ancien backend ne ferme pas le formulaire courant', async (outcome) => {

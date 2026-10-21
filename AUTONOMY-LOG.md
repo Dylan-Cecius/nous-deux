@@ -1716,3 +1716,7 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Légende/date : même défaut confirmé après rejet suivant une écriture fictive. Message de confirmation inconnue sans détail technique, invitant à vérifier le souvenir actualisé avant reprise ; fiche et brouillon conservés.
 - Deux cas rouges puis verts (un scénario nouveau, un contrôle renforcé). 57 tests formulaire/ajout de souvenirs réussis (1,245 s), lint/TypeScript et diff réussis. Le test existant vérifie qu’une valeur déjà confirmée par lecture n’est pas renvoyée.
 - Patch minimal, suppression et association des images inchangés ; aucune photo réelle consultée, aucun upload effectué. Pas de validation native ni garantie de concurrence serveur.
+### 21 octobre 2026, 04:44 — Confirmation inconnue de création de date
+- Rejet après ajout simulé : erreur technique brute remplacée par une explication de confirmation inconnue, avec vérification des dates actualisées avant reprise. Brouillon annuel/date/titre conservé, aucune relance automatique.
+- Deux cas rouges puis verts (un nouveau et un contrôle renforcé) ; 58 tests dates/actions réussis (1,210 s), lint/TypeScript et diff réussis. Validations date passée, passage à minuit, verrou et anciens contextes restent couverts.
+- Création seule ; suppression et services inchangés. Aucune idempotence inter-appareils ajoutée ni notification réelle. Diff examiné : fermeture uniquement après sauvegarde confirmée.
