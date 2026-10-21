@@ -62,7 +62,7 @@ function ThemePicker() {
             <Pressable
               key={id}
               accessibilityRole="radio"
-              accessibilityState={{ selected: active }}
+              accessibilityState={{ checked: active }}
               accessibilityLabel={theme.name}
               onPress={() => {
                 tap();

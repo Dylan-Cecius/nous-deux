@@ -1884,3 +1884,8 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Deux régressions rouges puis vertes : rôle/état dépliable absents, deux commandes avant rendu laissant l’historique ouvert. Bouton avec expanded, hauteur minimale 44 et mise à jour fonctionnelle ; brouillon conservé.
 - 52 tests ciblés réussis (1,714 s), lint/TypeScript code retour 0, diff relu et propre. Expo 57/package et index relus ; contrats RN 0.86 consultés : https://reactnative.dev/docs/0.86/accessibility et https://reactnative.dev/docs/0.86/pressable.
 - Affichage de l’historique uniquement : envoi, suppression, serveur et règles inchangés. Aucun contenu réel ni requête ; focus/clavier/VoiceOver/TalkBack et grande police restent à vérifier sur appareil.
+
+### 21 octobre 2026, 09:37 — État coché du thème
+- Audit des radios : Chips et ColorPicker exposaient déjà checked ; ThemePicker utilisait encore selected. Une régression reproduite après stabilisation du double Pressable du test (sélecteur initial vide puis doublonné, sans changement produit à ces étapes).
+- La restauration de Bleu nuit puis le choix Sauge exposent maintenant exactement une option cochée, tout en conservant le stockage existant. Changement d’une prop de présentation seulement.
+- 106 tests ciblés réussis (1,825 s), lint/TypeScript code retour 0, diff relu et propre. Contrat accessibilityState de RN 0.86 lu ; grille React appliquée, aucun effet ou appel ajouté. Essai VoiceOver/TalkBack restant, aucune donnée réelle.

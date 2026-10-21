@@ -198,3 +198,5 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 | P2 | Contrôle global confirmations/contraste du 21 octobre, 08:44 | Quatre checkpoints, 18 tests ajoutés et 14 attentes rouges puis vertes ; 66 suites / 1 773 tests, lint/TypeScript réussis, 192 blobs SHA exacts. Quatre recettes non exécutées ; environ 14 minutes observées. Aucun aperçu/build/distribution/dépense, étapes natives et serveur sous prérequis connus. |
 
 | P2 | Commande accessible d’historique des mots doux | Le 21 octobre à 09:32 : rôle bouton, état déplié et cible minimale ; deux commandes rapprochées composées correctement. Deux tests rouges puis verts, 52 tests ciblés et lint/TypeScript réussis ; essai natif restant. |
+
+| P2 | État coché du sélecteur de thème | Le 21 octobre à 09:37 : checked remplace selected sur les radios de ThemePicker ; restauration et changement exclusif contrôlés. Un test rouge puis vert, 106 tests ciblés et lint/TypeScript réussis ; rendu/annonce native non vérifiés. |

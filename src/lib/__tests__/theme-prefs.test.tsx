@@ -2,10 +2,31 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { PrefsProvider, usePrefs, useTheme } from '@/constants/theme';
+import Nous from '@/app/(tabs)/nous';
+
+jest.mock('../couple-context', () => ({
+  useSession: () => ({ backend: { mode: 'local', userId: 'alice', coupleId: 'fictitious' }, members: [] }),
+  useCollectionState: () => ({ items: [], loading: false, error: false }),
+}));
+jest.mock('../notifications', () => ({ pushSupported: false }));
+jest.mock('../backend', () => ({ currentAccount: jest.fn() }));
+jest.mock('../haptics', () => ({ tap: jest.fn() }));
+jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+jest.mock('@/components/account', () => ({ AccountCard: () => null }));
+jest.mock('@/components/invitation-card', () => ({ InvitationCard: () => null }));
+jest.mock('@/components/celebrate', () => ({ celebrate: jest.fn() }));
+jest.mock('@/components/dialog', () => ({ showDialog: jest.fn() }));
+jest.mock('@/components/ui', () => {
+  const React = jest.requireActual('react');
+  return Object.fromEntries(['Screen', 'Card', 'T', 'Button', 'Avatar', 'ColorPicker', 'Field', 'Ionicons', 'Row'].map(name => [
+    name, (props: object) => React.createElement(name.toLowerCase(), props),
+  ]));
+});
 
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(), setItem: jest.fn() }));
 jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), {
   useColorScheme: { value: () => 'light' },
+  Pressable: { value: 'pressable' },
 }));
 let root: ReactTestRenderer | undefined;
 let prefs: ReturnType<typeof usePrefs>;
@@ -34,6 +55,17 @@ test('une préférence valide est restaurée', async () => {
   (AsyncStorage.getItem as jest.Mock).mockResolvedValue('nuit');
   await mount();
   expect(root?.toJSON()).toBe('nuit:#3557A8');
+});
+
+test('les radios de thème reflètent le choix restauré puis le nouveau choix exclusif', async () => {
+  (AsyncStorage.getItem as jest.Mock).mockResolvedValue('nuit');
+  await act(async () => { root = create(<PrefsProvider><Nous /></PrefsProvider>); });
+  const radios = () => root!.root.findAllByType('pressable' as never).filter(node => node.props.accessibilityRole === 'radio');
+  expect(radios().map(node => node.props.accessibilityLabel)).toEqual(['Framboise', 'Bleu nuit', 'Sauge', 'Terracotta']);
+  expect(radios().map(node => node.props.accessibilityState.checked)).toEqual([false, true, false, false]);
+  await act(async () => radios()[2].props.onPress());
+  expect(radios().map(node => node.props.accessibilityState.checked)).toEqual([false, false, true, false]);
+  expect(AsyncStorage.setItem).toHaveBeenLastCalledWith('prefs:accent', 'sauge');
 });
 
 test('la lecture lente ne remplace pas un choix fait depuis le montage', async () => {
