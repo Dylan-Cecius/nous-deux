@@ -173,6 +173,24 @@ test('un ancien gestionnaire utilise la valeur courante avant de cocher', async 
   expect(backend.update).toHaveBeenCalledWith('items', 'one', { done: true });
 });
 
+test.each(['bucket', 'films', 'shopping', 'gifts'])('la confirmation perdue d’une case %s ne divulgue pas la liste', async tab => {
+  const entry = { ...item, list: tab, done: false };
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [entry] });
+  await open();
+  await switchTab(tab);
+  backend.update.mockImplementationOnce(async () => {
+    (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...entry, done: true }] });
+    throw new Error('Stockage fictif : cadeau privé, clé interne');
+  });
+  const box = root.root.findAllByProps({ accessibilityRole: 'checkbox' }).find(node => typeof node.props.onPress === 'function')!;
+  await act(async () => { await box.props.onPress(); });
+  await act(async () => root.update(<Listes />));
+  expect(showDialog).toHaveBeenCalledWith('Modification non confirmée', 'Vérifie la liste après son actualisation avant de réessayer : la case peut déjà avoir changé.');
+  expect(backend.update).toHaveBeenCalledTimes(1);
+  expect(root.root.findAllByProps({ accessibilityRole: 'checkbox' }).find(node => typeof node.props.onPress === 'function')!.props.accessibilityState.checked).toBe(true);
+  expect(tap).not.toHaveBeenCalled();
+});
+
 test.each(['success', 'error'])('un retour %s après changement d’onglet ne produit pas de retour visuel tardif', async (outcome) => {
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...item, done: false }] });
   await open();

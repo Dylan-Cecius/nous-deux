@@ -1848,3 +1848,9 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Six recettes ajoutées à TESTFLIGHT-REVIEW.md, non cochées. Aucun nouvel export, aperçu, compilation native, essai iPhone ou statut Apple revendiqué. Les résultats d’export antérieurs restent attachés à leurs propres commits. Public toujours draft, retentionVerified:false, IA/Places désactivés dans la configuration de référence.
 - Aucun compte/contenu réel, e-mail, invitation, partage, notification, opération financière, build EAS ou déploiement. Aucun nouveau blocage nécessitant le propriétaire ni incident réel constaté.
 - Durée observée avant sauvegarde finale : environ 22 minutes (07:30:48–07:53), pas une heure. Audit borné des erreurs d’entrée/compte et états de l’album terminé ; aucune autre anomalie prête étayée dans ce périmètre. La suite utile est la recette visuelle/tactile et les pistes serveur déjà identifiées sous leurs prérequis ; ne pas répéter des tests ni ajouter des modifications artificielles pour remplir la durée.
+
+### 21 octobre 2026, 08:34 — Confirmation des cases de listes
+- PR #3 relue ouverte/en brouillon au SHA 15abd842 ; quatre consignes relues via GitHub, 191 blobs locaux exacts vérifiés (sept PNG originaux inclus). Règle multi-tâches déjà conforme.
+- Quatre régressions reproduites, une par rubrique : réponse perdue après application simulée d’une case affichant un détail technique privé. Le message fixe demande de vérifier la liste actualisée avant reprise ; aucun succès visuel ni retry automatique après rejet.
+- Quatre tests rouges puis verts ; 68 tests ciblés réussis (2,095 s), lint/TypeScript code retour 0, diff propre et relu. Gardes et verrou inchangés ; modification limitée au retour d’échec du cochage, aucune mécanique de suppression, serveur ou règle modifiée.
+- Données et stockage exclusivement doublés ; aucun incident réel, compte ou contenu intime lu, aucun essai natif ni opération payante.

@@ -131,7 +131,11 @@ function ListesContent() {
   const toggle = (item: Entry) => runCurrent(async () => {
     const current = currentEntry(item.id);
     if (!current) return;
-    await backend.update(col, item.id, { done: !current.done });
+    try { await backend.update(col, item.id, { done: !current.done }); }
+    catch {
+      if (isCurrent()) showDialog('Modification non confirmée', 'Vérifie la liste après son actualisation avant de réessayer : la case peut déjà avoir changé.');
+      return;
+    }
     if (!isCurrent()) return;
     if (!current.done) {
       if (tab === 'bucket') {
