@@ -19,7 +19,7 @@ jest.mock('@/components/ui', () => {
 jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), { Pressable: { value: 'pressable' } }));
 
 let root: ReactTestRenderer;
-// Tous ces contrôles utilisent la branche photo. Le logo PNG absent n’est ni créé ni remplacé.
+// Photos fictives ; le logo de la branche sans espace utilise la ressource originale du dépôt.
 const session = { couple: { since: '2026-01-01', photoUrl: 'fictitious://couple' }, me: { name: 'Alice' }, partner: { name: 'Bob' } };
 const counter = () => root.root.findByType(Pressable);
 beforeEach(() => {
@@ -93,4 +93,11 @@ test('le compteur reprend quand la journée atteint la date enregistrée sans fe
   expect(counter().props.accessibilityLabel).toContain('0 jour ensemble');
   expect(counter().props.accessibilityLabel).not.toContain('à vérifier');
   expect(root.root.findAllByType('sheet' as never)).toHaveLength(1);
+});
+
+
+test('le bandeau sans photo charge le logo original avec le même alias que TypeScript', async () => {
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: { since: '2026-01-01' } });
+  await act(async () => { root = create(<HomeHero />); });
+  expect(counter().props.accessibilityLabel).toContain('0 jour ensemble');
 });
