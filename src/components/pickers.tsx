@@ -11,13 +11,13 @@ type Mode = 'date' | 'time';
 const toDate = (mode: Mode, value: string) => {
   if (mode === 'date') return fromKey(value);
   const [h, m] = value.split(':').map(Number);
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
-  return d;
+  // HH:MM is a wall-clock value, independent of today's date and DST gaps.
+  // UTC is only the native picker's transport; stored event dates stay local.
+  return new Date(Date.UTC(2000, 0, 1, h, m));
 };
 
 const fromDate = (mode: Mode, d: Date) =>
-  mode === 'date' ? toKey(d) : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  mode === 'date' ? toKey(d) : `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
 
 /**
  * Champ date (YYYY-MM-DD) ou heure (HH:MM) :
@@ -75,6 +75,7 @@ function PickerField({
             mode={mode}
             display="compact"
             value={toDate(mode, value)}
+            timeZoneName={mode === 'time' ? 'Etc/UTC' : undefined}
             maximumDate={maximumDate}
             locale="fr-FR"
             accentColor={t.primary}
@@ -96,6 +97,7 @@ function PickerField({
             DateTimePickerAndroid.open({
               mode,
               value: toDate(mode, value),
+              timeZoneName: mode === 'time' ? 'Etc/UTC' : undefined,
               maximumDate,
               is24Hour: true,
               onValueChange: (_, d) => {

@@ -14,7 +14,7 @@ const originalOS = Platform.OS;
 const onChange = jest.fn();
 const props = { label: 'Date fictive', value: '2020-01-02', onChange };
 beforeEach(() => jest.clearAllMocks());
-afterEach(async () => { if (root) await act(async () => root.unmount()); Object.defineProperty(Platform, 'OS', { value: originalOS }); });
+afterEach(async () => { if (root) await act(async () => root.unmount()); Object.defineProperty(Platform, 'OS', { value: originalOS }); jest.useRealTimers(); });
 const render = async (os: 'ios' | 'android' | 'web', disabled = false) => {
   Object.defineProperty(Platform, 'OS', { value: os });
   await act(async () => { root = create(<DateField {...props} disabled={disabled} />); });
@@ -94,8 +94,23 @@ test('le sélecteur iOS d’heure est nommé sans remplacer sa valeur native', a
   await act(async () => root.update(<TimeField label="Heure du rendez-vous" value="13:45" onChange={onChange} />));
   const picker = root.root.findByType(DateTimePicker);
   expect(picker.props.accessibilityLabel).toBe('Heure du rendez-vous');
-  expect(picker.props.value.getHours()).toBe(13);
-  expect(picker.props.value.getMinutes()).toBe(45);
+  expect(new Intl.DateTimeFormat('fr-FR', { timeZone: picker.props.timeZoneName, hour: '2-digit', minute: '2-digit' }).format(picker.props.value)).toBe('13:45');
+});
+
+// Run with TZ=Europe/Brussels to exercise the missing hour on 29 March 2026.
+describe.each(['ios', 'android'] as const)('heures sans date sur %s', os => {
+  test.each(['02:30', '00:15', '23:45', '13:45'])('ouvre et restitue %s même le jour du passage à l’heure d’été', async value => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+    jest.setSystemTime(new Date(2026, 2, 29, 12));
+    Object.defineProperty(Platform, 'OS', { value: os });
+    await act(async () => { root = create(<TimeField label="Heure fictive" value={value} onChange={onChange} />); });
+    if (os === 'android') await act(async () => root.root.findByType(Pressable).props.onPress());
+    const picker = os === 'ios' ? root.root.findByType(DateTimePicker).props : (DateTimePickerAndroid.open as jest.Mock).mock.calls.at(-1)[0];
+    const displayed = new Intl.DateTimeFormat('fr-FR', { timeZone: picker.timeZoneName, hour: '2-digit', minute: '2-digit' }).format(picker.value);
+    expect(displayed).toBe(value);
+    await act(async () => picker.onValueChange({}, picker.value));
+    expect(onChange).toHaveBeenCalledWith(value);
+  });
 });
 
 test.each(['ios', 'android', 'web'] as const)('%s refuse la saisie quand désactivé puis la réactive', async (os) => {

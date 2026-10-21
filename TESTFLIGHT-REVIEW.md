@@ -209,3 +209,8 @@ firebase deploy --config firebase.security.json --project nous-deux-80525 --only
 ```
 
 La configuration prépare l’entrée `core.js`, sans activer les services IA. La fonction active, le job quotidien et une exécution sur six traces fictives ont été vérifiés ; toutes les traces de test ont été retirées. Les paramètres Firestore, Storage et Cloud Logging observés sont consignés dans `FIREBASE-RETENTION.md`. Les copies de maintenance du poste MSI et la conservation de l’assistance restent à finaliser. `retentionVerified` reste donc à `false`.
+### Sélecteurs d’heure — recette préparée le 21 octobre à 03:41
+- [ ] Sur un appareil de test en Europe/Brussels, ouvrir un horaire de 02:30 avec la date système au 29 mars 2026, sans compte réel ni notifications activées : le sélecteur doit présenter 02:30, même si l’événement édité est un autre jour. Confirmer sans modification : 02:30 doit rester affiché.
+- [ ] Sélectionner ensuite 00:15 et 23:45, fermer et rouvrir la fiche : aucune translation de fuseau. Vérifier également sous un fuseau éloigné et sur Android.
+- [ ] Vérifier qu’un champ de date conserve la journée locale sélectionnée et sa borne maximale. Restaurer les réglages du téléphone de test.
+Preuves disponibles : tests de propriétés et callbacks simulés uniquement ; aucune recette native cochée ni build produite.
