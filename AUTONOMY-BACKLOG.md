@@ -202,3 +202,5 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 | P2 | État coché du sélecteur de thème | Le 21 octobre à 09:37 : checked remplace selected sur les radios de ThemePicker ; restauration et changement exclusif contrôlés. Un test rouge puis vert, 106 tests ciblés et lint/TypeScript réussis ; rendu/annonce native non vérifiés. |
 
 | P2 | Visibilité et cibles des cœurs de notation | Le 21 octobre à 09:39 : cœurs vides contrastés, commandes minimales 44 × 44 avec retour à la ligne ; huit cas rouges puis verts, 155 tests ciblés et lint/TypeScript réussis. Essai tactile et rendu restant. |
+
+| P2 | Contrôle global commandes secondaires du 21 octobre, 09:42 | Trois checkpoints, 11 tests nouveaux rouges puis verts ; 66 suites / 1 784 tests et lint/TypeScript réussis, 192 blobs SHA exacts. Trois recettes natives préparées, non exécutées ; environ 14 minutes observées, aucun autre défaut prêt étayé dans le périmètre. Aucune build/distribution/dépense. |
