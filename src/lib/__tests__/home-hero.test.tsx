@@ -101,3 +101,24 @@ test('le bandeau sans photo charge le logo original avec le même alias que Type
   await act(async () => { root = create(<HomeHero />); });
   expect(counter().props.accessibilityLabel).toContain('0 jour ensemble');
 });
+
+test('un espace indisponible ne prétend pas que la date de rencontre est absente', async () => {
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: null });
+  await act(async () => { root = create(<HomeHero />); });
+  expect(counter().props.accessibilityLabel).toContain('Votre histoire est indisponible');
+  expect(counter().props.accessibilityLabel).not.toContain('non renseignée');
+  const visible = root.root.findAllByType('t' as never).map(node => node.props.children).join(' ');
+  expect(visible).toContain('synchronisation');
+  expect(visible).not.toContain('Ajoutez votre date');
+});
+
+test('le bandeau retrouve le compteur après reprise de l’espace sans ouvrir de fiche', async () => {
+  (useSession as jest.Mock).mockReturnValue({ ...session, couple: null });
+  await act(async () => { root = create(<HomeHero />); });
+  expect(counter().props.accessibilityLabel).toContain('indisponible');
+  (useSession as jest.Mock).mockReturnValue(session);
+  await act(async () => root.update(<HomeHero />));
+  expect(counter().props.accessibilityLabel).toContain('0 jour ensemble');
+  expect(counter().props.accessibilityLabel).not.toContain('indisponible');
+  expect(root.root.findAllByType('sheet' as never)).toHaveLength(0);
+});

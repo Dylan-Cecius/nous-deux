@@ -53,16 +53,23 @@ export function HomeHero() {
   const together = couple?.since && !futureSince ? daysBetween(couple.since, today) : null;
   const milestone = together !== null ? nextMilestone(together) : null;
   const dayUnit = together !== null && together > 1 ? 'jours ensemble' : 'jour ensemble';
-  const sinceLabel = couple?.since
-    ? `Depuis le ${fromKey(couple.since).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`
+  const sinceDate = couple?.since
+    ? fromKey(couple.since).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
+  const sinceLabel = sinceDate ? `Depuis le ${sinceDate}` : null;
   const milestoneLabel = milestone
     ? `Cap des ${formatNumber(milestone.next)} jours dans ${milestone.left} jour${milestone.left > 1 ? 's' : ''}`
     : null;
   const futureMessage = futureSince
-    ? `Date enregistrée : ${fromKey(couple!.since!).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}. Vérifiez-la ou la date de votre téléphone.`
+    ? `Date enregistrée : ${sinceDate}. Vérifiez-la ou la date de votre téléphone.`
     : null;
-  const storyLabel = futureSince
+  const fallbackTitle = !couple ? 'Votre histoire est indisponible' : futureSince ? 'Date de rencontre à vérifier' : 'Depuis quand êtes-vous ensemble ?';
+  const fallbackMessage = !couple
+    ? 'Attends la synchronisation de votre espace avant de consulter votre date et votre photo de couple.'
+    : futureMessage ?? 'Ajoutez votre date de rencontre et une photo de vous deux.';
+  const storyLabel = !couple
+    ? `${fallbackTitle}. ${fallbackMessage}`
+    : futureSince
     ? `Votre histoire. Date de rencontre à vérifier. ${futureMessage}`
     : together !== null && milestone
     ? `Votre histoire. ${formatNumber(together)} ${dayUnit}. ${sinceLabel}. ${milestoneLabel}.`
@@ -141,10 +148,10 @@ export function HomeHero() {
               <Ionicons name="heart-circle-outline" size={26} color={PINK} />
               <View style={{ flex: 1 }}>
                 <T variant="bodyBold" color={CREAM}>
-                  {futureSince ? 'Date de rencontre à vérifier' : 'Depuis quand êtes-vous ensemble ?'}
+                  {fallbackTitle}
                 </T>
                 <T variant="small" color={MUTED}>
-                  {futureMessage ?? 'Ajoutez votre date de rencontre et une photo de vous deux.'}
+                  {fallbackMessage}
                 </T>
               </View>
               <Ionicons name="chevron-forward" size={18} color={MUTED} />
