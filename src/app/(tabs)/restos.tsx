@@ -117,7 +117,7 @@ function RestosContent() {
           onChange={setTab}
         />
 
-        {!unavailable && <Card tone="feature" onPress={pickRandom} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        {!unavailable && <Card tone="feature" style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={{ fontFamily: Fonts.displayMedium, fontSize: 21, color: t.onFeature }}>On mange où ce soir ?</Text>
             <T variant="small" color={t.onFeatureMuted}>
@@ -148,34 +148,41 @@ function RestosContent() {
           list.map((r) => {
             const [bg, fg] = tileFor(r.name);
             return (
-              <Card key={r.id} onPress={() => setEditing(r)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14 }}>
-                {r.photoUrl ? (
-                  <Image source={{ uri: r.photoUrl }} style={{ width: 56, height: 56, borderRadius: 16 }} contentFit="cover" />
-                ) : (
-                  <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontFamily: Fonts.display, fontSize: 24, color: fg }}>{r.name.charAt(0).toUpperCase()}</Text>
-                  </View>
-                )}
-                <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-                  <T variant="h3" numberOfLines={1}>
-                    {r.name}
-                  </T>
-                  {!!(r.cuisine || r.place) && (
-                    <T variant="small" muted numberOfLines={1}>
-                      {[r.cuisine, r.place].filter(Boolean).join(' · ')}
-                    </T>
-                  )}
-                  {r.status !== 'envie' && !!r.rating ? (
-                    <Hearts value={r.rating} size={14} />
+              <Card key={r.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14 }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={[r.name, r.cuisine, r.place, r.status !== 'envie' && r.rating ? `${r.rating} cœurs sur 5` : `Idée de ${nameOf(r.createdBy)}`].filter(Boolean).join('. ')}
+                  accessibilityHint="Ouvre la fiche du restaurant."
+                  onPress={() => setEditing(r)}
+                  style={({ pressed }) => ({ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 14, opacity: pressed ? 0.85 : 1 })}>
+                  {r.photoUrl ? (
+                    <Image source={{ uri: r.photoUrl }} style={{ width: 56, height: 56, borderRadius: 16 }} contentFit="cover" />
                   ) : (
-                    <Row style={{ gap: 6 }}>
-                      <Dot size={7} color={colorOf(r.createdBy)} />
-                      <T variant="small" muted style={{ fontSize: 12 }}>
-                        Idée de {nameOf(r.createdBy)}
-                      </T>
-                    </Row>
+                    <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontFamily: Fonts.display, fontSize: 24, color: fg }}>{r.name.charAt(0).toUpperCase()}</Text>
+                    </View>
                   )}
-                </View>
+                  <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                    <T variant="h3" numberOfLines={1}>
+                      {r.name}
+                    </T>
+                    {!!(r.cuisine || r.place) && (
+                      <T variant="small" muted numberOfLines={1}>
+                        {[r.cuisine, r.place].filter(Boolean).join(' · ')}
+                      </T>
+                    )}
+                    {r.status !== 'envie' && !!r.rating ? (
+                      <Hearts value={r.rating} size={14} />
+                    ) : (
+                      <Row style={{ gap: 6 }}>
+                        <Dot size={7} color={colorOf(r.createdBy)} />
+                        <T variant="small" muted style={{ fontSize: 12 }}>
+                          Idée de {nameOf(r.createdBy)}
+                        </T>
+                      </Row>
+                    )}
+                  </View>
+                </Pressable>
                 <IconButton icon="location-outline" label={`Voir ${r.name} sur la carte`} onPress={() => openMap(r)} />
               </Card>
             );

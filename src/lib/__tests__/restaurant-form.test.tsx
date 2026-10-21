@@ -31,7 +31,7 @@ beforeEach(() => {
 afterEach(async () => { if (root) await act(async () => root.unmount()); expect(backend.call).not.toHaveBeenCalled(); });
 const button = (label: string) => root.root.findByProps({ label }).props.onPress;
 const sheet = () => root.root.findByType('sheet' as never);
-const cards = () => root.root.findAllByType('card' as never).filter((n) => n.props.onPress && !n.props.tone);
+const cards = () => root.root.findAllByType(Pressable).filter((n) => n.props.accessibilityHint === 'Ouvre la fiche du restaurant.');
 const open = async (fresh = false) => {
   await act(async () => { root = create(<Restos />); });
   await act(async () => { if (fresh) button('Ajouter un resto')(); else cards()[0].props.onPress(); });
@@ -43,6 +43,32 @@ const ask = async () => {
 const refresh = async () => { await act(async () => root.update(<Restos />)); };
 const field = (label: string) => root.root.findByProps({ label });
 const edit = async (label: string, value: string) => { await act(async () => field(label).props.onChangeText(value)); };
+
+test.each(['Voir Resto fictif sur la carte', 'Tirer un resto au sort'])('%s reste hors d’une autre cible pressable', async label => {
+  await act(async () => { root = create(<Restos />); });
+  let ancestor = root.root.findByType('screen' as never).findByProps({ label }).parent;
+  while (ancestor) {
+    // Ignore the IconButton's own function wrapper in this component test.
+    if (ancestor.props.label !== label) expect(ancestor.props.onPress).toBeUndefined();
+    ancestor = ancestor.parent;
+  }
+});
+
+test('la carte externe et la fiche ont des actions distinctes et la fiche annonce ses détails', async () => {
+  const openUrl = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  try {
+    (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...resto, cuisine: 'Italien', place: 'Quartier fictif' }] });
+    await act(async () => { root = create(<Restos />); });
+    expect(cards()[0].props.accessibilityRole).toBe('button');
+    expect(cards()[0].props.accessibilityLabel).toBe('Resto fictif. Italien. Quartier fictif. Idée de Alice');
+    await act(async () => { await button('Voir Resto fictif sur la carte')(); });
+    expect(openUrl).toHaveBeenCalledTimes(1);
+    expect(root.root.findAllByType('sheet' as never)).toHaveLength(0);
+    await act(async () => cards()[0].props.onPress());
+    expect(field('Nom').props.value).toBe(resto.name);
+    expect(openUrl).toHaveBeenCalledTimes(1);
+  } finally { openUrl.mockRestore(); }
+});
 
 test.each([['Nom', 'name'], ['Cuisine', 'cuisine'], ['Ville / quartier', 'place'], ['Notes', 'note']])('dernière saisie du restaurant avant rendu : %s', async (label, key) => {
   await open();
