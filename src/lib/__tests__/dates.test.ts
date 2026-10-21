@@ -45,6 +45,10 @@ describe('dates', () => {
     expect(nextMilestone(100).next).toBe(200);
   });
 
+  test.each(['2027-02-14', '2028-11-30', '2028-02-29'])('une répétition annuelle ne précède pas sa première date %s', date => {
+    expect(nextOccurrence(date, true)).toBe(date);
+  });
+
   test('parseFrenchDate accepte JJ/MM/AAAA et refuse les dates impossibles', () => {
     expect(parseFrenchDate('14/02/2023')).toBe('2023-02-14');
     expect(parseFrenchDate('3/9/2026')).toBe('2026-09-03');

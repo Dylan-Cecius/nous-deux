@@ -304,3 +304,13 @@ test.each([
     expect(triggers).toEqual(expected);
   } finally { jest.useRealTimers(); }
 });
+
+test('une première date annuelle future ne programme aucun rappel une année trop tôt', async () => {
+  jest.useFakeTimers();
+  jest.setSystemTime(new Date(2026, 9, 21, 8));
+  try {
+    await scheduleCountdownReminders([{ ...dates[0], date: '2028-11-30', yearly: true }]);
+    const triggers = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls.map(([request]) => toKey(request.trigger.date));
+    expect(triggers).toEqual(['2028-11-29', '2028-11-30']);
+  } finally { jest.useRealTimers(); }
+});
