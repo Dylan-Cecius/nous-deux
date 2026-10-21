@@ -1864,3 +1864,9 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Trois attentes rouges puis vertes : erreur inconnue après marque locale/cloud appliquée simulée, et reprise après rejet. Les erreurs inconnues affichent maintenant une confirmation incertaine et invitent à vérifier l’historique ; refus métier connus et fonction absente restent explicites via une liste fermée.
 - Quatre tests ajoutés (deux régressions et deux contrôles métier), une attente existante renforcée ; fixture de fonction absente alignée sur le message réellement produit par functionMessage. 82 tests ciblés réussis (1,527 s), lint/TypeScript réussis, diff propre/relu.
 - Affichage seulement : transaction, identifiant d’intention/reprise, calcul des soldes, backend, serveur/règles et suppression inchangés. Aucun mouvement d’argent ni appel serveur réel ; les doublures ne valident pas le protocole déployé ou l’appareil.
+
+### 21 octobre 2026, 08:42 — Contraste transversal du texte secondaire
+- Quatre cas clairs reproduits sous 4,5:1 : texte secondaire à 4,226 sur cardAlt et minimum 4,138 sur les fonds doux. Les indications locales des mots doux et les petits libellés utilisent cette couleur commune.
+- Couleur secondaire claire passée de #7D6870 à #756069, minimum 4,653:1 sur les sept fonds opaques clairs contrôlés ; thèmes sombres inchangés. Huit nouveaux tests du composant T dans Card, quatre rouges puis verts et quatre contrôles sombres.
+- Contrôle global transversal : 66 suites / 1 773 tests réussis (14,818 s), lint/TypeScript code retour 0, diff propre/relu. Ratios numériques seulement ; grandes polices, rendu et technologies d’assistance restent à vérifier sur appareil.
+- Aucun nouvel effet/hook, service, paquet ou appel ; couleur de présentation seulement. Le changement ne constitue pas un audit exhaustif des contrastes de l’application.

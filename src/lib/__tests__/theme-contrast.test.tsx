@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AccentThemes, MemberColors, PrefsProvider, useTheme } from '@/constants/theme';
-import { Avatar, Button, Chips, Fab } from '@/components/ui';
+import { Avatar, Button, Card, Chips, Fab, T } from '@/components/ui';
 import { foregroundOnColor } from '../color-contrast';
 import Home from '@/app/(tabs)/index';
 import { MemoryPhoto } from '@/components/memory-photo';
@@ -118,6 +118,16 @@ test('le bouton dégradé garde le même premier plan pour son indicateur d’at
 });
 
 describe.each(['light', 'dark'])('contraste du thème %s', (scheme) => {
+  test.each(Object.keys(AccentThemes))('%s : petit texte secondaire lisible sur les fonds clairs et doux', async accent => {
+    (useColorScheme as jest.Mock).mockReturnValue(scheme);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(accent);
+    await act(async () => { root = create(<PrefsProvider><Probe /><Card tone="soft"><T variant="small" muted>Information locale fictive</T></Card></PrefsProvider>); });
+    const label = root.root.findAllByType(Text).find(node => node.props.children === 'Information locale fictive')!;
+    const foreground = StyleSheet.flatten(label.props.style).color;
+    for (const background of [palette.background, palette.card, palette.cardAlt, palette.primarySoft]) {
+      expect(contrast(foreground, background)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
   test.each(Object.keys(AccentThemes))('%s : chaque compte à rebours est contrasté sur sa carte', async accent => {
     (useColorScheme as jest.Mock).mockReturnValue(scheme);
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(accent);

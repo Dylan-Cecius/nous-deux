@@ -10,7 +10,7 @@ const base = {
     border: '#EFE3DD',
     line: '#F3EAE5',
     text: '#2A1A22',
-    textSecondary: '#7D6870',
+    textSecondary: '#756069',
     onPrimary: '#FFFFFF',
     onFeature: '#FBF6F1',
     success: '#1F6B3A',
