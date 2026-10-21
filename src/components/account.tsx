@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { showDialog } from './dialog';
 import { Button, Card, Field, Ionicons, Row, Sheet, T } from './ui';
 import { useTheme } from '@/constants/theme';
+import { accountErrorMessage } from '@/lib/account-errors';
 import { currentAccount, deleteMyAccount, resetPassword, secureAccount, signInWithEmail, type Backend } from '@/lib/backend';
 import { useCouple, useSession } from '@/lib/couple-context';
 import { success } from '@/lib/haptics';
@@ -136,7 +137,7 @@ function SecureSheet({ onClose, onDone }: { onClose: () => void; onDone: () => v
       showDialog('Compte sécurisé', 'Tu pourras te reconnecter avec cet e-mail sur n’importe quel téléphone.');
       onDone();
     } catch (e) {
-      if (active.current) showDialog('Oups', errorText(e));
+      if (active.current) showDialog('Sécurisation non confirmée', accountErrorMessage(e) ?? 'Ferme ce formulaire et vérifie l’état de ton compte avant de réessayer : il peut déjà être sécurisé.');
     }
   });
 
@@ -198,7 +199,7 @@ export function SignInForm({
       const backend = await signInWithEmail(email, password);
       if (active.current && focus.current === currentFocus) onSignedIn(backend);
     } catch (e) {
-      if (active.current && focus.current === currentFocus) showDialog('Connexion impossible', errorText(e));
+      if (active.current && focus.current === currentFocus) showDialog('Connexion impossible', accountErrorMessage(e) ?? 'Impossible de retrouver votre espace pour le moment. Vérifie ta connexion et réessaie.');
     }
   });
 
@@ -211,7 +212,7 @@ export function SignInForm({
       await resetPassword(email);
       if (active.current && focus.current === currentFocus) showDialog('E-mail envoyé', 'Regarde ta boîte mail pour choisir un nouveau mot de passe.');
     } catch (e) {
-      if (active.current && focus.current === currentFocus) showDialog('Oups', errorText(e));
+      if (active.current && focus.current === currentFocus) showDialog('Envoi non confirmé', accountErrorMessage(e) ?? 'Vérifie ta boîte mail avant de réessayer : le message peut déjà avoir été envoyé.');
     }
   });
 

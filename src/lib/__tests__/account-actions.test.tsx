@@ -186,8 +186,19 @@ test('un refus de sécurisation conserve la saisie et permet une reprise volonta
   (secureAccount as jest.Mock).mockRejectedValueOnce(new Error('Réseau fictif')).mockResolvedValueOnce(undefined);
   await act(async () => { await button('Sécuriser').props.onPress(); });
   expect(button('E-mail').props.value).toBe('alice@example.test');
-  expect(showDialog).toHaveBeenCalledWith('Oups', 'Réseau fictif');
+  expect(showDialog).toHaveBeenCalledWith('Sécurisation non confirmée', 'Ferme ce formulaire et vérifie l’état de ton compte avant de réessayer : il peut déjà être sécurisé.');
   await act(async () => { await button('Sécuriser').props.onPress(); });
   expect(secureAccount).toHaveBeenCalledTimes(2);
   expect(showDialog).toHaveBeenLastCalledWith('Compte sécurisé', expect.any(String));
+});
+
+
+test('la sécurisation conserve l’explication d’une adresse déjà utilisée', async () => {
+  await openSecure();
+  const message = 'Cette adresse e-mail est déjà utilisée par un autre compte.';
+  (secureAccount as jest.Mock).mockRejectedValueOnce(new Error(message));
+  await act(async () => { await button('Sécuriser').props.onPress(); });
+  expect(showDialog).toHaveBeenCalledWith('Sécurisation non confirmée', message);
+  expect(success).not.toHaveBeenCalled();
+  expect(secureAccount).toHaveBeenCalledTimes(1);
 });

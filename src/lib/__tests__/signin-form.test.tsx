@@ -129,7 +129,7 @@ test.each([['signin', 'success'], ['signin', 'failure'], ['reset', 'success'], [
 test('un échec conserve les champs et permet une nouvelle tentative volontaire', async () => {
   (signInWithEmail as jest.Mock).mockRejectedValueOnce(new Error('Connexion fictive refusée')).mockResolvedValueOnce(backend);
   await act(async () => { await button('Me connecter').props.onPress(); });
-  expect(showDialog).toHaveBeenCalledWith('Connexion impossible', 'Connexion fictive refusée');
+  expect(showDialog).toHaveBeenCalledWith('Connexion impossible', 'Impossible de retrouver votre espace pour le moment. Vérifie ta connexion et réessaie.');
   expect(button('E-mail').props.value).toBe('alice@example.test');
   expect(button('Mot de passe').props.value).toBe('fictitious-password');
   await act(async () => { await button('Me connecter').props.onPress(); });
@@ -183,4 +183,25 @@ test('le retour de l’aide conserve le brouillon et permet une nouvelle connexi
   await act(async () => { await button('Me connecter').props.onPress(); });
   expect(signInWithEmail).toHaveBeenCalledWith('alice@example.test', 'fictitious-password');
   expect(onSignedIn).toHaveBeenCalledWith(backend);
+});
+
+
+test('un refus technique de réinitialisation ne révèle pas le détail ni ne relance l’envoi', async () => {
+  (resetPassword as jest.Mock).mockRejectedValueOnce(new Error('private fictitious token: reset-secret'));
+  await act(async () => { await button('Mot de passe oublié ?').props.onPress(); });
+  expect(showDialog).toHaveBeenCalledWith('Envoi non confirmé', 'Vérifie ta boîte mail avant de réessayer : le message peut déjà avoir été envoyé.');
+  expect(resetPassword).toHaveBeenCalledTimes(1);
+  expect(button('E-mail').props.value).toBe('alice@example.test');
+  expect(button('E-mail').props.editable).toBe(true);
+});
+
+
+test.each([
+  'E-mail ou mot de passe incorrect.',
+  'Ton compte n’a plus accès à cet espace. Contacte l’assistance si cela te semble anormal.',
+])('la connexion conserve le diagnostic public : %s', async message => {
+  (signInWithEmail as jest.Mock).mockRejectedValueOnce(new Error(message));
+  await act(async () => { await button('Me connecter').props.onPress(); });
+  expect(showDialog).toHaveBeenCalledWith('Connexion impossible', message);
+  expect(onSignedIn).not.toHaveBeenCalled();
 });

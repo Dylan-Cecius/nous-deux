@@ -1811,3 +1811,9 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Message fixe de confirmation inconnue demandant de vérifier le profil actualisé avant reprise ; prénom saisi conservé et aucune relance automatique. Gardes de contexte et verrou prénom/couleur inchangés.
 - 58 tests profil/réglages réussis (1,749 s), lint/TypeScript code retour 0, diff propre et relu. Aucun changement de stockage, serveur/règle ou suppression ; aucun incident réel observé, aucun essai natif.
 - Horodatage du checkpoint précédent rectifié à 07:34 selon la lecture d’horloge au moment de sa sauvegarde.
+
+### 21 octobre 2026, 07:40 — Messages privés des formulaires de compte
+- Trois attentes rouges puis vertes : connexion, sécurisation et réinitialisation affichaient le texte technique reçu. Le service de récupération peut notamment remonter une erreur de stockage brute ; reproduction uniquement avec rejets fictifs.
+- Nouvelle frontière d’affichage locale account-errors.ts : seuls les codes d’authentification et textes publics connus sont conservés, sans conversion d’un rejet arbitraire. Les détails inconnus, getters défaillants et faux préfixes utilisent un repli adapté. Sécurisation/envoi non confirmés invitent à vérifier l’état ou la boîte mail avant reprise ; saisies et gardes existantes conservées.
+- 17 tests ajoutés, deux attentes existantes renforcées ; 93 tests ciblés compte/connexion/messages réussis (2,514 s), lint/TypeScript code retour 0. Diff relu : trois catch d’affichage seulement, backend/SDK, authMessage partagé, serveur/règles et suppression inchangés.
+- Aucun compte réel, e-mail envoyé ou appel distant dans les essais. Le traitement des erreurs de suppression reste hors de ce lot soumis aux prérequis d’émulation ; aucune validation native ou serveur revendiquée.
