@@ -49,7 +49,8 @@ export function HomeHero() {
   const [open, setOpen] = useState(false);
 
   const today = useToday();
-  const together = couple?.since ? daysBetween(couple.since, today) : null;
+  const futureSince = !!couple?.since && couple.since > today;
+  const together = couple?.since && !futureSince ? daysBetween(couple.since, today) : null;
   const milestone = together !== null ? nextMilestone(together) : null;
   const dayUnit = together !== null && together > 1 ? 'jours ensemble' : 'jour ensemble';
   const sinceLabel = couple?.since
@@ -58,7 +59,12 @@ export function HomeHero() {
   const milestoneLabel = milestone
     ? `Cap des ${formatNumber(milestone.next)} jours dans ${milestone.left} jour${milestone.left > 1 ? 's' : ''}`
     : null;
-  const storyLabel = together !== null && milestone
+  const futureMessage = futureSince
+    ? `Date enregistrée : ${fromKey(couple!.since!).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}. Vérifiez-la ou la date de votre téléphone.`
+    : null;
+  const storyLabel = futureSince
+    ? `Votre histoire. Date de rencontre à vérifier. ${futureMessage}`
+    : together !== null && milestone
     ? `Votre histoire. ${formatNumber(together)} ${dayUnit}. ${sinceLabel}. ${milestoneLabel}.`
     : 'Votre histoire. Date de rencontre non renseignée.';
   const photo = couple?.photoUrl;
@@ -135,10 +141,10 @@ export function HomeHero() {
               <Ionicons name="heart-circle-outline" size={26} color={PINK} />
               <View style={{ flex: 1 }}>
                 <T variant="bodyBold" color={CREAM}>
-                  Depuis quand êtes-vous ensemble ?
+                  {futureSince ? 'Date de rencontre à vérifier' : 'Depuis quand êtes-vous ensemble ?'}
                 </T>
                 <T variant="small" color={MUTED}>
-                  Ajoutez votre date de rencontre et une photo de vous deux.
+                  {futureMessage ?? 'Ajoutez votre date de rencontre et une photo de vous deux.'}
                 </T>
               </View>
               <Ionicons name="chevron-forward" size={18} color={MUTED} />

@@ -68,3 +68,29 @@ test('activer le compteur ouvre la fiche et sa fermeture revient au bandeau', as
   await act(async () => root.root.findByType('sheet' as never).props.onClose());
   expect(root.root.findAllByType('sheet' as never)).toHaveLength(0);
 });
+
+
+test('une date de rencontre future ne présente ni compteur négatif ni cap trompeur', async () => {
+  (useToday as jest.Mock).mockReturnValue('2025-12-31');
+  await act(async () => { root = create(<HomeHero />); });
+  const label = counter().props.accessibilityLabel;
+  expect(label).toContain('Date de rencontre à vérifier');
+  expect(label).toContain('1 janvier 2026');
+  expect(label).not.toContain('-1');
+  expect(label).not.toContain('Cap des');
+  expect(root.root.findAllByType('t' as never).map(node => node.props.children).join(' ')).toContain('date de votre téléphone');
+  await act(async () => counter().props.onPress());
+  expect(root.root.findAllByType('sheet' as never)).toHaveLength(1);
+});
+
+test('le compteur reprend quand la journée atteint la date enregistrée sans fermer la fiche', async () => {
+  (useToday as jest.Mock).mockReturnValue('2025-12-31');
+  await act(async () => { root = create(<HomeHero />); });
+  expect(counter().props.accessibilityLabel).toContain('Date de rencontre à vérifier');
+  await act(async () => counter().props.onPress());
+  (useToday as jest.Mock).mockReturnValue('2026-01-01');
+  await act(async () => root.update(<HomeHero />));
+  expect(counter().props.accessibilityLabel).toContain('0 jour ensemble');
+  expect(counter().props.accessibilityLabel).not.toContain('à vérifier');
+  expect(root.root.findAllByType('sheet' as never)).toHaveLength(1);
+});
