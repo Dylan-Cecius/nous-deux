@@ -1854,3 +1854,8 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Quatre régressions reproduites, une par rubrique : réponse perdue après application simulée d’une case affichant un détail technique privé. Le message fixe demande de vérifier la liste actualisée avant reprise ; aucun succès visuel ni retry automatique après rejet.
 - Quatre tests rouges puis verts ; 68 tests ciblés réussis (2,095 s), lint/TypeScript code retour 0, diff propre et relu. Gardes et verrou inchangés ; modification limitée au retour d’échec du cochage, aucune mécanique de suppression, serveur ou règle modifiée.
 - Données et stockage exclusivement doublés ; aucun incident réel, compte ou contenu intime lu, aucun essai natif ni opération payante.
+
+### 21 octobre 2026, 08:37 — Erreurs privées de l’activation des notifications
+- Trois attentes rouges puis vertes : autorisation, programmation de rappels et enregistrement de jeton pouvaient afficher le texte technique reçu. Message fixe de confirmation inconnue, indiquant que certains rappels peuvent déjà être programmés ; les résultats périmés restent ignorés.
+- Deux tests ajoutés et une attente existante renforcée ; 46 tests ciblés réussis (1,425 s), lint/TypeScript réussis et diff propre/relu. Une assertion de test visant une prop inexistante a été remplacée par une reprise volontaire réelle du gestionnaire, vérifiant le déverrouillage.
+- Changement du catch d’affichage seulement ; SDK, programmation, backend, déconnexion et suppression inchangés. Notifications et jetons fictifs, aucun envoi ni compte réel. Validation appareil toujours absente.

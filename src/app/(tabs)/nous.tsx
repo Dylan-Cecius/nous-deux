@@ -172,7 +172,9 @@ function NousContent() {
                 : 'Tes rappels de dates sont activés. Les messages de ta moitié n’ont pas pu être activés : réessaie dans un instant.'
           : 'Active-les dans les réglages du téléphone pour recevoir rappels et mots doux.',
       );
-    } catch (error) { if (canNotify()) throw error; }
+    } catch {
+      if (canNotify()) showDialog('Activation non confirmée', 'L’activation des notifications n’a pas pu être confirmée. Certains rappels peuvent déjà être programmés. Vérifie les autorisations du téléphone, puis réessaie.');
+    }
   });
 
   const leave = () => {

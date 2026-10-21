@@ -207,7 +207,24 @@ test.each(['current', 'old'])('échec de permission %s : seule l’erreur couran
   }
   await act(async () => { reject(new Error('Permission fictive indisponible')); await pending; });
   if (kind === 'old') expect(showDialog).not.toHaveBeenCalled();
-  else expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Permission fictive indisponible');
+  else expect(showDialog).toHaveBeenCalledWith('Activation non confirmée', 'L’activation des notifications n’a pas pu être confirmée. Certains rappels peuvent déjà être programmés. Vérifie les autorisations du téléphone, puis réessaie.');
+});
+
+test.each(['schedule', 'register'])('un échec %s ne divulgue ni rappel ni jeton privé', async stage => {
+  (useSession as jest.Mock).mockReturnValue({ backend: { ...backend, mode: 'cloud' }, members: [] });
+  const failure = new Error('Titre intime fictif et jeton fictif interne');
+  if (stage === 'schedule') (scheduleCountdownReminders as jest.Mock).mockRejectedValueOnce(failure);
+  else {
+    (getPushToken as jest.Mock).mockResolvedValueOnce('jeton-fictif');
+    backend.call.mockRejectedValueOnce(failure);
+  }
+  await act(async () => { root = create(<Nous />); });
+  await act(async () => { await root.root.findByProps({ title: 'Notifications' }).props.onPress(); });
+  expect(showDialog).toHaveBeenCalledWith('Activation non confirmée', 'L’activation des notifications n’a pas pu être confirmée. Certains rappels peuvent déjà être programmés. Vérifie les autorisations du téléphone, puis réessaie.');
+  expect(scheduleCountdownReminders).toHaveBeenCalledTimes(1);
+  expect(backend.call).toHaveBeenCalledTimes(stage === 'register' ? 1 : 0);
+  await act(async () => { await root.root.findByProps({ title: 'Notifications' }).props.onPress(); });
+  expect(ensurePermission).toHaveBeenCalledTimes(2);
 });
 
 test.each(['unmount', 'backend', 'loading', 'error', 'dates'])('la tâche de fond invalide sa garde après %s, même si l’état initial revient', async (kind) => {
