@@ -95,16 +95,21 @@ function PhotoFrameEditorContent({
   const t = useTheme();
   const { box, natural, layout, onLayout, onLoad } = useFramedLayout(frame);
   const unavailable = disabled || !layout;
+  // Point de départ du glissement (doigt et cadrage).
+  const start = useRef<{ pageX: number; pageY: number; frame: PhotoFrame; layout: ReturnType<typeof layoutFor> } | null>(null);
   // Plusieurs commandes peuvent arriver avant le retour du cadrage par le parent.
   const latest = useRef({ frame, onChange });
-  useEffect(() => { latest.current = { frame, onChange }; }, [frame, onChange]);
+  useEffect(() => {
+    const previous = latest.current.frame;
+    // Le retour de notre propre valeur conserve le geste ; un remplacement l'arrête.
+    if (previous.x !== frame.x || previous.y !== frame.y || previous.zoom !== frame.zoom) start.current = null;
+    latest.current = { frame, onChange };
+  }, [frame, onChange]);
   const changeFrame = (next: PhotoFrame) => {
     latest.current.frame = next;
     latest.current.onChange(next);
   };
 
-  // Point de départ du glissement (doigt et cadrage).
-  const start = useRef<{ pageX: number; pageY: number; frame: PhotoFrame; layout: ReturnType<typeof layoutFor> } | null>(null);
   const width = box?.w, heightMeasured = box?.h;
   const naturalWidth = natural?.w, naturalHeight = natural?.h;
   // Une rotation ou un nouveau ratio termine le geste ; une mesure identique le conserve.

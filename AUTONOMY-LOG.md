@@ -1766,3 +1766,9 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Contexte du geste lié aux dimensions mesurées, avec invalidation même après aller-retour. Chaque début de glissement capture la géométrie de son cadrage courant. Mesure identique et retour normal du cadrage par le parent conservent le geste.
 - Cinq tests ajoutés, quatre rouges puis verts et un contrôle de mesure identique ; 120 tests cadrage/fiche réussis (1,229 s), lint/TypeScript code retour 0, diff propre et relu.
 - Aucune API supplémentaire, écriture, règle ou suppression ; rotations et événements simulés seulement. Essai tactile natif toujours requis.
+
+### 21 octobre 2026, 06:41 — Cadrage remplacé pendant un geste
+- Deux régressions reproduites : un cadrage reçu du parent pendant un glissement (position ou zoom différents) était écrasé par le mouvement suivant, calculé depuis l’ancien départ.
+- Un remplacement distinct du dernier cadrage émis termine maintenant le geste ; une nouvelle prise part de la valeur reçue. Le retour normal de la valeur émise conserve le glissement.
+- Deux tests rouges puis verts ; 122 tests cadrage/fiche réussis (1,389 s), lint/TypeScript code retour 0 et diff propre/revu. Le test existant de retour parent a été précisé pour renvoyer x ET y réellement émis, comme le parent de production, plutôt qu’un retour partiel.
+- Aucune transaction entre appareils ajoutée : protection d’interface seulement. Stockage, serveur/règles et suppression inchangés ; photos et événements fictifs, aucun essai natif.

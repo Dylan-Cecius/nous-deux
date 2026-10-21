@@ -193,7 +193,7 @@ describe('cycle de vie du glissement', () => {
 
   test('le retour du cadrage au parent ne coupe pas un geste actif', async () => {
     const onChange = jest.fn();
-    const render = (x: number) => <PhotoFrameEditor uri="fictitious://photo" frame={{ ...frame, x }} onChange={onChange} />;
+    const render = (x: number) => <PhotoFrameEditor uri="fictitious://photo" frame={{ ...frame, x, y: x }} onChange={onChange} />;
     await act(async () => { root = create(render(0.5)); });
     await act(async () => {
       surface().props.onLayout({ nativeEvent: { layout: { width: 100, height: 100 } } });
@@ -238,6 +238,28 @@ describe('cycle de vie du glissement', () => {
     await act(async () => surface().props.onLayout({ nativeEvent: { layout: { width: 100, height: 100 } } }));
     await act(async () => surface().props.onResponderMove(event(10)));
     expect(onChange).toHaveBeenLastCalledWith({ x: 0.4, y: 0.4, zoom: 2 });
+  });
+
+  test.each([
+    { next: { x: 0.8, y: 0.2, zoom: 2 }, expectedX: 0.7 },
+    { next: { x: 0.5, y: 0.5, zoom: 1.5 }, expectedX: 0.3 },
+  ])('un cadrage remplacé par le parent termine le geste courant : $next', async ({ next, expectedX }) => {
+    const { onChange } = await setup();
+    await act(async () => surface().props.onResponderGrant(event(0)));
+    const oldMove = surface().props.onResponderMove;
+    await act(async () => root.update(<PhotoFrameEditor uri="fictitious://photo" frame={next} onChange={onChange} />));
+    await act(async () => {
+      oldMove(event(10));
+      surface().props.onResponderMove(event(20));
+    });
+    expect(onChange).not.toHaveBeenCalled();
+    await act(async () => {
+      surface().props.onResponderGrant(event(0));
+      surface().props.onResponderMove(event(10));
+    });
+    const result = onChange.mock.calls[0][0];
+    expect(result.zoom).toBe(next.zoom);
+    expect(result.x).toBeCloseTo(expectedX);
   });
 });
 
