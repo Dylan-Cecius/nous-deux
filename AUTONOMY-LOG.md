@@ -1703,3 +1703,7 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 - Gestion limitée au bloc de sauvegarde ; brouillon et verrou conservés, aucun retry automatique. Suppression et gestionnaire de suppression inchangés. Le garde de contexte continue de masquer les retours d’anciennes fiches.
 - Trois cas rouges puis verts (deux nouveaux, un test de reprise renforcé) ; 87 tests formulaires/actions des quatre listes réussis (1,635 s), lint/TypeScript et diff réussis. Revue du diff : contenu des écritures et fermeture après succès inchangés.
 - Stockage doublé et données fictives ; aucune preuve d’idempotence inter-appareils ni recette native. Aucune dépense ni service distant.
+### 21 octobre 2026, 04:40 — Sauvegardes des restaurants non confirmées
+- Ajout et modification reproduits avec une écriture fictive suivie d’une réponse perdue : le formulaire montrait le détail technique brut. Message fixe de confirmation inconnue, vérification de la liste avant reprise et brouillon conservé ; aucune relance automatique.
+- Trois cas rouges puis verts (deux nouveaux, un renforcé) ; 86 tests formulaires/actions restaurants-listes réussis (1,635 s), lint et TypeScript code retour 0, diff revu et propre.
+- Bloc de sauvegarde uniquement ; données écrites, garde de contexte, suppression et serveur inchangés. Tests sur doubles, pas d’idempotence ajoutée ni essai natif.

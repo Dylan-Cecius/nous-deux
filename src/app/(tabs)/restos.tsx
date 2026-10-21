@@ -271,11 +271,16 @@ function RestoSheet({
       note: note.trim(),
       address, photoUrl, mapsUrl,
     };
-    if (resto) {
-      const patch = draftPatch(current.base, data);
-      if (Object.keys(patch).length) await backend.update('restaurants', resto.id, patch);
+    try {
+      if (resto) {
+        const patch = draftPatch(current.base, data);
+        if (Object.keys(patch).length) await backend.update('restaurants', resto.id, patch);
+      }
+      else await backend.add('restaurants', { ...data, createdBy: backend.userId, createdAt: Date.now() });
+    } catch {
+      if (isCurrent()) showDialog('Enregistrement non confirmé', 'Vérifie les restaurants après leur actualisation avant de réessayer : la modification peut déjà avoir été enregistrée. Ton brouillon est conservé.');
+      return;
     }
-    else await backend.add('restaurants', { ...data, createdBy: backend.userId, createdAt: Date.now() });
     close();
   });
   const remove = () => {

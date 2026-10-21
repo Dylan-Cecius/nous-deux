@@ -261,10 +261,25 @@ test('un échec conserve le brouillon et permet une nouvelle tentative', async (
   await edit('Nom', 'Nom saisi');
   backend.update.mockRejectedValueOnce(new Error('Erreur fictive'));
   await act(async () => { await button('Enregistrer')(); });
-  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Erreur fictive');
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('Vérifie les restaurants'));
   expect(root.root.findByProps({ label: 'Nom' }).props.value).toBe('Nom saisi');
   await act(async () => { await button('Enregistrer')(); });
   expect(backend.update).toHaveBeenCalledTimes(2);
+});
+
+test.each([false, true])('une réponse de restaurant perdue est expliquée sans détail privé (création : %s)', async fresh => {
+  await open(fresh);
+  await edit('Nom', 'Nom saisi');
+  const write = fresh ? backend.add : backend.update;
+  let stored = false;
+  write.mockImplementationOnce(async () => { stored = true; throw new Error('Détail privé fictif : couples/test-secret/restaurants/one'); });
+  await act(async () => { await button('Enregistrer')(); });
+  expect(stored).toBe(true);
+  expect(write).toHaveBeenCalledTimes(1);
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('avant de réessayer'));
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('test-secret');
+  expect(field('Nom').props.value).toBe('Nom saisi');
+  expect(sheet()).toBeTruthy();
 });
 
 test.each(['success', 'error'])('retour %s d’un ancien backend ignoré', async (outcome) => {
