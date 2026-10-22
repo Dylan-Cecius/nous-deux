@@ -1,9 +1,9 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, Text, useColorScheme } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AccentThemes, MemberColors, PrefsProvider, useTheme } from '@/constants/theme';
-import { Avatar, Button, Card, Chips, Fab, T } from '@/components/ui';
+import { Avatar, Button, Card, Chips, Fab, Field, T } from '@/components/ui';
 import { foregroundOnColor } from '../color-contrast';
 import Home from '@/app/(tabs)/index';
 import { MemoryPhoto } from '@/components/memory-photo';
@@ -190,4 +190,23 @@ describe.each(['light', 'dark'])('photo indisponible, thème %s', scheme => {
     const label = root.root.findAllByType(Text).find(node => node.props.children === 'Photo indisponible')!;
     expect(contrast(StyleSheet.flatten(label.props.style).color, palette.primarySoft)).toBeGreaterThanOrEqual(4.5);
   });
+});
+
+
+// Entry screen: base gradient, white glass surface, brightest peach overlay,
+// then Field's translucent black fill. This checks composed colors, not alpha
+// channels compared as though they were opaque.
+const over = (foreground: string, background: string) => {
+  const rgba = foreground.match(/^rgba\(([^)]+)\)$/)![1].split(',').map(Number);
+  const bg = background.slice(1).match(/../g)!.map(channel => parseInt(channel, 16));
+  return '#' + bg.map((channel, index) => Math.round(rgba[index] * rgba[3] + channel * (1 - rgba[3])).toString(16).padStart(2, '0')).join('');
+};
+
+test.each(['#4A2238', '#2A1420', '#1A0B14'])('exemple de saisie sombre lisible sur le fond d’entrée %s', async background => {
+  await act(async () => { root = create(<Field dark label="Ton prénom" placeholder="Ex. Camille" />); });
+  const input = root.root.findByType(TextInput);
+  const glass = over('rgba(255,170,110,0.26)', over('rgba(255,255,255,0.04)', background));
+  const fill = over(StyleSheet.flatten(input.props.style).backgroundColor, glass);
+  const placeholder = over(input.props.placeholderTextColor, fill);
+  expect(contrast(placeholder, fill)).toBeGreaterThanOrEqual(4.5);
 });

@@ -269,3 +269,6 @@ Preuves disponibles : structure React, interactions simulées et ratios numériq
 
 ### Date de rencontre — recette préparée le 23 octobre à 00:39
 - [ ] Dans un espace fictif, laisser « Votre histoire » ouverte au changement de journée : la nouvelle date doit devenir sélectionnable sans fermeture ni perte de saisie. Après recul de l’horloge rendant la date future, vérifier le message, le bouton désactivé et sa réactivation quand la date redevient valide. Le contrôle automatisé ne remplace pas le sélecteur natif ni l’essai de reprise au premier plan.
+
+### Exemples de saisie sombres — recette préparée le 23 octobre à 00:42
+- [ ] Sur l’entrée et la reconnexion, vérifier la lisibilité des exemples de prénom, code et adresse e-mail sur la carte vitrée, avec luminosité réduite et texte agrandi. Les placeholders ont une opacité de 0,65 ; les mesures numériques sur fonds composés ne remplacent pas l’observation native.
