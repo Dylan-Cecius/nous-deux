@@ -216,3 +216,5 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 | P2 | Date maximale de la rencontre sur fiche ouverte | Le 23 octobre à 00:39 : minuit et recul d’horloge actualisent la limite, le bouton et l’explication sans perdre la date saisie. Deux régressions rouges puis vertes, 119 tests ciblés et lint/TypeScript réussis ; contrôle simulé, sélecteur natif restant à essayer. |
 
 | P2 | Exemples de saisie sur fond sombre à l’entrée | Le 23 octobre à 00:42 : trois contrastes insuffisants reproduits puis corrigés ; opacité 0,65, minimum mesuré 5,080:1 sur les trois fonds composés contrôlés. 66 suites / 1 795 tests, lint/TypeScript réussis. Rendu graphique et grandes polices non vérifiés ; aucun changement de compte/serveur. |
+
+| P2 | Contrôle final du 23 octobre, 00:44 | Deux checkpoints : date de rencontre et saisie sombre. Cinq régressions rouges puis vertes, 66 suites / 1 795 tests et lint/TypeScript réussis ; 192 blobs SHA exacts. Environ huit minutes horodatées, pas d’autre défaut prêt démontré dans l’audit. Deux recettes natives non exécutées ; aucune distribution ni dépense. |
