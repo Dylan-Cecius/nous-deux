@@ -55,7 +55,7 @@ function ThemePicker() {
       <T variant="caption" muted>
         Couleur de l’app (sur ce téléphone)
       </T>
-      <View style={{ flexDirection: 'row', gap: 10 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
         {Object.entries(AccentThemes).map(([id, theme]) => {
           const active = id === accent;
           return (
@@ -68,7 +68,7 @@ function ThemePicker() {
                 tap();
                 setAccent(id as AccentId);
               }}
-              style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+              style={{ flex: 1, minWidth: 52, alignItems: 'center', gap: 6 }}>
               <View
                 style={{
                   width: 52,
@@ -82,7 +82,7 @@ function ThemePicker() {
                 }}>
                 <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: theme.light.primary }} />
               </View>
-              <T variant="small" color={active ? t.text : t.textSecondary} style={{ fontSize: 12 }}>
+              <T variant="small" color={active ? t.text : t.textSecondary} style={{ fontSize: 12, maxWidth: '100%', textAlign: 'center' }}>
                 {theme.name}
               </T>
             </Pressable>

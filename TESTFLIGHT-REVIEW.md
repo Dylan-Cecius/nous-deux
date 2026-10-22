@@ -275,3 +275,6 @@ Preuves disponibles : structure React, interactions simulées et ratios numériq
 
 ### Sélecteurs Android — recette préparée le 23 octobre à 01:31
 - [ ] Avec grande taille de texte, vérifier une date longue (par exemple mercredi 30 septembre 2026) dans l’agenda, un souvenir et « Votre histoire » : date complète à l’intérieur du champ, icône séparée, hauteur suffisante et ouverture du calendrier. Contrôler aussi les deux champs horaires voisins. Styles vérifiés dans le code ; rendu et geste natifs non exécutés.
+
+### Choix du thème — recette préparée le 23 octobre à 01:33
+- [ ] Dans Nous, agrandir le texte système et réduire la largeur disponible : les quatre noms doivent rester lisibles sous leur pastille sans se chevaucher, les commandes restant séparées. Vérifier sélection, restauration et lecture des noms par VoiceOver/TalkBack. Rendu non exécuté ; les contrôles de code ne valident pas la géométrie native.
