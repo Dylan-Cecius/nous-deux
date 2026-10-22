@@ -218,3 +218,5 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 | P2 | Exemples de saisie sur fond sombre à l’entrée | Le 23 octobre à 00:42 : trois contrastes insuffisants reproduits puis corrigés ; opacité 0,65, minimum mesuré 5,080:1 sur les trois fonds composés contrôlés. 66 suites / 1 795 tests, lint/TypeScript réussis. Rendu graphique et grandes polices non vérifiés ; aucun changement de compte/serveur. |
 
 | P2 | Contrôle final du 23 octobre, 00:44 | Deux checkpoints : date de rencontre et saisie sombre. Cinq régressions rouges puis vertes, 66 suites / 1 795 tests et lint/TypeScript réussis ; 192 blobs SHA exacts. Environ huit minutes horodatées, pas d’autre défaut prêt démontré dans l’audit. Deux recettes natives non exécutées ; aucune distribution ni dépense. |
+
+| P2 | Dates longues et texte agrandi dans le sélecteur Android | Le 23 octobre à 01:31 : texte limité à l’espace disponible à côté de l’icône, retour à la ligne permis avec marges verticales. Amélioration motivée par les règles de layout RN ; 251 tests existants et lint/TypeScript réussis. Pas de preuve de rendu natif, recette restante. |

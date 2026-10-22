@@ -62,7 +62,7 @@ function PickerField({
   const display = mode === 'date' ? `${formatLong(value)} ${fromKey(value).getFullYear()}` : value;
 
   return (
-    <View style={[{ gap: 6 }, grow && { flex: 1 }]}>
+    <View style={[{ gap: 6, minWidth: 0 }, grow && { flex: 1 }]}>
       <T variant="caption" muted>
         {label}
       </T>
@@ -115,13 +115,14 @@ function PickerField({
             borderColor: t.border,
             backgroundColor: t.card,
             paddingHorizontal: 18,
+            paddingVertical: 12,
             flexDirection: 'row',
             alignItems: 'center',
             gap: 10,
             opacity: disabled ? 0.5 : 1,
           }}>
           <Ionicons name={mode === 'date' ? 'calendar-outline' : 'time-outline'} size={18} color={t.primary} />
-          <T style={{ fontFamily: Fonts.bodyMedium, textTransform: mode === 'date' ? 'capitalize' : 'none' }}>{display}</T>
+          <T style={{ flex: 1, fontFamily: Fonts.bodyMedium, textTransform: mode === 'date' ? 'capitalize' : 'none' }}>{display}</T>
         </Pressable>
       )}
     </View>

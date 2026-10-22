@@ -272,3 +272,6 @@ Preuves disponibles : structure React, interactions simulées et ratios numériq
 
 ### Exemples de saisie sombres — recette préparée le 23 octobre à 00:42
 - [ ] Sur l’entrée et la reconnexion, vérifier la lisibilité des exemples de prénom, code et adresse e-mail sur la carte vitrée, avec luminosité réduite et texte agrandi. Les placeholders ont une opacité de 0,65 ; les mesures numériques sur fonds composés ne remplacent pas l’observation native.
+
+### Sélecteurs Android — recette préparée le 23 octobre à 01:31
+- [ ] Avec grande taille de texte, vérifier une date longue (par exemple mercredi 30 septembre 2026) dans l’agenda, un souvenir et « Votre histoire » : date complète à l’intérieur du champ, icône séparée, hauteur suffisante et ouverture du calendrier. Contrôler aussi les deux champs horaires voisins. Styles vérifiés dans le code ; rendu et geste natifs non exécutés.
