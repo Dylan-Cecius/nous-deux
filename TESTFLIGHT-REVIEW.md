@@ -266,3 +266,6 @@ Ces recettes ne sont pas exécutées. Aucun nouveau binaire, aperçu visuel ou s
 - [ ] Dans Nous, restaurer un thème enregistré puis choisir un autre thème : chaque radio annonce son nom et une seule option est cochée. Vérifier aussi les thèmes sombres et les grandes polices ; aucune préférence du partenaire ne doit être modifiée.
 - [ ] Dans la fiche d’un restaurant fictif, distinguer les cinq cœurs pleins/vides en clair et sombre, toucher chaque valeur puis retirer la note sélectionnée. Vérifier cibles séparées, petite largeur et retour à la ligne ; la désactivation pendant sauvegarde reste effective. Les résumés en lecture seule restent compacts et annoncés une fois.
 Preuves disponibles : structure React, interactions simulées et ratios numériques. Recettes non exécutées sur appareil/navigateur ; aucun aperçu, binaire signé ou statut Apple nouveau.
+
+### Date de rencontre — recette préparée le 23 octobre à 00:39
+- [ ] Dans un espace fictif, laisser « Votre histoire » ouverte au changement de journée : la nouvelle date doit devenir sélectionnable sans fermeture ni perte de saisie. Après recul de l’horloge rendant la date future, vérifier le message, le bouton désactivé et sa réactivation quand la date redevient valide. Le contrôle automatisé ne remplace pas le sélecteur natif ni l’essai de reprise au premier plan.

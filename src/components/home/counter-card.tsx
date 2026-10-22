@@ -5,9 +5,10 @@ import { DateField } from '@/components/pickers';
 import { Button, Sheet, T } from '@/components/ui';
 
 import { useSession } from '@/lib/couple-context';
-import { todayKey } from '@/lib/dates';
+import { fromKey, todayKey } from '@/lib/dates';
 import { pickPhoto } from '@/lib/photos';
 import { useAsyncAction } from '@/lib/use-async-action';
+import { useToday } from '@/lib/use-today';
 import { useSharedDraft } from '@/lib/use-shared-draft';
 import type { PhotoFrame } from '@/lib/types';
 
@@ -21,6 +22,7 @@ export function CounterSheet({ onClose }: { onClose: () => void }) {
 
 function CounterForm({ onClose }: { onClose: () => void }) {
   const { backend, couple } = useSession();
+  const today = useToday();
   const { values, setValues } = useSharedDraft(
     { since: couple?.since ?? todayKey() },
     couple ? { since: couple.since ?? todayKey() } : null,
@@ -143,10 +145,11 @@ function CounterForm({ onClose }: { onClose: () => void }) {
           latest.current.value = next;
           setValues(previous => ({ ...previous, since: next }));
         }
-      })} maximumDate={new Date()} />
+      })} maximumDate={fromKey(today)} />
+      {value > today && <T>La date de rencontre ne peut pas être dans le futur.</T>}
       <Button
         label="Enregistrer la date"
-        disabled={value > todayKey() || busy || !couple}
+        disabled={value > today || busy || !couple}
         onPress={() => runCurrent(async () => {
           const current = latest.current;
           if (!current || current.framing !== null || current.value > todayKey()) return;

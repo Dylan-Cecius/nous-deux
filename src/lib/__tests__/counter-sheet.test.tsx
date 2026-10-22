@@ -4,6 +4,10 @@ import { useSession } from '../couple-context';
 import { pickPhoto } from '../photos';
 import { showDialog } from '@/components/dialog';
 
+jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), {
+  AppState: { value: { currentState: 'active', addEventListener: jest.fn(() => ({ remove: jest.fn() })) } },
+}));
+
 jest.mock('../couple-context', () => ({ useSession: jest.fn() }));
 jest.mock('../photos', () => ({ pickPhoto: jest.fn() }));
 jest.mock('@/components/dialog', () => ({ showDialog: jest.fn() }));
@@ -516,4 +520,52 @@ test('une erreur de photo courante libère le verrou sans quitter le formulaire'
   expect(onClose).not.toHaveBeenCalled();
   await act(async () => { await button('Changer la photo de couple')(); });
   expect(backend.updateCouple).toHaveBeenCalledTimes(1);
+});
+
+
+describe('date de rencontre au changement de jour', () => {
+  beforeEach(async () => {
+    await act(async () => root.unmount());
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  });
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    jest.useRealTimers();
+  });
+  const openAt = async (date: Date) => {
+    jest.setSystemTime(date);
+    await act(async () => { root = create(<CounterSheet onClose={onClose} />); });
+  };
+
+  test('minuit actualise la limite sans perdre une date saisie', async () => {
+    await openAt(new Date(2026, 9, 22, 23, 59, 59));
+    await act(async () => root.root.findByType('date' as never).props.onChange('2021-06-07'));
+    await act(async () => jest.advanceTimersByTime(1025));
+    const field = root.root.findByType('date' as never);
+    const maximum = field.props.maximumDate as Date;
+    expect([maximum.getFullYear(), maximum.getMonth(), maximum.getDate()]).toEqual([2026, 9, 23]);
+    expect(field.props.value).toBe('2021-06-07');
+    expect(backend.updateCouple).not.toHaveBeenCalled();
+    await act(async () => field.props.onChange('2026-10-23'));
+    await act(async () => button('Enregistrer la date')());
+    expect(backend.updateCouple).toHaveBeenCalledWith({ since: '2026-10-23' });
+  });
+
+  test('un recul d’horloge désactive et explique la date future puis réactive la fiche', async () => {
+    await openAt(new Date(2026, 9, 23, 12));
+    await act(async () => root.root.findByType('date' as never).props.onChange('2026-10-23'));
+    const save = button('Enregistrer la date');
+    jest.setSystemTime(new Date(2026, 9, 22, 12));
+    await act(async () => jest.advanceTimersByTime(60000));
+    expect(root.root.findByProps({ label: 'Enregistrer la date' }).props.disabled).toBe(true);
+    expect(JSON.stringify(root.toJSON())).toContain('La date de rencontre ne peut pas être dans le futur.');
+    expect(root.root.findByType('date' as never).props.value).toBe('2026-10-23');
+    await act(async () => save());
+    expect(backend.updateCouple).not.toHaveBeenCalled();
+    jest.setSystemTime(new Date(2026, 9, 23, 12));
+    await act(async () => jest.advanceTimersByTime(60000));
+    expect(root.root.findByProps({ label: 'Enregistrer la date' }).props.disabled).toBe(false);
+    expect(JSON.stringify(root.toJSON())).not.toContain('La date de rencontre ne peut pas être dans le futur.');
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });
