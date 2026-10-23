@@ -59,13 +59,14 @@ export default function Aide() {
       </Card>
       <Card>
         <T variant="h2">Inviter ta moitié</T>
-        <T>Crée une invitation depuis l’accueil ou l’onglet Nous. Elle expire après 24 heures et ne fonctionne qu’une fois. Un nouveau code remplace le précédent.</T>
+        <T>Dans un espace synchronisé, crée une invitation depuis l’accueil ou l’onglet Nous. Elle expire après 24 heures et ne fonctionne qu’une fois. Un nouveau code remplace le précédent.</T>
         <T>Une fois Nous Deux installée, ta moitié renseigne son prénom, touche « Continuer », puis « Rejoindre » et saisit ce code. Partage-le uniquement avec elle.</T>
         <T muted>Ce code ouvre votre espace dans Nous Deux. L’invitation TestFlight permet d’installer la bêta et s’accepte séparément dans TestFlight.</T>
+        <T muted>En mode sans compte, il n’y a pas de code d’invitation : les deux profils utilisent ce téléphone.</T>
       </Card>
       <Card>
         <T variant="h2">Ce qui est partagé</T>
-        <T>Vos profils, mots doux, photos, agenda, listes, restos et dépenses sont partagés dans votre espace. Les idées cadeaux restent privées. Les réponses du jour ne sont révélées qu’après vos deux réponses.</T>
+        <T>Vos profils, mots doux, photos, agenda, listes, restos et dépenses sont partagés dans votre espace. En mode synchronisé, les idées cadeaux restent privées ; tu vois ta propre réponse du jour, et celle de ta moitié apparaît après ta participation.</T>
         <T>En mode synchronisé, ces données sont hébergées par Google Firebase. Le service contrôle les accès ; il ne s’agit pas d’un chiffrement de bout en bout. Ne diffuse pas les liens de tes photos.</T>
         <T muted>En mode sans compte, les données restent sur ce téléphone et ne sont pas synchronisées avec celui de ta moitié. Les deux profils utilisent le même appareil : les cadeaux et les réponses n’y sont pas protégés l’un de l’autre.</T>
       </Card>
@@ -80,9 +81,11 @@ export default function Aide() {
       </Card>
       <Card>
         <T variant="h2">Supprimer ton compte</T>
-        <T>Ouvre Nous → Ton compte → Supprimer mon compte. Ton profil, tes réponses, tes mots doux, tes idées cadeaux et tes photos sont supprimés. Les autres éléments partagés restent pour ta moitié ; le dernier départ supprime tout l’espace.</T>
-        <T muted>Sur les éléments communs conservés, l’auteur est remplacé par « ancien membre ». Le texte peut encore contenir ton nom : il n’est pas automatiquement anonymisé.</T>
-        <T>Si le nettoyage est interrompu, il reprend automatiquement. Il ne peut pas effacer une copie déjà téléchargée sur un autre appareil.</T>
+        <T>Ouvre Nous → Ton compte → Supprimer mon compte et lis la confirmation avant de continuer.</T>
+        <T>En mode synchronisé, ton profil, tes réponses, tes mots doux, tes idées cadeaux et tes photos sont supprimés. Les autres éléments partagés restent pour ta moitié ; le dernier départ supprime tout l’espace.</T>
+        <T muted>Sur les éléments communs conservés en mode synchronisé, l’auteur est remplacé par « ancien membre ». Le texte peut encore contenir ton nom : il n’est pas automatiquement anonymisé. Si le nettoyage serveur est interrompu, il reprend automatiquement.</T>
+        <T>En mode sans compte, cette commande efface les données et les photos enregistrées par l’app sur ce téléphone pour les deux profils. Aucun espace n’est conservé pour ta moitié sur cet appareil. L’assistance ne peut pas effacer ce stockage local à distance.</T>
+        <T muted>La suppression ne peut pas effacer une copie déjà téléchargée ou enregistrée ailleurs.</T>
       </Card>
       <Card tone="soft">
         <T variant="h3">Pendant la bêta</T>

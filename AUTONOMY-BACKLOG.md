@@ -260,3 +260,5 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 | P2 | Contrôle final des dialogues du 23 octobre, 07:34 | Correctif 4251b78 ; neuf tests nouveaux, 1 828 tests globaux et lint/TypeScript réussis, 192 blobs exacts. Une recette web restante, alertes natives inchangées ; environ cinq minutes observées, aucune seconde tâche prête étayée dans l'audit. Aucune distribution ni dépense. |
 
 | P2 | Description actuelle de la PR #3 | Le 23 octobre à 08:34 : titre et corps alignés sur les correctifs, preuves datées, limites et conditions de distribution ; anciennes affirmations de session/tâches retirées. Relecture GitHub exacte, tête inchangée, PR brouillon ; lint/TypeScript réussis, aucun test répété ni changement applicatif. |
+
+| P2 | Aide : suppression et invitations selon le mode | Le 23 octobre à 17:29 : conséquences locales pour les deux profils explicites, conservation du partenaire/reprise serveur réservées au mode synchronisé ; invitations et confidentialité qualifiées. 43 tests existants et lint/TypeScript réussis ; texte seulement, aucun mécanisme de suppression modifié, essai natif restant. |
