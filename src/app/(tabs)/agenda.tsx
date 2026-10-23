@@ -134,7 +134,7 @@ function AgendaContent() {
                 key={d}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
-                accessibilityLabel={formatLong(d)}
+                accessibilityLabel={`${formatLong(d)}${isToday ? ', aujourd’hui' : ''}`}
                 onPress={() => setNavigation(previous => (
                   d < previous.weekStart || d > addDays(previous.weekStart, 6)
                     ? previous : { ...previous, selected: d }

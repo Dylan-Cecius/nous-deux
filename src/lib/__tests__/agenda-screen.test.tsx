@@ -45,6 +45,7 @@ const backend = { mode: 'cloud', coupleId: 'couple', userId: 'alice', addEvents:
 const session = { backend, members: [{ id: 'alice', name: 'Alice' }, { id: 'bob', name: 'Bob' }], colorOf: () => '#000', nameOf: () => 'Alice' };
 beforeEach(() => { (useCollectionState as jest.Mock).mockReturnValue(ready); (useSession as jest.Mock).mockReturnValue(session); });
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); jest.useRealTimers(); });
+const accessibleDayLabel = (key: string) => `${formatLong(key)}${key === todayKey() ? ', aujourd’hui' : ''}`;
 const text = () => root.root.findAllByType('t' as never).map((node) => node.children.filter((child) => typeof child === 'string').join('')).join('\n');
 
 test('la grille distingue à l’oral les horaires identiques des deux membres et du couple', async () => {
@@ -66,6 +67,24 @@ test('la grille distingue à l’oral les horaires identiques des deux membres e
   }
   expect(backend.update).not.toHaveBeenCalled();
   expect(backend.addEvents).not.toHaveBeenCalled();
+});
+
+test('le repère accessible aujourd’hui reste distinct de la sélection et suit minuit', async () => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(new Date(2026, 9, 21, 23, 59, 59));
+  await act(async () => { root = create(<Agenda />); });
+  const day = (label: string) => root.root.findAllByProps({ accessibilityLabel: label })
+    .find(node => typeof node.props.onPress === 'function');
+  expect(day('mercredi 21 octobre, aujourd’hui')).toBeDefined();
+  await act(async () => day('jeudi 22 octobre')!.props.onPress());
+  expect(day('mercredi 21 octobre, aujourd’hui')?.props.accessibilityState.selected).toBe(false);
+  expect(day('jeudi 22 octobre')?.props.accessibilityState.selected).toBe(true);
+  await act(async () => jest.advanceTimersByTime(2000));
+  expect(day('mercredi 21 octobre, aujourd’hui')).toBeUndefined();
+  expect(day('mercredi 21 octobre')).toBeDefined();
+  expect(day('jeudi 22 octobre, aujourd’hui')?.props.accessibilityState.selected).toBe(true);
+  await act(async () => root.root.findByProps({ label: 'Semaine suivante' }).props.onPress());
+  expect(root.root.findAll(node => typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.includes('aujourd’hui'))).toHaveLength(0);
 });
 
 test.each(['alice', 'both'])('les horaires superposés restent ouvrables dans le détail du jour : %s', async who => {
@@ -101,7 +120,7 @@ test.each([
   await act(async () => { root = create(<Agenda />); });
   const callbacks = directions.map(label => root.root.findByProps({ label }).props.onPress);
   await act(async () => callbacks.forEach(callback => callback()));
-  const selected = root.root.findAllByProps({ accessibilityLabel: formatLong(expected) }).find(node => typeof node.props.onPress === 'function');
+  const selected = root.root.findAllByProps({ accessibilityLabel: accessibleDayLabel(expected) }).find(node => typeof node.props.onPress === 'function');
   expect(selected?.props.accessibilityState.selected).toBe(true);
 });
 
@@ -113,7 +132,7 @@ test.each([
   jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
   jest.setSystemTime(now);
   await act(async () => { root = create(<Agenda />); });
-  const day = root.root.findAllByProps({ accessibilityLabel: formatLong(selected) }).find(node => typeof node.props.onPress === 'function')!;
+  const day = root.root.findAllByProps({ accessibilityLabel: accessibleDayLabel(selected) }).find(node => typeof node.props.onPress === 'function')!;
   await act(async () => day.props.onPress());
   expect(root.root.findByType('screen' as never).props.overline).toBe(range);
   expect(text()).toContain(dayLabel);
@@ -127,7 +146,7 @@ test('un ancien bouton de jour ne sélectionne pas une date hors de la semaine a
   jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
   jest.setSystemTime(new Date(2026, 9, 21, 12));
   await act(async () => { root = create(<Agenda />); });
-  const day = (key: string) => root.root.findAllByProps({ accessibilityLabel: formatLong(key) }).find(node => typeof node.props.onPress === 'function')!;
+  const day = (key: string) => root.root.findAllByProps({ accessibilityLabel: accessibleDayLabel(key) }).find(node => typeof node.props.onPress === 'function')!;
   const oldDay = day('2026-10-23').props.onPress;
   await act(async () => {
     root.root.findByProps({ label: 'Semaine suivante' }).props.onPress();
@@ -149,10 +168,10 @@ test.each(['Semaine précédente', 'Semaine suivante'])('retour au jour courant 
   // La semaine change après le rendu : le clic doit lire la date effective.
   jest.setSystemTime(new Date(2026, 9, 26, 0, 0, 0));
   await act(async () => returnToday());
-  const selected = root.root.findAllByProps({ accessibilityLabel: formatLong('2026-10-26') })
+  const selected = root.root.findAllByProps({ accessibilityLabel: accessibleDayLabel('2026-10-26') })
     .find(node => typeof node.props.onPress === 'function')!;
   expect(selected.props.accessibilityState.selected).toBe(true);
-  expect(root.root.findAllByProps({ accessibilityLabel: formatLong('2026-11-01') })).not.toHaveLength(0);
+  expect(root.root.findAllByProps({ accessibilityLabel: accessibleDayLabel('2026-11-01') })).not.toHaveLength(0);
   expect(backend.addEvents).not.toHaveBeenCalled();
   expect(backend.update).not.toHaveBeenCalled();
 });
@@ -161,7 +180,7 @@ test('à minuit le repère du jour avance sans changer la journée consultée', 
   jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
   jest.setSystemTime(new Date(2026, 9, 20, 23, 59, 59));
   await act(async () => { root = create(<Agenda />); });
-  const day = (key: string) => root.root.findAllByProps({ accessibilityLabel: formatLong(key) }).find(node => typeof node.props.onPress === 'function')!;
+  const day = (key: string) => root.root.findAllByProps({ accessibilityLabel: accessibleDayLabel(key) }).find(node => typeof node.props.onPress === 'function')!;
   await act(async () => day('2026-10-19').props.onPress());
   expect(day('2026-10-20').findAllByType('t' as never)[1].props.color).toBe('#123456');
   await act(async () => jest.advanceTimersByTime(1025));
