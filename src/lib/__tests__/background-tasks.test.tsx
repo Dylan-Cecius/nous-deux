@@ -176,3 +176,30 @@ test('l’ancien marqueur commun ne fait pas rejouer les cœurs à la première 
   await act(async () => { root.update(<BackgroundTasks />); });
   expect(celebrate).toHaveBeenCalledTimes(1);
 });
+
+test.each(['vide', 'mot doux', 'cœur personnel'])('le premier cœur reçu après une lecture initiale %s est annoncé', async (initial) => {
+  (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(null);
+  const items = initial === 'vide' ? [] : [{ ...ping(100), ...(initial === 'mot doux' ? { kind: 'text' } : { from: 'alice' }) }];
+  (useCollectionState as jest.Mock).mockImplementation((name) => name === 'notes' ? { ...ready, items } : ready);
+  await act(async () => { root = create(<BackgroundTasks />); });
+  expect(celebrate).not.toHaveBeenCalled();
+  notesAt(200);
+  await act(async () => { root.update(<BackgroundTasks />); });
+  expect(celebrate).toHaveBeenCalledTimes(1);
+  expect(celebrate).toHaveBeenCalledWith('hearts', 'Bob pense à toi 💗');
+  await act(async () => { root.update(<BackgroundTasks />); });
+  expect(celebrate).toHaveBeenCalledTimes(1);
+});
+
+test.each(['loading', 'error'])('une première liste vide en %s ne devient pas une référence de lecture', async (status) => {
+  (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(null);
+  (useCollectionState as jest.Mock).mockImplementation((name) => name === 'notes' ? { ...ready, [status]: true } : ready);
+  await act(async () => { root = create(<BackgroundTasks />); });
+  expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+  notesAt(200);
+  await act(async () => { root.update(<BackgroundTasks />); });
+  expect(celebrate).not.toHaveBeenCalled();
+  notesAt(300);
+  await act(async () => { root.update(<BackgroundTasks />); });
+  expect(celebrate).toHaveBeenCalledTimes(1);
+});

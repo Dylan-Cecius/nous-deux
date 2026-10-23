@@ -62,12 +62,13 @@ function ReceivedHearts() {
   const partnerName = partner?.name;
 
   useEffect(() => {
-    if (!seenLoaded || loading || error || !latestPing) return;
+    if (!seenLoaded || loading || error) return;
     const firstLaunch = seen.current === null;
     if (!firstLaunch && latestPing <= seen.current!) return;
     seen.current = latestPing;
     // Garder le marqueur en mémoire même si sa persistance échoue, sans rejet non géré.
     AsyncStorage.setItem(seenKey, String(latestPing)).catch(() => {});
+    // Même une première liste vide établit une référence (0) : le prochain cœur est neuf.
     // À la toute première ouverture, on ne rejoue pas les anciens cœurs.
     if (firstLaunch) return;
     success();
