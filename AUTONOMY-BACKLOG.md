@@ -244,3 +244,5 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 | P2 | Attribution des horaires dans le libellé de la grille | Le 23 octobre à 04:34 : nom du membre ajouté au titre et aux heures pour distinguer des événements identiques sans dépendre des couleurs/colonnes. Un test rouge puis vert couvre Alice, Bob et Nous deux et l’ouverture de chaque fiche ; 194 tests ciblés, lint/TypeScript réussis. Annonce VoiceOver/TalkBack encore à essayer. |
 
 | P2 | Repère aujourd’hui accessible dans la semaine | Le 23 octobre à 04:40 : date courante explicitée dans le libellé, indépendante de la sélection ; un test rouge puis vert couvre sélection du lendemain, minuit et autre semaine. 121 tests ciblés et lint/TypeScript réussis ; annonce native restante. |
+
+| P2 | Contrôle final agenda du 23 octobre, 04:42 | Deux checkpoints indépendants, deux régressions rouges puis vertes ; 194 puis 121 tests ciblés et lint/TypeScript réussis, 192 blobs exacts. Deux recettes natives non exécutées ; environ douze minutes observées avant sauvegarde finale, pas d’autre défaut prêt démontré dans l’audit borné. Aucune distribution ni dépense. |
