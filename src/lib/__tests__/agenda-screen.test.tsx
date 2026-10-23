@@ -47,6 +47,27 @@ beforeEach(() => { (useCollectionState as jest.Mock).mockReturnValue(ready); (us
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); jest.useRealTimers(); });
 const text = () => root.root.findAllByType('t' as never).map((node) => node.children.filter((child) => typeof child === 'string').join('')).join('\n');
 
+test('la grille distingue à l’oral les horaires identiques des deux membres et du couple', async () => {
+  const entries = ['alice', 'bob', 'both'].map(who => ({ ...event, id: `event-${who}`, who }));
+  (useSession as jest.Mock).mockReturnValue({ ...session, nameOf: (id: string) => ({ alice: 'Alice', bob: 'Bob', both: 'Nous deux' })[id] });
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: entries });
+  await act(async () => { root = create(<Agenda />); });
+  const grid = () => root.root.findAll(node => node.props.accessibilityRole === 'button' && typeof node.props.onLongPress === 'function');
+  const labels = [...new Set(grid().map(node => node.props.accessibilityLabel))];
+  expect(labels).toEqual([
+    'Horaire fictif, 09:00 à 12:00, Alice',
+    'Horaire fictif, 09:00 à 12:00, Bob',
+    'Horaire fictif, 09:00 à 12:00, Nous deux',
+  ]);
+  for (const [index, label] of labels.entries()) {
+    await act(async () => grid().find(node => node.props.accessibilityLabel === label)!.props.onPress());
+    expect(root.root.findByProps({ label: 'Pour qui ?' }).props.value).toBe(entries[index].who);
+    await act(async () => root.root.findByType('sheet' as never).props.onClose());
+  }
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(backend.addEvents).not.toHaveBeenCalled();
+});
+
 test.each(['alice', 'both'])('les horaires superposés restent ouvrables dans le détail du jour : %s', async who => {
   const entries = [event, { ...event, id: 'overlap', title: 'Autre rendez-vous fictif', who }];
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: entries });
@@ -208,7 +229,7 @@ const seriesButton = () => root.root.findByProps({ label: 'Supprimer aussi les s
 const openSeries = async () => {
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [seriesEvent] });
   await act(async () => { root = create(<Agenda />); });
-  await act(async () => { root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00' }).find((node) => typeof node.props.onPress === 'function')!.props.onPress(); });
+  await act(async () => { root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00, Alice' }).find((node) => typeof node.props.onPress === 'function')!.props.onPress(); });
 };
 const formField = (label: string) => root.root.findByProps({ label });
 const changeTitle = async (value = 'Titre saisi') => { await act(async () => formField('Titre').props.onChangeText(value)); };
@@ -360,7 +381,7 @@ test('Nous deux reste un choix valide avec un seul membre présent', async () =>
 const askLongPressDelete = async () => {
   (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [seriesEvent] });
   await act(async () => { root = create(<Agenda />); });
-  await act(async () => { root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00' }).find((node) => typeof node.props.onLongPress === 'function')!.props.onLongPress(); });
+  await act(async () => { root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00, Alice' }).find((node) => typeof node.props.onLongPress === 'function')!.props.onLongPress(); });
   return (confirmDelete as jest.Mock).mock.calls[0][1];
 };
 
@@ -717,7 +738,7 @@ test.each(['save', 'delete', 'series', 'longpress'])('un aller-retour de backend
   if (action === 'save') old = root.root.findByProps({ label: 'Enregistrer' }).props.onPress;
   else {
     await act(async () => {
-      if (action === 'longpress') root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00' }).find((node) => node.props.onLongPress)!.props.onLongPress();
+      if (action === 'longpress') root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00, Alice' }).find((node) => node.props.onLongPress)!.props.onLongPress();
       else root.root.findByProps({ label: action === 'series' ? 'Supprimer aussi les semaines suivantes' : 'Supprimer' }).props.onPress();
     });
     old = (confirmDelete as jest.Mock).mock.calls[0][1];
@@ -753,7 +774,7 @@ test.each(['save', 'delete', 'series', 'longpress'])('une ancienne erreur %s n�
   await act(async () => {
     if (action === 'save') pending = root.root.findByProps({ label: 'Enregistrer' }).props.onPress();
     else {
-      if (action === 'longpress') root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00' }).find((node) => node.props.onLongPress)!.props.onLongPress();
+      if (action === 'longpress') root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00, Alice' }).find((node) => node.props.onLongPress)!.props.onLongPress();
       else root.root.findByProps({ label: action === 'series' ? 'Supprimer aussi les semaines suivantes' : 'Supprimer' }).props.onPress();
       pending = (confirmDelete as jest.Mock).mock.calls[0][1]();
     }

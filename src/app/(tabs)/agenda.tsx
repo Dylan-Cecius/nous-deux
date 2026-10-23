@@ -258,7 +258,7 @@ function AgendaContent() {
                   <Pressable
                     key={e.id}
                     accessibilityRole="button"
-                    accessibilityLabel={`${e.title}, ${e.start} à ${e.end}`}
+                    accessibilityLabel={`${e.title}, ${e.start} à ${e.end}, ${nameOf(e.who)}`}
                     onPress={() => setEditing(e)}
                     onLongPress={() => askRemove(e)}
                     style={{

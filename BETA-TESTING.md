@@ -75,3 +75,5 @@ Ces changements ne sont pas dans la build 6. Le projet n’intègre ni `expo-upd
 - [ ] Premier cœur : sur un espace de test sans cœur reçu, laisser la liste se charger puis recevoir un cœur fictif depuis l’autre compte de test. Vérifier une seule annonce/célébration et aucune répétition au prochain affichage ; les historiques déjà présents à la première ouverture ne doivent pas être rejoués.
 
 - [ ] Bulle de célébration : avec comptes de test autorisés, quitter l’espace pendant l’affichage d’un message de cœur ; vérifier son retrait immédiat à la déconnexion et l’absence de réapparition dans un autre contexte. Un simple changement d’onglet dans le même espace conserve la fin normale de la bulle. À vérifier sur appareil et sur le web.
+
+- [ ] Agenda avec VoiceOver/TalkBack : créer uniquement dans un espace de test des horaires identiques pour chacun des membres et pour Nous deux. Vérifier que les boutons de la grille annoncent le bon membre et ouvrent sa fiche, y compris lorsque les horaires se superposent.
