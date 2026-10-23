@@ -228,3 +228,5 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 | P2 | Réduction du mouvement des cartes et du bouton d’ajout | Le 23 octobre à 02:37 : zoom d’appui supprimé lorsque la préférence système le demande, opacité et actions conservées ; deux régressions rouges puis vertes, 179 tests ciblés et lint/TypeScript réussis. Vérification native restant à faire. |
 
 | P2 | Compteur d’accueil à grande taille de texte | Le 23 octobre à 02:39 : nombre et unité autorisés à revenir à la ligne dans la largeur du bandeau, sans réduction de police ni troncature ; 66 suites / 1 797 tests et lint/TypeScript réussis. Contraintes de layout vérifiées dans le code, rendu natif restant. |
+
+| P2 | Écoute partagée du réglage de mouvement | Le 23 octobre à 02:42 : trois consommateurs ne déclenchent plus trois lectures/abonnements natifs ; préférence commune immédiate, nettoyage au dernier départ et réponses périmées ignorées. Quatre tests ajoutés dont deux rouges puis verts ; 66 suites / 1 801 tests et lint/TypeScript réussis. Aucun effet réseau ; essai système réel restant. |

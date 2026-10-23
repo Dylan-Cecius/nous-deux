@@ -1,6 +1,7 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { AccessibilityInfo, Animated, Text } from 'react-native';
 import { celebrate, CelebrationLayer } from '@/components/celebrate';
+import { useReducedMotion } from '../use-reduced-motion';
 
 jest.mock('@expo/vector-icons/Ionicons', () => 'icon');
 jest.mock('@/constants/theme', () => ({ Fonts: {} }));
@@ -26,6 +27,64 @@ beforeEach(() => {
 });
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.restoreAllMocks(); jest.clearAllTimers(); jest.useRealTimers(); });
 const mount = async () => { await act(async () => { root = create(<CelebrationLayer />); }); };
+
+function MotionProbe() {
+  return <Text>{useReducedMotion() ? 'statique' : 'animé'}</Text>;
+}
+
+test('les consommateurs partagent la lecture et l’écoute du même réglage système', async () => {
+  await act(async () => { root = create(<><MotionProbe key="a" /><MotionProbe key="b" /><MotionProbe key="c" /></>); });
+  expect(messages()).toEqual(['animé', 'animé', 'animé']);
+  expect(AccessibilityInfo.isReduceMotionEnabled).toHaveBeenCalledTimes(1);
+  expect(AccessibilityInfo.addEventListener).toHaveBeenCalledTimes(1);
+  const change = (AccessibilityInfo.addEventListener as jest.Mock).mock.calls[0][1];
+  const subscription = (AccessibilityInfo.addEventListener as jest.Mock).mock.results[0].value;
+  await act(async () => change(true));
+  expect(messages()).toEqual(['statique', 'statique', 'statique']);
+  await act(async () => root.update(<><MotionProbe key="a" /></>));
+  expect(subscription.remove).not.toHaveBeenCalled();
+  await act(async () => change(false));
+  expect(messages()).toEqual(['animé']);
+  await act(async () => root.unmount());
+  expect(subscription.remove).toHaveBeenCalledTimes(1);
+});
+
+test('un nouveau consommateur adopte la préférence connue sans redémarrer en statique', async () => {
+  await act(async () => { root = create(<><MotionProbe key="a" /></>); });
+  const read = AccessibilityInfo.isReduceMotionEnabled as jest.Mock;
+  read.mockReturnValue(new Promise(() => {}));
+  await act(async () => root.update(<><MotionProbe key="a" /><MotionProbe key="b" /></>));
+  expect(messages()).toEqual(['animé', 'animé']);
+  expect(read).toHaveBeenCalledTimes(1);
+});
+
+test('une réponse ou un événement de la précédente écoute ne change pas la nouvelle', async () => {
+  let oldRead!: (value: boolean) => void;
+  let newRead!: (value: boolean) => void;
+  (AccessibilityInfo.isReduceMotionEnabled as jest.Mock)
+    .mockImplementationOnce(() => new Promise<boolean>(resolve => { oldRead = resolve; }))
+    .mockImplementationOnce(() => new Promise<boolean>(resolve => { newRead = resolve; }));
+  await act(async () => { root = create(<MotionProbe />); });
+  const oldChange = (AccessibilityInfo.addEventListener as jest.Mock).mock.calls[0][1];
+  await act(async () => root.unmount());
+  await act(async () => { root = create(<MotionProbe />); });
+  expect(messages()).toEqual(['statique']);
+  await act(async () => { oldRead(false); oldChange(false); });
+  expect(messages()).toEqual(['statique']);
+  await act(async () => newRead(false));
+  expect(messages()).toEqual(['animé']);
+});
+
+test('après le dernier départ, une nouvelle lecture inconnue reste statique même si les animations étaient autorisées', async () => {
+  await act(async () => { root = create(<MotionProbe />); });
+  expect(messages()).toEqual(['animé']);
+  await act(async () => root.unmount());
+  (AccessibilityInfo.isReduceMotionEnabled as jest.Mock).mockRejectedValue(new Error('Lecture fictive indisponible'));
+  await act(async () => { root = create(<MotionProbe />); });
+  expect(messages()).toEqual(['statique']);
+  expect(AccessibilityInfo.isReduceMotionEnabled).toHaveBeenCalledTimes(2);
+  expect(AccessibilityInfo.addEventListener).toHaveBeenCalledTimes(2);
+});
 
 test.each(['enabled', 'pending', 'rejected', 'throws'])('réduction du mouvement %s : message conservé sans animation', async (state) => {
   const read = AccessibilityInfo.isReduceMotionEnabled as jest.Mock;
