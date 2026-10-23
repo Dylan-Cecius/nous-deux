@@ -34,20 +34,27 @@ export default function RootLayout() {
             <View style={{ flex: 1, backgroundColor: scheme === 'dark' ? '#0C0709' : '#EFE6E1', alignItems: 'center' }}>
               <View style={{ flex: 1, width: '100%', maxWidth: 430, overflow: 'hidden' }}>
                 <RootStack />
-                <CelebrationLayer />
+                <SessionCelebration />
                 <DialogHost />
               </View>
             </View>
           ) : (
             <>
               <RootStack />
-              <CelebrationLayer />
+              <SessionCelebration />
             </>
           )}
         </CoupleProvider>
       </PrefsProvider>
     </ThemeProvider>
   );
+}
+
+function SessionCelebration() {
+  const { backend, loading, restoreError, syncError } = useCouple();
+  if (!backend || loading || restoreError || syncError) return null;
+  // Le message du partenaire ne doit pas survivre à un changement de session.
+  return <CelebrationLayer key={JSON.stringify([backend.mode, backend.coupleId, backend.userId])} />;
 }
 
 function RootStack() {

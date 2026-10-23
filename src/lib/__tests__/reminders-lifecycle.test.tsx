@@ -15,7 +15,7 @@ jest.mock('expo-notifications', () => ({
   scheduleNotificationAsync: jest.fn(), SchedulableTriggerInputTypes: { DATE: 'date' },
 }));
 jest.mock('../couple-context', () => ({ useCollectionState: jest.fn(), useSession: jest.fn() }));
-jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn() }));
+jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
 jest.mock('@/components/celebrate', () => ({ celebrate: jest.fn() }));
 jest.mock('@/components/account', () => ({ AccountCard: () => null }));
 jest.mock('@/components/invitation-card', () => ({ InvitationCard: () => null }));
