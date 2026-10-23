@@ -2,6 +2,8 @@
 
 Les entrées « à examiner » sont des pistes d’audit, pas des bugs déjà constatés. Reproduire un défaut avant de modifier le comportement. Choisir la première tâche utile réalisable avec les accès présents et sans dépense supplémentaire.
 
+Dernier audit sans nouveau correctif : 23 octobre, 06:33 — photos, cadrage, dates et liens cartographiques ; 136 tests ciblés, lint et TypeScript réussis. Aucun nouveau défaut prêt confirmé ; validations natives et prérequis existants restent ouverts (détails dans le journal).
+
 | Priorité | Tâche | État / critère de fin |
 | --- | --- | --- |
 | P0 | Reprendre le code et exécuter les contrôles dans le cloud, indépendamment du PC | Fait : reconstruction des 97 fichiers texte de GitHub, SHA vérifiés, installation neuve, lint, TypeScript et 41 tests réussis. Les 7 images restent absentes de cette copie de contrôle. |
