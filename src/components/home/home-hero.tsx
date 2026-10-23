@@ -123,11 +123,11 @@ export function HomeHero() {
         <Pressable accessibilityRole="button" accessibilityLabel={storyLabel} accessibilityHint="Ouvre les réglages de votre date de rencontre et de votre photo de couple." onPress={() => setOpen(true)} style={{ gap: 10, paddingTop: 6 }}>
           {together !== null && milestone ? (
             <>
-              <Row style={{ alignItems: 'baseline', gap: 10 }}>
-                <Text style={{ fontFamily: Fonts.displayMedium, fontSize: 64, lineHeight: 68, color: CREAM }}>
+              <Row style={{ alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                <Text style={{ fontFamily: Fonts.displayMedium, fontSize: 64, lineHeight: 68, color: CREAM, maxWidth: '100%' }}>
                   {formatNumber(together)}
                 </Text>
-                <Text style={{ fontFamily: Fonts.displayItalic, fontSize: 22, color: PINK }}>
+                <Text style={{ fontFamily: Fonts.displayItalic, fontSize: 22, color: PINK, maxWidth: '100%' }}>
                   {dayUnit}
                 </Text>
               </Row>

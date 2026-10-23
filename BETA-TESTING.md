@@ -67,3 +67,5 @@ Les deux comptes synthétiques du dernier test cloud ont été supprimés. Les r
 Ces changements ne sont pas dans la build 6. Le projet n’intègre ni `expo-updates` ni configuration EAS Update : modifier GitHub ne modifie pas une application déjà installée. Les changements natifs nécessitent dans tous les cas une nouvelle build et un nouvel envoi. Les testeurs peuvent ensuite utiliser les mises à jour automatiques de TestFlight ou le bouton Mettre à jour, une fois la build disponible dans leur groupe.
 
 - [ ] Cartes interactives et bouton + : activer Réduire les animations sans quitter l’app ; vérifier l’absence de rétrécissement à l’appui, le retour visuel par opacité et l’ouverture normale des fiches. Désactiver la préférence et vérifier le retour du zoom ; aucune action réelle sur un compte de production.
+
+- [ ] Accueil : sur un espace de test ancien (compteur à quatre ou cinq chiffres), agrandir le texte et réduire la largeur disponible. Vérifier que le nombre et « jours ensemble » restent entièrement lisibles, quitte à passer sur deux rangées, et que l’ouverture de Votre histoire fonctionne. Essai non réalisé dans le runtime cloud.

@@ -226,3 +226,5 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 | P2 | Contrôle final des libellés du 23 octobre, 01:35 | Deux checkpoints de layout ; 251 puis 93 tests existants, lint/TypeScript réussis, 192 blobs exacts. Deux recettes natives non exécutées ; environ six minutes observées, aucun autre défaut prêt étayé. Aucune fusion, distribution ou dépense. |
 
 | P2 | Réduction du mouvement des cartes et du bouton d’ajout | Le 23 octobre à 02:37 : zoom d’appui supprimé lorsque la préférence système le demande, opacité et actions conservées ; deux régressions rouges puis vertes, 179 tests ciblés et lint/TypeScript réussis. Vérification native restant à faire. |
+
+| P2 | Compteur d’accueil à grande taille de texte | Le 23 octobre à 02:39 : nombre et unité autorisés à revenir à la ligne dans la largeur du bandeau, sans réduction de police ni troncature ; 66 suites / 1 797 tests et lint/TypeScript réussis. Contraintes de layout vérifiées dans le code, rendu natif restant. |
