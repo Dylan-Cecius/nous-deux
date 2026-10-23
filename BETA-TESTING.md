@@ -81,3 +81,5 @@ Ces changements ne sont pas dans la build 6. Le projet n’intègre ni `expo-upd
 - [ ] Agenda avec VoiceOver/TalkBack : vérifier que le jour courant annonce « aujourd’hui » même après sélection d’un autre jour. Franchir minuit avec l’app ouverte : le repère change de date sans déplacer la sélection ; changer de semaine et vérifier qu’aucun autre jour ne l’annonce. Contrôle sur appareil non réalisé.
 
 - [ ] Accueil avec photo : utiliser uniquement une image de test très claire, puis une image sombre. Vérifier la lisibilité des prénoms, du compteur, de la date et du prochain cap, ainsi que le cadrage conservé. Le voile est plus sombre pour assurer le contraste ; juger le rendu sur appareil. Aucun essai visuel réalisé dans le runtime.
+
+- [ ] Reprise de session : sur un compte de test autorisé, provoquer une indisponibilité de lecture puis agrandir fortement le texte et passer en paysage. Vérifier que le panneau peut défiler jusqu’à Réessayer et à l’assistance, que rien n’est caché par l’encoche/barre système et que la reprise fonctionne au retour du réseau. Vérifier aussi le centrage avec taille de texte normale ; essai non réalisé ici.

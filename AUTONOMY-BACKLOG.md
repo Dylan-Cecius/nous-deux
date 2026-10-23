@@ -248,3 +248,7 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 | P2 | Contrôle final agenda du 23 octobre, 04:42 | Deux checkpoints indépendants, deux régressions rouges puis vertes ; 194 puis 121 tests ciblés et lint/TypeScript réussis, 192 blobs exacts. Deux recettes natives non exécutées ; environ douze minutes observées avant sauvegarde finale, pas d’autre défaut prêt démontré dans l’audit borné. Aucune distribution ni dépense. |
 
 | P2 | Lisibilité du bandeau sur une photo claire | Le 23 octobre à 05:40 : voile renforcé après régression de contraste, minimum calculé 4,943:1 pour les couleurs de texte sur photo blanche. Un test rouge puis vert ; 97 tests ciblés et lint/TypeScript réussis. Photo et cadrage inchangés ; rendu assombri à vérifier sur appareil. |
+
+| P2 | Écran de reprise sur faible hauteur ou texte agrandi | Le 23 octobre à 05:43 : panneau d’erreur de session défilable, centrage conservé si le contenu tient ; reprise et assistance inchangées. 66 suites / 1 819 tests et lint/TypeScript réussis ; layout natif non validé, recette ajoutée. |
+
+| P2 | Contrôle final lisibilité/reprise du 23 octobre, 05:43 | Deux tâches sauvegardées séparément ; une régression de contraste rouge puis verte, 97 tests ciblés puis 1 819 tests globaux réussis. Deux recettes natives non exécutées ; environ neuf minutes observées avant sauvegarde, aucune autre priorité prête étayée dans l’audit. Aucune distribution ni dépense. |

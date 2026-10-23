@@ -9,7 +9,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { Platform, useColorScheme, View } from 'react-native';
+import { Platform, ScrollView, useColorScheme, View } from 'react-native';
 
 import { CelebrationLayer } from '@/components/celebrate';
 import { DialogHost } from '@/components/dialog';
@@ -80,7 +80,10 @@ function RootStack() {
   if (!ready) return null;
 
   if (restoreError || syncError) return (
-    <View style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: t.background }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: t.background }}
+      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
+      contentInsetAdjustmentBehavior="automatic">
       <Card>
         <T variant="h2">Retrouvons votre espace</T>
         <T>{syncError
@@ -89,7 +92,7 @@ function RootStack() {
         <Button label="Réessayer" onPress={restoreError ? retrySession : retrySync} />
         {support ? <T selectable>Assistance : {support.email}</T> : null}
       </Card>
-    </View>
+    </ScrollView>
   );
 
   return (
