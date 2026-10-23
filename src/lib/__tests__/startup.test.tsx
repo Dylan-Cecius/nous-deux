@@ -1,9 +1,10 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Platform, Text } from 'react-native';
+import { Modal, Platform, Pressable, Text } from 'react-native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import RootLayout from '@/app/_layout';
 import { celebrate } from '@/components/celebrate';
+import { showDialog } from '@/components/dialog';
 import { useCouple } from '../couple-context';
 
 jest.mock('@expo-google-fonts/dm-sans/400Regular', () => ({ DMSans_400Regular: 1 }));
@@ -22,7 +23,9 @@ jest.mock('expo-router', () => {
 });
 jest.mock('@expo/vector-icons/Ionicons', () => 'icon');
 jest.mock('../use-reduced-motion', () => ({ useReducedMotion: () => true }));
-jest.mock('@/components/dialog', () => ({ DialogHost: 'dialog' }));
+jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), {
+  Modal: { value: 'modal' }, Pressable: { value: 'pressable' },
+}));
 jest.mock('@/components/ui', () => ({ Button: 'button', Card: 'card', T: 'text' }));
 jest.mock('@/constants/theme', () => ({ PrefsProvider: 'prefs', useTheme: () => ({}), Fonts: {} }));
 jest.mock('../couple-context', () => ({ CoupleProvider: 'couple', useCouple: jest.fn() }));
@@ -149,4 +152,55 @@ test('un rendu ordinaire de la même session conserve le message jusqu’à sa f
   expect(hasMessage('Message courant fictif')).toBe(true);
   await act(async () => jest.advanceTimersByTime(2900));
   expect(hasMessage('Message courant fictif')).toBe(false);
+});
+
+describe('dialogues web liés à la session', () => {
+  let previous: typeof Platform.OS;
+  beforeEach(() => { previous = Platform.OS; Platform.OS = 'web'; });
+  afterEach(() => { Platform.OS = previous; });
+
+  test.each([
+    { backend: null },
+    { backend: { ...backend, userId: 'bob' } },
+    { backend: { ...backend, coupleId: 'autre-couple' } },
+    { backend: { ...backend, mode: 'cloud' } },
+    { loading: true }, { syncError: true }, { restoreError: true },
+  ])('la transition %j retire le dialogue et invalide ses boutons', async change => {
+    const action = jest.fn();
+    (useCouple as jest.Mock).mockReturnValue({ ...state, backend });
+    await mount();
+    await act(async () => showDialog('Choix fictif privé', 'Ancien contenu fictif', [{ text: 'Confirmer', onPress: action }]));
+    expect(hasMessage('Ancien contenu fictif')).toBe(true);
+    const oldPress = root!.root.findByType(Pressable).props.onPress;
+    (useCouple as jest.Mock).mockReturnValue({ ...state, backend, ...change });
+    await act(async () => root!.update(<RootLayout />));
+    expect(root!.root.findAllByType(Modal)).toHaveLength(0);
+    (useCouple as jest.Mock).mockReturnValue({ ...state, backend });
+    await act(async () => root!.update(<RootLayout />));
+    await act(async () => oldPress());
+    expect(action).not.toHaveBeenCalled();
+    expect(hasMessage('Ancien contenu fictif')).toBe(false);
+    await act(async () => showDialog('Nouveau dialogue fictif'));
+    expect(hasMessage('Nouveau dialogue fictif')).toBe(true);
+  });
+
+  test('un rendu ordinaire conserve le dialogue et sa confirmation unique', async () => {
+    const action = jest.fn();
+    (useCouple as jest.Mock).mockReturnValue({ ...state, backend });
+    await mount();
+    await act(async () => showDialog('Courant fictif', undefined, [{ text: 'Confirmer', onPress: action }]));
+    (useCouple as jest.Mock).mockReturnValue({ ...state, backend: { ...backend } });
+    await act(async () => root!.update(<RootLayout />));
+    expect(hasMessage('Courant fictif')).toBe(true);
+    const press = root!.root.findByType(Pressable).props.onPress;
+    await act(async () => { press(); press(); });
+    expect(action).toHaveBeenCalledTimes(1);
+  });
+
+  test('les dialogues de connexion restent disponibles sans espace ouvert', async () => {
+    await mount();
+    await act(async () => showDialog('Échec fictif de connexion', 'Tu peux réessayer.'));
+    expect(hasMessage('Échec fictif de connexion')).toBe(true);
+    expect(hasMessage('Tu peux réessayer.')).toBe(true);
+  });
 });

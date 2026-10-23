@@ -35,7 +35,7 @@ export default function RootLayout() {
               <View style={{ flex: 1, width: '100%', maxWidth: 430, overflow: 'hidden' }}>
                 <RootStack />
                 <SessionCelebration />
-                <DialogHost />
+                <SessionDialogHost />
               </View>
             </View>
           ) : (
@@ -55,6 +55,15 @@ function SessionCelebration() {
   if (!backend || loading || restoreError || syncError) return null;
   // Le message du partenaire ne doit pas survivre à un changement de session.
   return <CelebrationLayer key={JSON.stringify([backend.mode, backend.coupleId, backend.userId])} />;
+}
+
+function SessionDialogHost() {
+  const { backend, loading, restoreError, syncError } = useCouple();
+  if (loading || restoreError || syncError) return null;
+  // Retirer le texte et les confirmations de l'ancien espace, tout en permettant
+  // les messages de connexion quand aucun espace n'est encore ouvert.
+  const scope = backend ? JSON.stringify([backend.mode, backend.coupleId, backend.userId]) : 'onboarding';
+  return <DialogHost key={scope} />;
 }
 
 function RootStack() {

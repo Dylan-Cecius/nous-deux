@@ -254,3 +254,5 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 | P2 | Écran de reprise sur faible hauteur ou texte agrandi | Le 23 octobre à 05:43 : panneau d’erreur de session défilable, centrage conservé si le contenu tient ; reprise et assistance inchangées. 66 suites / 1 819 tests et lint/TypeScript réussis ; layout natif non validé, recette ajoutée. |
 
 | P2 | Contrôle final lisibilité/reprise du 23 octobre, 05:43 | Deux tâches sauvegardées séparément ; une régression de contraste rouge puis verte, 97 tests ciblés puis 1 819 tests globaux réussis. Deux recettes natives non exécutées ; environ neuf minutes observées avant sauvegarde, aucune autre priorité prête étayée dans l’audit. Aucune distribution ni dépense. |
+
+| P1 | Dialogues web après changement de session | Le 23 octobre à 07:33 : ancien texte et confirmation retirés au changement de mode/couple/membre ou indisponibilité ; messages de connexion conservés. Neuf tests ajoutés dont sept rouges puis verts, 1 828 tests globaux et lint/TypeScript réussis. Banc React seulement ; dialogues natifs inchangés, recette web restante. |
