@@ -256,3 +256,5 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 | P2 | Contrôle final lisibilité/reprise du 23 octobre, 05:43 | Deux tâches sauvegardées séparément ; une régression de contraste rouge puis verte, 97 tests ciblés puis 1 819 tests globaux réussis. Deux recettes natives non exécutées ; environ neuf minutes observées avant sauvegarde, aucune autre priorité prête étayée dans l’audit. Aucune distribution ni dépense. |
 
 | P1 | Dialogues web après changement de session | Le 23 octobre à 07:33 : ancien texte et confirmation retirés au changement de mode/couple/membre ou indisponibilité ; messages de connexion conservés. Neuf tests ajoutés dont sept rouges puis verts, 1 828 tests globaux et lint/TypeScript réussis. Banc React seulement ; dialogues natifs inchangés, recette web restante. |
+
+| P2 | Contrôle final des dialogues du 23 octobre, 07:34 | Correctif 4251b78 ; neuf tests nouveaux, 1 828 tests globaux et lint/TypeScript réussis, 192 blobs exacts. Une recette web restante, alertes natives inchangées ; environ cinq minutes observées, aucune seconde tâche prête étayée dans l'audit. Aucune distribution ni dépense. |
