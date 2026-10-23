@@ -185,16 +185,26 @@ export function Card({
   const base = [styles.card, { backgroundColor: bg }, tone === 'default' && cardShadow(t.shadow), style];
   if (!onPress && !onLongPress) return <View style={base}>{children}</View>;
   return (
-    <Pressable
+    <InteractiveCard
+      base={base}
       onPress={onPress}
       onLongPress={onLongPress}
       accessibilityRole={accessibilityLabel ? 'button' : undefined}
       accessibilityLabel={accessibilityLabel}
-      accessibilityHint={accessibilityHint}
-      style={({ pressed }) => [base, pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }]}>
+      accessibilityHint={accessibilityHint}>
       {children}
-    </Pressable>
+    </InteractiveCard>
   );
+}
+
+// Static cards do not need a subscription to the system motion preference.
+function InteractiveCard({ base, ...props }: ComponentProps<typeof Pressable> & { base: StyleProp<ViewStyle> }) {
+  const reducedMotion = useReducedMotion();
+  return <Pressable {...props} style={({ pressed }) => [
+    base,
+    pressed && { opacity: 0.85 },
+    pressed && !reducedMotion && { transform: [{ scale: 0.99 }] },
+  ]} />;
 }
 
 export function Row({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
@@ -563,6 +573,7 @@ export function ColorPicker({
 /** Bouton rond « + » en bas à droite de l'écran. */
 export function Fab({ onPress, label = 'Ajouter', busy = false }: { onPress: () => void; label?: string; busy?: boolean }) {
   const t = useTheme();
+  const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const canPress = useEnabledControl(busy);
   const { run, pending } = useAsyncAction(() => { if (canPress()) return onPress(); });
@@ -580,7 +591,8 @@ export function Fab({ onPress, label = 'Ajouter', busy = false }: { onPress: () 
           backgroundColor: t.primary,
           shadowColor: t.primary,
           bottom: insets.bottom + 100,
-          transform: [{ scale: pressed ? 0.94 : 1 }],
+          transform: [{ scale: pressed && !reducedMotion ? 0.94 : 1 }],
+          opacity: pressed ? 0.8 : 1,
         },
       ]}>
       {unavailable ? <ActivityIndicator color={t.onPrimary} /> : <Ionicons name="add" size={30} color={t.onPrimary} />}

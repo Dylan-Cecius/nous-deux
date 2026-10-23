@@ -65,3 +65,5 @@ Les deux comptes synthétiques du dernier test cloud ont été supprimés. Les r
 - Consignes d’examen et points à finaliser dans `TESTFLIGHT-REVIEW.md`.
 
 Ces changements ne sont pas dans la build 6. Le projet n’intègre ni `expo-updates` ni configuration EAS Update : modifier GitHub ne modifie pas une application déjà installée. Les changements natifs nécessitent dans tous les cas une nouvelle build et un nouvel envoi. Les testeurs peuvent ensuite utiliser les mises à jour automatiques de TestFlight ou le bouton Mettre à jour, une fois la build disponible dans leur groupe.
+
+- [ ] Cartes interactives et bouton + : activer Réduire les animations sans quitter l’app ; vérifier l’absence de rétrécissement à l’appui, le retour visuel par opacité et l’ouverture normale des fiches. Désactiver la préférence et vérifier le retour du zoom ; aucune action réelle sur un compte de production.

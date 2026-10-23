@@ -224,3 +224,5 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 | P2 | Noms des thèmes avec texte agrandi | Le 23 octobre à 01:33 : libellés contenus dans leur colonne, centrés et répartissables sur plusieurs lignes ; pastilles de 52 points conservées. 93 tests existants et lint/TypeScript réussis. Amélioration de layout, aucun rendu natif validé. |
 
 | P2 | Contrôle final des libellés du 23 octobre, 01:35 | Deux checkpoints de layout ; 251 puis 93 tests existants, lint/TypeScript réussis, 192 blobs exacts. Deux recettes natives non exécutées ; environ six minutes observées, aucun autre défaut prêt étayé. Aucune fusion, distribution ou dépense. |
+
+| P2 | Réduction du mouvement des cartes et du bouton d’ajout | Le 23 octobre à 02:37 : zoom d’appui supprimé lorsque la préférence système le demande, opacité et actions conservées ; deux régressions rouges puis vertes, 179 tests ciblés et lint/TypeScript réussis. Vérification native restant à faire. |

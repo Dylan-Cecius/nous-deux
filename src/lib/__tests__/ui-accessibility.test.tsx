@@ -25,6 +25,28 @@ beforeEach(() => { (useReducedMotion as jest.Mock).mockReturnValue(false); });
 afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); });
 const options = [{ value: 'alice', label: 'Alice' }, { value: 'bob', label: 'Bob' }];
 
+test.each(['card', 'fab'])('%s : réduire le mouvement retire le zoom d’appui sans désactiver l’action', async kind => {
+  const action = jest.fn();
+  const content = () => kind === 'card'
+    ? <Card onPress={action} accessibilityLabel="Ouvrir le souvenir"><T>Souvenir fictif</T></Card>
+    : <Fab onPress={action} label="Ajouter un souvenir" />;
+  const scale = (pressed: boolean) => {
+    const style = StyleSheet.flatten(root.root.findByType(Pressable).props.style({ pressed }));
+    return style.transform?.find((entry: { scale?: number }) => entry.scale !== undefined)?.scale ?? 1;
+  };
+  await act(async () => { root = create(content()); });
+  expect(scale(true)).toBeLessThan(scale(false));
+  (useReducedMotion as jest.Mock).mockReturnValue(true);
+  await act(async () => root.update(content()));
+  expect(scale(true)).toBe(1);
+  expect(scale(false)).toBe(1);
+  await act(async () => { await root.root.findByType(Pressable).props.onPress(); });
+  expect(action).toHaveBeenCalledTimes(1);
+  (useReducedMotion as jest.Mock).mockReturnValue(false);
+  await act(async () => root.update(content()));
+  expect(scale(true)).toBeLessThan(scale(false));
+});
+
 test('la feuille suit la réduction du mouvement sans perdre ses enfants ni sa fermeture', async () => {
   const close = jest.fn();
   const content = <Sheet visible title="Formulaire fictif" onClose={close}><Field label="Prénom" value="Alice fictive" /></Sheet>;
