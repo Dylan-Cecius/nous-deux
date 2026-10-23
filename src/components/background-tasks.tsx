@@ -39,8 +39,9 @@ function ReceivedHearts() {
   const { backend, partner } = useSession();
   const { items: notes, loading, error } = useCollectionState('notes');
 
-  // Dernier cœur déjà « vu » sur ce téléphone (date d'envoi), mémorisé entre deux ouvertures.
-  const seenKey = `seen:ping:${backend.coupleId}`;
+  // Le marqueur appartient au membre et au mode, pas seulement au couple.
+  // L'ancienne clé commune n'est pas migrée : son lecteur ne peut pas être identifié.
+  const seenKey = `seen:ping:v2:${JSON.stringify([backend.mode, backend.coupleId, backend.userId])}`;
   const seen = useRef<number | null>(null);
   const [seenLoaded, setSeenLoaded] = useState(false);
   useEffect(() => {

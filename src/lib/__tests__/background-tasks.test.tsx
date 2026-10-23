@@ -77,7 +77,7 @@ test('la première ouverture ne rejoue pas les anciens cœurs, puis un cœur neu
   notesAt(200);
   await act(async () => { root = create(<BackgroundTasks />); });
   expect(celebrate).not.toHaveBeenCalled();
-  expect(AsyncStorage.setItem).toHaveBeenCalledWith('seen:ping:first', '200');
+  expect(AsyncStorage.setItem).toHaveBeenCalledWith('seen:ping:v2:["local","first","alice"]', '200');
   notesAt(300);
   await act(async () => { root.update(<BackgroundTasks />); });
   await act(async () => { root.update(<BackgroundTasks />); });
@@ -140,4 +140,39 @@ test('changer de membre dans le même espace réinitialise aussi la lecture du m
   expect(celebrate).not.toHaveBeenCalled();
   await act(async () => { marker.resolve('300'); });
   expect(celebrate).not.toHaveBeenCalled();
+});
+
+test.each(['membre', 'mode'])('le marqueur persistant reste indépendant après un aller-retour de %s', async (change) => {
+  const stored = new Map<string, string>();
+  (AsyncStorage.getItem as jest.Mock).mockImplementation(async (key: string) => stored.get(key) ?? null);
+  (AsyncStorage.setItem as jest.Mock).mockImplementation(async (key: string, value: string) => { stored.set(key, value); });
+  notesAt(100);
+  await act(async () => { root = create(<BackgroundTasks />); });
+
+  const nextBackend = { ...backend, ...(change === 'membre' ? { userId: 'bob' } : { mode: 'cloud' }) };
+  (useSession as jest.Mock).mockReturnValue({ ...session, backend: nextBackend, me: { id: nextBackend.userId } });
+  (useCollectionState as jest.Mock).mockImplementation((name) => name === 'notes'
+    ? { ...ready, items: [{ ...ping(300), from: change === 'membre' ? 'alice' : 'bob' }] } : ready);
+  await act(async () => { root.update(<BackgroundTasks />); });
+  expect(celebrate).not.toHaveBeenCalled();
+
+  (useSession as jest.Mock).mockReturnValue(session);
+  notesAt(200);
+  await act(async () => { root.update(<BackgroundTasks />); });
+  expect(celebrate).toHaveBeenCalledTimes(1);
+  expect(celebrate).toHaveBeenCalledWith('hearts', 'Bob pense à toi 💗');
+
+  await act(async () => { root.unmount(); });
+  await act(async () => { root = create(<BackgroundTasks />); });
+  expect(celebrate).toHaveBeenCalledTimes(1);
+});
+
+test('l’ancien marqueur commun ne fait pas rejouer les cœurs à la première lecture personnelle', async () => {
+  (AsyncStorage.getItem as jest.Mock).mockImplementation(async (key: string) => key === 'seen:ping:first' ? '100' : null);
+  notesAt(200);
+  await act(async () => { root = create(<BackgroundTasks />); });
+  expect(celebrate).not.toHaveBeenCalled();
+  notesAt(300);
+  await act(async () => { root.update(<BackgroundTasks />); });
+  expect(celebrate).toHaveBeenCalledTimes(1);
 });

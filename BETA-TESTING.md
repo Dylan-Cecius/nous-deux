@@ -69,3 +69,5 @@ Ces changements ne sont pas dans la build 6. Le projet n’intègre ni `expo-upd
 - [ ] Cartes interactives et bouton + : activer Réduire les animations sans quitter l’app ; vérifier l’absence de rétrécissement à l’appui, le retour visuel par opacité et l’ouverture normale des fiches. Désactiver la préférence et vérifier le retour du zoom ; aucune action réelle sur un compte de production.
 
 - [ ] Accueil : sur un espace de test ancien (compteur à quatre ou cinq chiffres), agrandir le texte et réduire la largeur disponible. Vérifier que le nombre et « jours ensemble » restent entièrement lisibles, quitte à passer sur deux rangées, et que l’ouverture de Votre histoire fonctionne. Essai non réalisé dans le runtime cloud.
+
+- [ ] Cœurs reçus : avec deux comptes de test autorisés sur un même téléphone, vérifier que chaque membre conserve son propre dernier cœur vu après déconnexion/reconnexion. Première ouverture après mise à jour : pas de replay historique. Vérifier aussi l’indépendance du mode local ; aucun envoi à un vrai utilisateur.
