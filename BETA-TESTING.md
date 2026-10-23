@@ -79,3 +79,5 @@ Ces changements ne sont pas dans la build 6. Le projet n’intègre ni `expo-upd
 - [ ] Agenda avec VoiceOver/TalkBack : créer uniquement dans un espace de test des horaires identiques pour chacun des membres et pour Nous deux. Vérifier que les boutons de la grille annoncent le bon membre et ouvrent sa fiche, y compris lorsque les horaires se superposent.
 
 - [ ] Agenda avec VoiceOver/TalkBack : vérifier que le jour courant annonce « aujourd’hui » même après sélection d’un autre jour. Franchir minuit avec l’app ouverte : le repère change de date sans déplacer la sélection ; changer de semaine et vérifier qu’aucun autre jour ne l’annonce. Contrôle sur appareil non réalisé.
+
+- [ ] Accueil avec photo : utiliser uniquement une image de test très claire, puis une image sombre. Vérifier la lisibilité des prénoms, du compteur, de la date et du prochain cap, ainsi que le cadrage conservé. Le voile est plus sombre pour assurer le contraste ; juger le rendu sur appareil. Aucun essai visuel réalisé dans le runtime.

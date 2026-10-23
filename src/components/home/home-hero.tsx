@@ -82,7 +82,8 @@ export function HomeHero() {
         <>
           <FramedPhoto uri={photo} frame={couple?.photoFrame} />
           <LinearGradient
-            colors={['rgba(26,11,20,0.55)', 'rgba(26,11,20,0.35)', 'rgba(26,11,20,0.85)']}
+            // Keep every text color legible even over a white photo.
+            colors={['rgba(26,11,20,0.82)', 'rgba(26,11,20,0.80)', 'rgba(26,11,20,0.85)']}
             style={StyleSheet.absoluteFill}
           />
         </>

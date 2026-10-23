@@ -246,3 +246,5 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 | P2 | Repère aujourd’hui accessible dans la semaine | Le 23 octobre à 04:40 : date courante explicitée dans le libellé, indépendante de la sélection ; un test rouge puis vert couvre sélection du lendemain, minuit et autre semaine. 121 tests ciblés et lint/TypeScript réussis ; annonce native restante. |
 
 | P2 | Contrôle final agenda du 23 octobre, 04:42 | Deux checkpoints indépendants, deux régressions rouges puis vertes ; 194 puis 121 tests ciblés et lint/TypeScript réussis, 192 blobs exacts. Deux recettes natives non exécutées ; environ douze minutes observées avant sauvegarde finale, pas d’autre défaut prêt démontré dans l’audit borné. Aucune distribution ni dépense. |
+
+| P2 | Lisibilité du bandeau sur une photo claire | Le 23 octobre à 05:40 : voile renforcé après régression de contraste, minimum calculé 4,943:1 pour les couleurs de texte sur photo blanche. Un test rouge puis vert ; 97 tests ciblés et lint/TypeScript réussis. Photo et cadrage inchangés ; rendu assombri à vérifier sur appareil. |

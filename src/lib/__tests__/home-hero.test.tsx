@@ -1,5 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Pressable } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import { HomeHero } from '@/components/home/home-hero';
 import { useSession } from '../couple-context';
 import { useToday } from '../use-today';
@@ -121,4 +121,36 @@ test('le bandeau retrouve le compteur après reprise de l’espace sans ouvrir d
   expect(counter().props.accessibilityLabel).toContain('0 jour ensemble');
   expect(counter().props.accessibilityLabel).not.toContain('indisponible');
   expect(root.root.findAllByType('sheet' as never)).toHaveLength(0);
+});
+
+// Worst-case bright photo. Check the rendered colors, not a hardcoded opacity.
+const rgb = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+const composite = (color: string, background: number[]) => {
+  if (color.startsWith('#')) return rgb(color);
+  const [r, g, b, alpha] = color.match(/rgba\(([^)]+)\)/)![1].split(',').map(Number);
+  return [r, g, b].map((channel, i) => channel * alpha + background[i] * (1 - alpha));
+};
+const luminance = (channels: number[]) => channels.map(channel => channel / 255)
+  .map(channel => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+  .reduce((sum, channel, i) => sum + channel * [0.2126, 0.7152, 0.0722][i], 0);
+
+test('la photo la plus claire conserve un contraste de texte de 4,5:1 sur le bandeau', async () => {
+  await act(async () => { root = create(<HomeHero />); });
+  const overlay = root.root.findAllByType('gradient' as never)
+    .find(node => node.props.colors.every((color: string) => color.startsWith('rgba(')))!;
+  const colors = [
+    ...root.root.findAllByType(Text).map(node => StyleSheet.flatten(node.props.style).color as string),
+    ...root.root.findAllByType('t' as never).map(node => node.props.color as string),
+  ];
+  const stops = overlay.props.colors.map((color: string) => composite(color, [255, 255, 255])) as number[][];
+  for (let i = 1; i < stops.length; i++) {
+    for (let step = 0; step <= 20; step++) {
+      const background = stops[i - 1].map((channel, j) => channel + (stops[i][j] - channel) * step / 20);
+      for (const color of colors) {
+        const foreground = composite(color, background);
+        const [dark, light] = [luminance(background), luminance(foreground)].sort((a, b) => a - b);
+        expect((light + 0.05) / (dark + 0.05)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  }
 });
