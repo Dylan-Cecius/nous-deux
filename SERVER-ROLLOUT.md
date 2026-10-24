@@ -1,39 +1,46 @@
-# Préparation de mise à niveau serveur — 24 octobre 2026, 13:25 UTC+01:00
+# Mise à niveau serveur — 24 octobre 2026, 12:53 UTC
 
-**État : préparé, non déployé.** Base GitHub `ee7b3012544b9dd5283eed070ceb88ddbfca9633`, PR #3 ouverte/en brouillon.
+**État : quatre fonctions mises à jour et actives ; mise en service du protocole de remboursement encore bloquée.**
 
-## Vérifications effectuées
+Projet `nous-deux-80525`, région `europe-west1`, Node.js 22. Code issu de `9a98c3a0b067657a1461669ca4fa23d7ab8825fe` ; les commits suivants avant ce déploiement ne changent que la documentation. PR #3 ouverte/en brouillon, aucune nouvelle build TestFlight.
 
-- Console Firebase du projet `nous-deux-80525` accessible avec la session existante, sans consultation des documents, comptes utilisateurs ou photos.
-- Dix fonctions présentes dans le tableau de bord : createCouple, joinCouple, createInvitation, submitDailyAnswer, setAiConsent, registerPushToken, notifyPartner, deleteAccount, retryAccountDeletions, cleanupTechnicalData. recordSettlement n'apparaît pas dans cet inventaire. L'inventaire ne prouve pas le contenu exact des révisions déjà déployées.
-- Offre affichée : **Blaze via essai sans frais**, 80 jours et **264 €** de crédit restants, échéance affichée 13 janvier 2027. Le panneau demande de passer explicitement à un compte payant pour poursuivre ensuite ; aucun changement d'offre effectué.
-- La documentation officielle https://cloud.google.com/signup-faqs indique qu'un compte d'essai n'est pas facturé sans passage manuel à un compte payant. Cette observation lève l'incertitude financière pour les services couverts pendant cet essai, sans autoriser achat, activation payante ou dépassement ultérieur. Revérifier le statut juste avant une opération.
-- Compilation functions : code retour 0. `stage-security.cjs` exécuté localement ; fichiers src/lib identiques à la source compilée et entrée `lib/core.js` vérifiée. Le paquet n'exporte pas les fonctions optionnelles IA/Places ni associateMemory.
-- Les 67 tests de sécurité et 11 gardes réussis plus tôt le même jour restent la preuve applicable aux sources inchangées (SECURITY-VALIDATION.md). Ils n'ont pas été répétés. Node 22 de production reste distinct de Node 24 du banc.
-- Le CLI de ce runtime ne possède aucun compte Firebase connecté (`login:list --json` : résultat vide), aucun FIREBASE_TOKEN ni chemin ADC configuré.
-- Cloud Shell intégré puis ouverture directe affichent tous deux **Site Unavailable / Unable to access this site**. Ce constat concerne ce navigateur, pas une panne générale de Google ; aucune tentative de contournement.
-- Le plugin officiel Firebase a été trouvé disponible mais non installé. Installation/connexion proposée au propriétaire ; aucune connexion supposée acquise.
+## Déploiement réalisé
 
-## Lot candidat et limites
+| Fonction | Révision active vérifiée | Mise à jour selon Google (UTC) |
+| --- | --- | --- |
+| createCouple | createcouple-00002-pop | 2026-10-24T12:51:06.068495732Z |
+| deleteAccount | deleteaccount-00002-rec | 2026-10-24T12:51:06.019269242Z |
+| joinCouple | joincouple-00002-yib | 2026-10-24T12:51:05.761580052Z |
+| retryAccountDeletions | retryaccountdeletions-00002-gim | 2026-10-24T12:51:06.982292551Z |
 
-Après accès de déploiement autorisé, vérifier les révisions en ligne, puis appliquer uniquement les fonctions nécessaires : createCouple, joinCouple, deleteAccount, retryAccountDeletions et recordSettlement. La fonction planifiée de reprise partage le mécanisme de suppression ; ne pas la laisser sur une version incompatible avec les nouvelles données privées.
-
-Commande candidate **non exécutée**, à réévaluer après inventaire des révisions et prérequis du protocole :
+Commande effectuée depuis le CLI Firebase authentifié sur MSI, à la demande explicite du propriétaire :
 
 ```sh
-firebase deploy --config firebase.security.json --project nous-deux-80525 --only functions:createCouple,functions:joinCouple,functions:deleteAccount,functions:retryAccountDeletions,functions:recordSettlement
+firebase deploy --config firebase.security.json --project nous-deux-80525 --only functions:createCouple,functions:joinCouple,functions:deleteAccount,functions:retryAccountDeletions --non-interactive
 ```
 
-Ne pas déployer les règles Firestore durcies dans ce lot : elles refusent le chemin de remboursement des anciens clients. Vérifier la transition et la conservation des reçus selon SETTLEMENT-PROTOCOL.md avant mise en service/distribution. La préparation des fonctions seule ne donne pas de garantie globale d'idempotence tant que les anciens ajouts directs restent possibles. Aucun assouplissement de règle ni migration de données n'est prévu.
+Code retour **0**, durée du processus **78,68 secondes**. Les quatre opérations de mise à jour ont réussi ; lecture de l'API après déploiement : état ACTIVE, nouvelles révisions, même région/runtime, mémoire, limites d'instances et délais. Les six autres fonctions ont des métadonnées inchangées. Le job existant de reprise reste ENABLED, every 60 minutes, UTC. Aucun appel de test à une fonction réelle ni déclenchement manuel du job.
 
-Après déploiement autorisé : lire les métadonnées de réussite, région, runtime, fonctions et révisions ; ne pas utiliser de données réelles pour des appels de test. La disponibilité du backend ne prouve pas le fonctionnement natif. Aucun compte, invitation, message ou notification de test à créer en production.
+Preuve filtrée et comparaison avant/après : [docs/deployment-evidence/2026-10-24/functions.json](docs/deployment-evidence/2026-10-24/functions.json). Aucun environnement secret ni credential dans ce fichier. Les dates checkedAt proviennent de l'horloge de MSI, décalée d'une heure par rapport aux dates fournisseur ; les updateTime Google ci-dessus font référence pour le déploiement.
 
-## Empreintes locales du paquet préparé
+## Contrôles et coût
 
-- lib/core.js : `1abdef61d9124deabc77b1b7416f67abc3ad7f985c7cee117f433ce7cc4bed6d`
-- lib/security.js : `cebd472e9541f22d1e863e8a5d72acfff772fcd4631c95350dd8bdc7a22806db`
-- lib/settlements.js : `e06ef4fe181f306b7c43d94b0632a9b8d599098e66838d1912eb217e007e1507`
+- Paquet transféré avec SHA-256 de l'archive et 21 fichiers du manifeste vérifiés ; les 20 blobs source/documentation ont été comparés à GitHub.
+- Compilation et staging sous Node **22.23.4** réussis. Node portable officiel vérifié par SHASUMS256 ; Node global inchangé. Predeploy recompilé avec ce même runtime.
+- Tests applicables aux sources inchangées : **67 tests de sécurité sur les vrais émulateurs demo-nous-deux-security + 11 gardes**, réussis le 24 octobre ; voir SECURITY-VALIDATION.md pour leur environnement Node 24 et les limites d'isolation. Cette compilation Node 22 ne constitue pas une nouvelle exécution des émulateurs sous Node 22.
+- Console Firebase rechargée juste avant l'opération : **Blaze | Essai sans frais**, **264 €** et **80 jours** restants. Absence de facturation sans passage manuel au payant documentée sur https://cloud.google.com/signup-faqs ; aucun passage au payant, achat ou hausse de budget. L'opération peut consommer le crédit d'essai.
+- L'accès par Cloud Shell du navigateur de l'agent restait indisponible ; connexion CLI rétablie sur MSI après validation Google par le propriétaire. Les diagnostics doivent respecter la protection des secrets ajoutée à AUTONOMY.md.
 
-Le dossier généré reste ignoré par Git et n'est pas supposé persistant. Les sources et le script de préparation sont versionnés et permettent sa reconstruction. Aucun secret ni binaire ajouté au dépôt.
+## Limites et suite
 
-Aucun déploiement, build EAS, envoi TestFlight, achat, activation payante ou réactivation d'automatisation effectué.
+- `recordSettlement` **n'est pas déployé**. Le code conserve les reçus privés jusqu'au départ de leur propriétaire ou au dernier départ de l'espace ; la purge quotidienne ne les expire pas. Faire décider/documenter la conservation avant activation, conformément à FIREBASE-RETENTION.md et SETTLEMENT-PROTOCOL.md.
+- Les règles Firestore/Storage **n'ont pas été modifiées**. Les règles durcies de remboursement bloqueraient les anciens ajouts directs : transition de versions et essais restent nécessaires. Aucune garantie globale d'idempotence n'est revendiquée pendant cette transition.
+- Les gardes expectedUserId de création/jonction/suppression sont désormais dans les révisions déployées ; le champ reste facultatif pour les anciens clients. Les tests de contrat disponibles restent simulés/émulés, pas des essais sur les comptes réels.
+- `assistant`, `searchPlaces` et `associateMemory` restent non activés. Aucun message, invitation, compte de test ou suppression réelle déclenché pour cette vérification.
+- Avant TestFlight : terminer les prérequis du nouveau protocole, vérifier la gratuité actuelle d'une build EAS et les accès de soumission, puis exécuter les recettes nécessaires. Aucune nouvelle build, soumission ou validation Apple ; `publicationStatus: draft` et `retentionVerified: false` restent inchangés.
+
+## Empreintes du code compilé contrôlé
+
+- core.js : `1abdef61d9124deabc77b1b7416f67abc3ad7f985c7cee117f433ce7cc4bed6d`
+- security.js : `cebd472e9541f22d1e863e8a5d72acfff772fcd4631c95350dd8bdc7a22806db`
+- settlements.js : `e06ef4fe181f306b7c43d94b0632a9b8d599098e66838d1912eb217e007e1507` (compilé, fonction non activée)
