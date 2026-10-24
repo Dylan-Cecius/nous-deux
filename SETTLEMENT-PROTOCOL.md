@@ -1,6 +1,6 @@
 # Marques de remboursement — protocole préparé
 
-État du 15 octobre 2026 : code serveur testé sur les seuls émulateurs demo-nous-deux-security, non déployé. Aucun paiement : le résultat est uniquement une ligne informative dans les dépenses. Le client cloud est raccordé dans le code, avec tests d’écran simulés ; aucune nouvelle version n’est distribuée.
+État du 24 octobre 2026 : code serveur testé sur les seuls émulateurs demo-nous-deux-security ; recordSettlement déployée et vérifiée ACTIVE à 13:58:49 UTC sous Node 22, révision recordsettlement-00001-sos. Dix fonctions existantes et règles Firestore inchangées. Voir SERVER-ROLLOUT.md et ses preuves. Aucun paiement : le résultat est uniquement une ligne informative dans les dépenses. Le client cloud est raccordé dans le code, avec tests d’écran simulés ; aucune nouvelle version n’est distribuée.
 
 ## Intention et concurrence
 
@@ -19,7 +19,7 @@ Les reçus sont rangés sous `couples/{coupleId}/private/{uid}/settlementRequest
 - Les membres historiques anonymisés (`former-member`) ne sont pas attribués arbitrairement au partenaire actuel : le protocole refuse de solder automatiquement un tel relevé.
 - Garde technique : 500 entrées, solde non nul et au plus 100 000 €, 30 tentatives par heure et par utilisateur. Ces bornes ne sont ni une offre payante ni une autorisation d’augmenter le budget. Le quota inclut les reprises.
 - Le serveur et le client calculent séparément le même arrondi symétrique ; leurs tests couvrent les demi-centimes. Garder ce contrat cohérent lors d’une modification future.
-- Aucun appel réel, build, déploiement ou migration n’a été lancé. L’accès et la preuve d’absence de coût supplémentaire restent nécessaires avant toute mise en service.
+- Aucun appel de test sur des comptes réels ni migration. Le serveur a été déployé le 24 octobre après confirmation de la conservation et vérification de l’essai sans frais. Aucun nouveau client distribué ; règles durcies et transition restent à valider.
 
 ## Vérifications de préparation
 
@@ -32,4 +32,4 @@ Les tests de sécurité couvrent concurrence entre membres et même intention, r
 3. Préparer le remplacement des anciens clients et tester une session ancienne/nouvelle. L’activation des règles durcies bloque le bouton de marque des versions utilisant l’ajout direct. Ne pas la présenter comme transparente, ni la déclencher sans coordination de version.
 4. Activer les règles uniquement quand cette compatibilité et les essais nécessaires sont validés. Ne pas remettre automatiquement des règles permissives en cas d’erreur : conserver le refus sûr et diagnostiquer le serveur/client.
 
-Pendant une éventuelle transition sans règles durcies, les anciens ajouts restent un chemin de doublon. Aucune garantie globale ni distribution sûre n’est revendiquée avant fermeture vérifiée de ce chemin. Aucun de ces déploiements ou essais natifs n’a été effectué ici.
+Pendant une éventuelle transition sans règles durcies, les anciens ajouts restent un chemin de doublon. Aucune garantie globale ni distribution sûre n’est revendiquée avant fermeture vérifiée de ce chemin. Seul le déploiement de la fonction serveur est effectué et vérifié ; aucune activation des règles durcies ni aucun essai natif n’est revendiqué.

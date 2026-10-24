@@ -35,7 +35,7 @@ La connexion Firebase sur Hydan est désormais opérationnelle. Une première ex
 
 ### Stockage préparé le 15 octobre : reçus de marques informatives
 
-Inventaire fondé sur `functions/src/settlements.ts`, `security.ts`, `retention.ts` et les règles de la branche, pas sur une lecture du projet réel. Ce protocole n’a pas été déployé par ces travaux.
+Inventaire fondé sur `functions/src/settlements.ts`, `security.ts`, `retention.ts` et les règles de la branche, pas sur une lecture du projet réel. Actualisation du 24 octobre 2026 : recordSettlement déployée et vérifiée ACTIVE à 13:58:49 UTC après confirmation de la conservation. Aucun reçu réel n’a été créé ou lu par l’agent ; la présence éventuelle de reçus en production n’a pas été recensée. Les règles durcies et le nouveau client ne sont pas distribués.
 
 | Donnée préparée | Usage et accès | Effacement observé dans le code |
 | --- | --- | --- |
