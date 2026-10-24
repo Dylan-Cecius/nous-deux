@@ -1,5 +1,7 @@
 # Priorités de développement autonome
 
+État sécurité actualisé le 24 octobre 2026, 13:11 UTC+01:00 : **67 tests sur émulateurs + 11 gardes réussis** au SHA 921721c. Le blocage de préparation est levé pour cette exécution isolée ; voir [SECURITY-VALIDATION.md](SECURITY-VALIDATION.md) et ses limites. Les preuves datées plus anciennes ci-dessous restent historiques. Déploiement coordonné et TestFlight non effectués ; automatisation toujours en pause.
+
 Les entrées « à examiner » sont des pistes d’audit, pas des bugs déjà constatés. Reproduire un défaut avant de modifier le comportement. Choisir la première tâche utile réalisable avec les accès présents et sans dépense supplémentaire.
 
 Dernier audit sans nouveau correctif : 23 octobre, 06:33 — photos, cadrage, dates et liens cartographiques ; 136 tests ciblés, lint et TypeScript réussis. Aucun nouveau défaut prêt confirmé ; validations natives et prérequis existants restent ouverts (détails dans le journal).
