@@ -33,7 +33,7 @@ Preuve filtrée et comparaison avant/après : [docs/deployment-evidence/2026-10-
 
 ## Limites et suite
 
-- `recordSettlement` **n'est pas déployé**. Le code conserve les reçus privés jusqu'au départ de leur propriétaire ou au dernier départ de l'espace ; la purge quotidienne ne les expire pas. Faire décider/documenter la conservation avant activation, conformément à FIREBASE-RETENTION.md et SETTLEMENT-PROTOCOL.md.
+- `recordSettlement` **n'est pas déployé**. Le code conserve les reçus privés jusqu'au départ de leur propriétaire ou au dernier départ de l'espace ; la purge quotidienne ne les expire pas. Décision confirmée par le propriétaire le 24 octobre : conserver ces reçus jusqu’à la suppression du compte concerné ou de l’espace. Choix consigné dans FIREBASE-RETENTION.md, SETTLEMENT-PROTOCOL.md, l’aide et la politique en brouillon. Les autres conditions de mise en service/distribution restent à vérifier.
 - Les règles Firestore/Storage **n'ont pas été modifiées**. Les règles durcies de remboursement bloqueraient les anciens ajouts directs : transition de versions et essais restent nécessaires. Aucune garantie globale d'idempotence n'est revendiquée pendant cette transition.
 - Les gardes expectedUserId de création/jonction/suppression sont désormais dans les révisions déployées ; le champ reste facultatif pour les anciens clients. Les tests de contrat disponibles restent simulés/émulés, pas des essais sur les comptes réels.
 - `assistant`, `searchPlaces` et `associateMemory` restent non activés. Aucun message, invitation, compte de test ou suppression réelle déclenché pour cette vérification.

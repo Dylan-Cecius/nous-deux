@@ -71,6 +71,13 @@ export default function Aide() {
         <T muted>En mode sans compte, les données restent sur ce téléphone et ne sont pas synchronisées avec celui de ta moitié. Les deux profils utilisent le même appareil : les cadeaux et les réponses n’y sont pas protégés l’un de l’autre.</T>
       </Card>
       <Card>
+        <T variant="h2">Marques de remboursement</T>
+        <T>Marquer un remboursement ajoute une indication à vos dépenses. L’app ne réalise aucun paiement ni virement.</T>
+        <T>En mode synchronisé, le nouveau système conserve un reçu technique lié à ton compte pour éviter de recréer la même marque lors d’une reprise. Il contient une empreinte du relevé, l’identifiant de la marque et sa date, sans titre ni montant en clair. Ce reçu n’est pas anonyme et seul le serveur y accède directement.</T>
+        <T>Le reçu reste conservé jusqu’à la suppression de ton compte ou de votre espace. Effacer seulement la marque ne retire pas le reçu. Si ta moitié reste dans l’espace, ses propres reçus sont conservés.</T>
+        <T muted>Il n’y a pas d’expiration périodique de ces reçus. Leur effacement fait partie du nettoyage du compte ou de l’espace ; un nettoyage interrompu est repris automatiquement. Cette règle concerne les données actives, pas toutes les copies techniques des prestataires. En mode sans compte, aucun reçu serveur n’est créé.</T>
+      </Card>
+      <Card>
         <T variant="h2">Permissions et services facultatifs</T>
         <T>Tu choisis les photos à ajouter. Les notifications s’activent dans Nous → Notifications. Leur contenu reste générique pour les messages du partenaire.</T>
         <T muted>Les rappels locaux peuvent afficher le titre d’une date importante sur l’écran verrouillé. Tu peux masquer les aperçus dans les réglages du téléphone.</T>
