@@ -283,3 +283,6 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 
 
 | P1 | Préparation iOS et sécurité alignée Node 22 | 25 octobre 2026, 22:22 Europe/Brussels : 202 blobs vérifiés, 67 tests émulateurs + 11 gardes sous Node 22.23.4 réussis, ports fermés ; 1 828 tests applicatifs, lint/TypeScript et export JavaScript iOS réussis. EAS Free revérifié, 1/15 iOS consommée. Aucun binaire signé, envoi TestFlight ni recette native ; mentions légales/conservation et transition restent ouvertes. Preuves dans SECURITY-VALIDATION.md et TESTFLIGHT-REVIEW.md. |
+
+
+| P1 | Empêcher une build d'activer IA ou Places par variable distante | 25 octobre 2026, 22:24 Europe/Brussels : deux acceptations de true reproduites puis refusées par check-build-env.cjs ; 13 tests ajoutés, 21 tests ciblés et lint/TypeScript réussis. Aucun service ou environnement distant modifié, aucune build lancée ; risque préventif, aucune dépense constatée. |

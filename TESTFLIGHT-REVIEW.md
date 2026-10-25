@@ -8,6 +8,8 @@ Accès EAS en lecture seule confirmé depuis Hydan, utilisé ponctuellement à l
 
 Blocages restants inchangés : identité légale et TVA à fournir par le propriétaire, conservation/procédure des demandes d'assistance et inventaire des copies de maintenance à finaliser ; politique publique et déclarations non validées. Ne pas assimiler une permission générale de poursuivre à la fourniture de ces informations. La transition des règles reste coordonnée avec le nouveau client et les essais natifs ; les anciens ajouts directs ne sont pas désactivés par ces contrôles.
 
+Garde de build renforcé le même jour : `eas-build-post-install` refuse désormais `EXPO_PUBLIC_ASSISTANT_ENABLED=true` et `EXPO_PUBLIC_PLACES_ENABLED=true`. Auparavant ces valeurs passaient la validation et pouvaient activer des services à l'usage dans le client construit. Deux échecs attendus reproduits avant le correctif ; 13 tests du script ajoutés, puis 21 tests ciblés script/configuration native réussis, lint et TypeScript réussis. Ce contrôle arrête la build avant sa distribution ; il ne désactive pas des fonctions déjà déployées et ne prouve pas la valeur actuelle des variables EAS distantes. Aucun environnement distant modifié. Les preuves avant/après figurent dans le même répertoire de contrôle.
+
 État du 14 octobre 2026. Le dernier statut Apple confirmé pour la build 1.0.0 (6) est l’attente de Beta App Review ; les dernières tentatives de lecture ont échoué avec une erreur 401. Les changements de cette branche ne remplacent pas cette build. Aucun retrait, nouvel envoi ni changement de groupe n’a été effectué pendant cet audit.
 
 ## Risques concrets et état

@@ -8,7 +8,12 @@ if (missing.length) {
 }
 for (const name of ['EXPO_PUBLIC_ASSISTANT_ENABLED', 'EXPO_PUBLIC_PLACES_ENABLED']) {
   if (process.env[name] && !['true', 'false'].includes(process.env[name])) {
-    console.error('Indicateur invalide : ' + name + '. Utiliser true ou false.');
+    console.error('Indicateur invalide : ' + name + '. Cette version exige false ou une valeur absente.');
+    process.exit(1);
+  }
+  // A remote EAS variable must not silently enable a metered service in this release.
+  if (process.env[name] === 'true') {
+    console.error('Build interrompu : ' + name + ' doit rester désactivé (false) dans cette version.');
     process.exit(1);
   }
 }
