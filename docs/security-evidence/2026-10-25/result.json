@@ -1,0 +1,17 @@
+{
+  "sourceCommit": "c735fff1c66ca95f1d3a280372a92a056c272f35",
+  "startedAt": "2026-10-25T21:19:58.593558+00:00",
+  "finishedAt": "2026-10-25T21:20:51.455174+00:00",
+  "exit": 0,
+  "seconds": 52.86,
+  "node": "22.23.4",
+  "project": "demo-nous-deux-security",
+  "portsClosedAfter": {
+    "9098": true,
+    "8088": true,
+    "9198": true,
+    "4400": true,
+    "4500": true
+  },
+  "isolation": "dedicated credential-free copy, demo project, SDK guard and process LD_PRELOAD; not kernel network isolation"
+}

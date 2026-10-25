@@ -1,5 +1,13 @@
 # Préparation de la revue TestFlight — Nous Deux
 
+## Contrôle du candidat le 25 octobre 2026
+
+Source `c735fff`, copie complète de 202 blobs vérifiée : 66 suites / 1 828 tests applicatifs, lint et TypeScript réussis. Export JavaScript iOS hors ligne réussi avec Firebase non configuré et IA/Places désactivés ; ce contrôle n'est ni un binaire signé, ni un essai iPhone. Sécurité réexécutée sous Node 22.23.4 : 67 tests + 11 gardes réussis sur `demo-nous-deux-security` (SECURITY-VALIDATION.md).
+
+Accès EAS en lecture seule confirmé depuis Hydan, utilisé ponctuellement à la demande du propriétaire ; MSI hors ligne. CLI 25.3.0, compte dylancecius, plan Free, iOS 1/15 et total 2/30 consommés, dépassement nul ; cycle finissant le 1er novembre. Le plan Free ne facture pas de dépassement selon https://docs.expo.dev/billing/plans/ consulté ce jour. Cette observation doit être renouvelée avant une opération future. Aucune build ni soumission lancée, aucune authentification exportée, aucun abonnement modifié. Preuves locales : `docs/release-evidence/2026-10-25/`.
+
+Blocages restants inchangés : identité légale et TVA à fournir par le propriétaire, conservation/procédure des demandes d'assistance et inventaire des copies de maintenance à finaliser ; politique publique et déclarations non validées. Ne pas assimiler une permission générale de poursuivre à la fourniture de ces informations. La transition des règles reste coordonnée avec le nouveau client et les essais natifs ; les anciens ajouts directs ne sont pas désactivés par ces contrôles.
+
 État du 14 octobre 2026. Le dernier statut Apple confirmé pour la build 1.0.0 (6) est l’attente de Beta App Review ; les dernières tentatives de lecture ont échoué avec une erreur 401. Les changements de cette branche ne remplacent pas cette build. Aucun retrait, nouvel envoi ni changement de groupe n’a été effectué pendant cet audit.
 
 ## Risques concrets et état

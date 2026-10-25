@@ -1,6 +1,14 @@
 # Validation de sécurité — 24 octobre 2026
 
-## Résultat actuel
+## Actualisation du 25 octobre 2026 — Node 22
+
+Source `c735fff1c66ca95f1d3a280372a92a056c272f35`, 202 blobs vérifiés, dont les ressources binaires originales. À **22:19–22:20 Europe/Brussels (UTC+01:00)**, une nouvelle copie isolée sans credentials a été compilée et testée avec **Node 22.23.4**, la version majeure déclarée pour le serveur : **11/11 gardes et 67/67 tests de sécurité réussis**, zéro échec/ignoré. Suite de sécurité 33,618 s ; compilation et émulateurs compris 52,86 s, code 0. Les cinq ports sont fermés après arrêt.
+
+Archive Linux officielle Node 22.23.4 comparée à `https://nodejs.org/dist/v22.23.4/SHASUMS256.txt` : SHA-256 `1805bcd35e6815559bd2eb97db438d3fdb0eb3a5e6a977b7c1badca76337e9ce`. Les deux JAR ont été revérifiés aux empreintes ci-dessous. Garde réseau recompilé, autocontrôle Node effectué : loopback accepté, IPv4/IPv6 externes et résolution non locale refusées. Même séparation par projet demo, copie dédiée, environnement explicite et garde processus ; **pas de confinement réseau noyau**. Cette exécution locale sous Node 22 ne reproduit pas toute la plateforme Cloud Functions.
+
+Preuves : `docs/security-evidence/2026-10-25/` (résultat, journal, empreintes, autocontrôle, configuration, script d'exécution et source du garde). Première préparation arrêtée avant les tests : l'extraction de l'archive avait retiré les bits exécutables ; droits d'exécution restaurés uniquement sur les binaires locaux téléchargés et vérifiés. Aucun déploiement, appel réel, migration ou changement serveur/règles. Les résultats du 24 octobre restent historiques.
+
+## Résultat du 24 octobre
 
 Code contrôlé : `921721ce125aeb8ee1c3e71c1e8a51896920f6c2`, branche `feat/privacy-support-pages`, PR #3 ouverte et en brouillon. Les 192 blobs du checkout ont été comparés aux SHA GitHub avant exécution : aucune différence.
 
