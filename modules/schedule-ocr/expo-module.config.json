@@ -1,0 +1,5 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": { "modules": ["ScheduleOcrModule"] },
+  "android": { "modules": ["com.nousdeux.scheduleocr.ScheduleOcrModule"] }
+}

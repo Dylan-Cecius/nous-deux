@@ -1,0 +1,24 @@
+[
+  {
+    "packageName": "schedule-ocr",
+    "pods": [
+      {
+        "podName": "ScheduleOcr",
+        "podspecDir": "/workspace/scratch/01291f6896cc/nous-deux/modules/schedule-ocr/ios"
+      }
+    ],
+    "swiftModuleNames": [
+      "ScheduleOcr"
+    ],
+    "modules": [
+      {
+        "name": null,
+        "class": "ScheduleOcrModule"
+      }
+    ],
+    "appDelegateSubscribers": [],
+    "reactDelegateHandlers": [],
+    "debugOnly": false,
+    "packageVersion": ""
+  }
+]

@@ -17,7 +17,7 @@ import {
   Sheet,
   T,
 } from '@/components/ui';
-import { useAssistant } from '@/components/assistant-context';
+import { ScheduleImport } from '@/components/schedule-import';
 import { showDialog } from '@/components/dialog';
 import { TimeField } from '@/components/pickers';
 import { cardShadow, Fonts, Spacing, useTheme } from '@/constants/theme';
@@ -58,7 +58,7 @@ function AgendaContent() {
   const { run: runDelete } = useAsyncAction((action: () => Promise<void>) => action());
   const unavailable = eventState.loading || eventState.error;
   const events = unavailable ? [] : eventState.items;
-  const assistant = useAssistant();
+  const [importing, setImporting] = useState(false);
 
   const [{ selected, weekStart }, setNavigation] = useState(() => {
     const day = todayKey();
@@ -170,13 +170,17 @@ function AgendaContent() {
           <Button label="Revenir à aujourd’hui" variant="ghost" small onPress={returnToToday} />
         )}
 
-        {assistant && (
+        <T variant="small" muted>{backend.mode === 'cloud'
+          ? members.length === 2 ? 'Agenda partagé entre les deux membres de votre espace.' : 'Agenda synchronisé. Le partage à deux sera disponible quand ton partenaire aura rejoint cet espace.'
+          : 'Agenda local sur ce téléphone. Connectez-vous au même espace pour partager vos horaires entre appareils.'}</T>
+        {(
           <Button
             label="Importer mon planning en photo"
             icon="camera-outline"
             variant="outline"
             small
-            onPress={() => assistant.open('schedule')}
+            disabled={!!unavailable}
+            onPress={() => setImporting(true)}
           />
         )}
 
@@ -313,6 +317,8 @@ function AgendaContent() {
         )}
       </Screen>
       {!unavailable && <Fab onPress={() => setEditing('new')} label="Ajouter un horaire" />}
+
+      {importing && <ScheduleImport defaultDate={selected} onClose={() => setImporting(false)} />}
 
       {editing && (
         <EventSheet

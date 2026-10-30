@@ -1,0 +1,81 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> app-couple@1.0.0 test
+> jest --runInBand
+
+PASS src/lib/__tests__/account-actions.test.tsx
+PASS src/lib/__tests__/agenda-screen.test.tsx
+PASS src/lib/__tests__/love-cards.test.tsx
+PASS src/lib/__tests__/schedule-import-screen.test.tsx
+PASS src/lib/__tests__/schedule-import.test.ts
+PASS src/lib/__tests__/build-env.test.ts
+PASS src/lib/__tests__/ui-accessibility.test.tsx
+PASS src/lib/__tests__/restaurant-form.test.tsx
+PASS src/lib/__tests__/member-card.test.tsx
+PASS src/lib/__tests__/theme-contrast.test.tsx
+PASS src/lib/__tests__/local-backend.test.ts
+PASS src/lib/__tests__/reminders-state.test.tsx
+PASS src/lib/__tests__/list-form.test.tsx
+PASS src/lib/__tests__/counter-sheet.test.tsx
+PASS src/lib/__tests__/expense-actions.test.tsx
+PASS src/lib/__tests__/local-recovery.test.tsx
+PASS src/lib/__tests__/frame-editor.test.tsx
+PASS src/lib/__tests__/aide.test.tsx
+PASS src/lib/__tests__/question-card.test.tsx
+PASS src/lib/__tests__/list-actions.test.tsx
+PASS src/lib/__tests__/memory-form.test.tsx
+PASS src/lib/__tests__/invitation-card.test.tsx
+PASS src/lib/__tests__/home-hero.test.tsx
+PASS src/lib/__tests__/website-forms.test.ts
+PASS src/lib/__tests__/startup.test.tsx
+PASS src/lib/__tests__/memories-screen.test.tsx
+PASS src/lib/__tests__/shopping-basket.test.ts
+PASS src/lib/__tests__/countdown-actions.test.tsx
+PASS src/lib/__tests__/dialog.test.tsx
+PASS src/lib/__tests__/expenses.test.ts
+PASS src/lib/__tests__/pickers.test.tsx
+PASS src/lib/__tests__/signin-form.test.tsx
+PASS src/lib/__tests__/celebrate.test.tsx
+PASS src/lib/__tests__/expense-form.test.tsx
+PASS src/lib/__tests__/external-session.test.ts
+PASS src/lib/__tests__/onboarding-form.test.tsx
+PASS src/lib/__tests__/lists-restaurants.test.tsx
+PASS src/lib/__tests__/photo-upload.test.ts
+PASS src/lib/__tests__/sync-screen.test.tsx
+PASS src/lib/__tests__/session.test.ts
+PASS src/lib/__tests__/expenses-screen.test.tsx
+PASS src/lib/__tests__/onboarding-identity.test.ts
+PASS src/lib/__tests__/write-identity.test.ts
+PASS src/lib/__tests__/interaction.test.tsx
+PASS src/lib/__tests__/theme-prefs.test.tsx
+PASS src/lib/__tests__/notifications.test.ts
+PASS src/lib/__tests__/memory-association.test.ts
+PASS src/lib/__tests__/reminders-lifecycle.test.tsx
+PASS src/lib/__tests__/background-tasks.test.tsx
+PASS src/lib/__tests__/photos.test.ts
+PASS src/lib/__tests__/use-today.test.tsx
+PASS src/lib/__tests__/add-memory.test.tsx
+PASS src/lib/__tests__/shared-draft.test.tsx
+PASS src/lib/__tests__/public-info.test.ts
+PASS src/lib/__tests__/restore-lifecycle.test.tsx
+PASS src/lib/__tests__/deletion-identity.test.ts
+PASS src/lib/__tests__/native-config.test.ts
+PASS src/lib/__tests__/restaurant-rating.test.tsx
+PASS src/lib/__tests__/schedule-photo.test.ts
+PASS src/lib/__tests__/ping-motion.test.tsx
+PASS src/lib/__tests__/onboarding-action.test.tsx
+PASS src/lib/__tests__/floating-heart-motion.test.tsx
+PASS src/lib/__tests__/event-batch.test.ts
+PASS src/lib/__tests__/restaurant-map.test.ts
+PASS src/lib/__tests__/dates.test.ts
+PASS src/lib/__tests__/service-errors.test.ts
+PASS src/lib/__tests__/session-races.test.ts
+PASS src/lib/__tests__/errors.test.ts
+PASS src/lib/__tests__/account-errors.test.ts
+PASS src/lib/__tests__/agenda.test.ts
+
+Test Suites: 70 passed, 70 total
+Tests:       1868 passed, 1868 total
+Snapshots:   0 total
+Time:        28.873 s, estimated 47 s
+Ran all test suites.

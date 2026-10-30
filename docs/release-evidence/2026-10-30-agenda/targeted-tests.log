@@ -1,0 +1,14 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> app-couple@1.0.0 test
+> jest --runInBand src/lib/__tests__/schedule-import.test.ts src/lib/__tests__/schedule-import-screen.test.tsx src/lib/__tests__/schedule-photo.test.ts
+
+PASS src/lib/__tests__/schedule-import-screen.test.tsx
+PASS src/lib/__tests__/schedule-import.test.ts
+PASS src/lib/__tests__/schedule-photo.test.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       27 passed, 27 total
+Snapshots:   0 total
+Time:        2.429 s
+Ran all test suites matching /src\/lib\/__tests__\/schedule-import.test.ts|src\/lib\/__tests__\/schedule-import-screen.test.tsx|src\/lib\/__tests__\/schedule-photo.test.ts/i.

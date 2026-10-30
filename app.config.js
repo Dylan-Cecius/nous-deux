@@ -25,8 +25,8 @@ module.exports = ({ config }) => {
         return [name, {
           ...(Array.isArray(plugin) ? plugin[1] : {}),
           ...(!assistantEnabled && {
-            photosPermission: 'Nous Deux utilise uniquement les photos que tu choisis pour vos souvenirs ou votre photo de couple.',
-            cameraPermission: 'Nous Deux utilise l’appareil photo pour prendre une photo à ajouter à vos souvenirs.',
+            photosPermission: 'Nous Deux utilise les photos que tu choisis pour vos souvenirs, votre photo de couple ou la lecture locale de ton planning.',
+            cameraPermission: 'Nous Deux utilise l’appareil photo pour vos souvenirs ou pour lire les horaires de ton planning sur cet appareil.',
           }),
           microphonePermission: false,
         }];

@@ -35,7 +35,7 @@ test.each([undefined, 'false', 'FALSE', 'true'])('la configuration actuelle excl
   expect(result.android?.package).toBe(shipped.android?.package);
 });
 
-test('assistant désactivé : textes photo sans promesse d’import de planning', () => {
+test('assistant désactivé : la lecture locale de planning conserve les permissions photo sans micro', () => {
   process.env.EXPO_PUBLIC_ASSISTANT_ENABLED = 'false';
   const result = configure({ config: shipped });
   const picker = result.plugins?.find(plugin => pluginName(plugin) === 'expo-image-picker');
@@ -43,7 +43,9 @@ test('assistant désactivé : textes photo sans promesse d’import de planning'
   if (!Array.isArray(picker)) throw new Error('Plugin photo attendu');
   expect(picker[1].photosPermission).toContain('photos que tu choisis');
   expect(picker[1].cameraPermission).toContain('souvenirs');
-  expect(JSON.stringify(picker[1])).not.toContain('planning');
+  expect(picker[1].photosPermission).toContain('lecture locale');
+  expect(picker[1].cameraPermission).toContain('planning sur cet appareil');
+  expect(picker[1].microphonePermission).toBe(false);
 });
 
 test('les formes simples et configurées des plugins sont filtrées sans perdre les autres options', () => {
