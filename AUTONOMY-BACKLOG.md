@@ -286,3 +286,6 @@ Si toutes les tâches prêtes sont terminées, faire un audit ciblé des parcour
 
 
 | P1 | Empêcher une build d'activer IA ou Places par variable distante | 25 octobre 2026, 22:24 Europe/Brussels : deux acceptations de true reproduites puis refusées par check-build-env.cjs ; 13 tests ajoutés, 21 tests ciblés et lint/TypeScript réussis. Aucun service ou environnement distant modifié, aucune build lancée ; risque préventif, aucune dépense constatée. |
+
+
+| P1 | Bêta privée sans mentions nominatives ajoutées | 30 octobre 2026 : instruction du propriétaire distinguée d'une publication publique ; 219 blobs vérifiés, 1 841 tests/lint/TypeScript réussis, environnement preview et EAS Free contrôlés. Build 1.0.0 (7), ID 9caaa1ae-f4cb-4eba-8b99-73c60aabbb6c, créée ; compilation, soumission et essai iPhone pas encore confirmés à ce checkpoint. |

@@ -1,5 +1,15 @@
 # Préparation de la revue TestFlight — Nous Deux
 
+## Préparation TestFlight du 30 octobre 2026
+
+Le propriétaire demande une bêta privée sans ajout de nom légal ni de numéro de TVA dans l'application. Leur absence n'est plus traitée comme un blocage automatique de cette préparation TestFlight. Cela ne valide pas une publication publique : politique et liens restent en brouillon, conservation de l'assistance et copies à finaliser. Le compte Apple observé est individuel ; le nom affiché par Apple n'a pas été modifié et aucun anonymat n'est promis.
+
+Source applicative `6f41e452ea5c5203a5e6727829eb7304c6c97f03`, 219 blobs Git vérifiés (images originales incluses), archive SHA-256 `a9a4e550f9102d9d033ef7e55ddc646cc84ae8de58501dca3095ab231a1efe79`. Copie séparée sur MSI, utilisée ponctuellement à la demande du propriétaire. Installation sans scripts réussie, puis garde exécuté avec l'environnement EAS preview : Firebase attendu confirmé et IA/Places désactivés, sans appel applicatif.
+
+Nouveaux contrôles cloud : lint, TypeScript et **67 suites / 1 841 tests réussis** (55,679 s). Sources serveur et règles inchangées ; les 67 tests sécurité + 11 gardes du 25 octobre restent la preuve datée, non réexécutée ici.
+
+EAS Free revérifié avant lancement : 1/15 builds iOS, 2/30 total, dépassement nul, aucune option ; documentation officielle confirme l'absence de facturation de dépassement sur Free. Build **1.0.0 (7)** créée : [suivi EAS](https://expo.dev/accounts/dylancecius/projects/nous-deux/builds/9caaa1ae-f4cb-4eba-8b99-73c60aabbb6c). À ce checkpoint (2026-10-30T13:09:43.991Z), compilation non encore confirmée, aucune soumission ni recette iPhone. Signature distante existante réutilisée, aucune clé créée, aucun achat, déploiement serveur ou changement de groupe.
+
 ## Contrôle du candidat le 25 octobre 2026
 
 Source `c735fff`, copie complète de 202 blobs vérifiée : 66 suites / 1 828 tests applicatifs, lint et TypeScript réussis. Export JavaScript iOS hors ligne réussi avec Firebase non configuré et IA/Places désactivés ; ce contrôle n'est ni un binaire signé, ni un essai iPhone. Sécurité réexécutée sous Node 22.23.4 : 67 tests + 11 gardes réussis sur `demo-nous-deux-security` (SECURITY-VALIDATION.md).
