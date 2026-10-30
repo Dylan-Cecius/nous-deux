@@ -10,7 +10,7 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getAuth } = require('firebase-admin/auth');
 const { getStorage } = require('firebase-admin/storage');
 const { initializeTestEnvironment, assertFails, assertSucceeds } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, serverTimestamp, Timestamp, writeBatch, runTransaction } = require('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, serverTimestamp, Timestamp, writeBatch, runTransaction, onSnapshot } = require('firebase/firestore');
 const { ref, uploadBytes, getBytes } = require('firebase/storage');
 
 const app = initializeApp({ projectId, storageBucket: `${projectId}.appspot.com` });
@@ -54,6 +54,36 @@ const settlementInput = (requestId = 'request-alice-0001', expected = [{ id: 'or
 const memoryInput = (patch = {}) => ({
   coupleId: cid, expectedUserId: 'alice', requestId: 'memory-alice-0001',
   photoUrl: 'data:image/jpeg;base64,AAAA', caption: 'Souvenir fictif', date: '2026-10-15', ...patch,
+});
+
+test('agenda partagé : Alice écrit pour Bob, Bob reçoit le lot en temps réel, un tiers ne peut pas le lire', async () => {
+  await seed();
+  const alice = client('alice');
+  const bob = client('bob');
+  const path = `couples/${cid}/events`;
+  let stop;
+  let timeout;
+  try {
+    const received = new Promise((resolve, reject) => {
+      timeout = setTimeout(() => reject(new Error('Partage agenda non reçu')), 10000);
+      stop = onSnapshot(collection(bob, path), snap => {
+        if (snap.size === 2 && !snap.metadata.fromCache) resolve(snap.docs.map(d => d.data()).sort((a, b) => a.start.localeCompare(b.start)));
+      }, reject);
+    });
+    // Attach rejection immediately, even if a write fails before the snapshot.
+    received.catch(() => {});
+    const batch = writeBatch(alice);
+    for (const [id, start, end] of [['morning', '09:00', '12:00'], ['afternoon', '13:00', '17:00']]) {
+      batch.set(doc(alice, path, id), { title: 'Travail fictif', date, start, end, who: 'bob', kind: 'travail', createdBy: 'alice' });
+    }
+    await assertSucceeds(batch.commit());
+    const items = await received;
+    assert.deepEqual(items.map(e => [e.who, e.start, e.end]), [['bob', '09:00', '12:00'], ['bob', '13:00', '17:00']]);
+    await assertFails(getDocs(collection(client('mallory'), path)));
+    await assertFails(getDocs(collection(env.unauthenticatedContext().firestore(), path)));
+    await assertSucceeds(updateDoc(doc(bob, path, 'morning'), { end: '12:30' }));
+    assert.equal((await getDoc(doc(alice, path, 'morning'))).data().end, '12:30');
+  } finally { stop?.(); clearTimeout(timeout); }
 });
 
 test('contrat client/serveur : réponse perdue après commit puis reprise sans doublon ni écrasement', async () => {
