@@ -10,6 +10,14 @@ Nouveaux contrôles cloud : lint, TypeScript et **67 suites / 1 841 tests réuss
 
 EAS Free revérifié avant lancement : 1/15 builds iOS, 2/30 total, dépassement nul, aucune option ; documentation officielle confirme l'absence de facturation de dépassement sur Free. Build **1.0.0 (7)** créée : [suivi EAS](https://expo.dev/accounts/dylancecius/projects/nous-deux/builds/9caaa1ae-f4cb-4eba-8b99-73c60aabbb6c). À ce checkpoint (2026-10-30T13:09:43.991Z), compilation non encore confirmée, aucune soumission ni recette iPhone. Signature distante existante réutilisée, aucune clé créée, aucun achat, déploiement serveur ou changement de groupe.
 
+### Résultat de livraison vérifié le 30 octobre 2026 (2026-10-30T13:16:34.960Z)
+
+- Build iOS **1.0.0 (7)** : **FINISHED**, terminée à 13:14:25 UTC, sans erreur signalée par EAS. [Build](https://expo.dev/accounts/dylancecius/projects/nous-deux/builds/9caaa1ae-f4cb-4eba-8b99-73c60aabbb6c).
+- Soumission **e1bf3399-4e59-41e6-93da-1b064198c10b** : **FINISHED**, terminée à 13:14:49 UTC, sans erreur signalée par EAS. [Soumission](https://expo.dev/accounts/dylancecius/projects/nous-deux/submissions/e1bf3399-4e59-41e6-93da-1b064198c10b). Commande ciblée sur cette build avec `--no-auto-testflight-setup` ; aucun nouveau groupe ni testeur ajouté.
+- La lecture App Store Connect après compilation ne listait encore que **1.0.0 (6)** en test interne et externe. Le succès EAS Submit confirme l'envoi, pas la disponibilité de la version 7 ni une approbation Apple : traitement Apple et visibilité TestFlight restent à vérifier.
+- App Store public : aucune version en ligne, en revue ou en attente de publication selon cette lecture. Aucun envoi pour publication publique effectué.
+- Recette iPhone de la version 7 toujours à faire ; ni la compilation native ni les 1 841 tests automatisés ne la remplacent. Les règles serveur restent inchangées et leur transition demeure ouverte.
+
 ## Contrôle du candidat le 25 octobre 2026
 
 Source `c735fff`, copie complète de 202 blobs vérifiée : 66 suites / 1 828 tests applicatifs, lint et TypeScript réussis. Export JavaScript iOS hors ligne réussi avec Firebase non configuré et IA/Places désactivés ; ce contrôle n'est ni un binaire signé, ni un essai iPhone. Sécurité réexécutée sous Node 22.23.4 : 67 tests + 11 gardes réussis sur `demo-nous-deux-security` (SECURITY-VALIDATION.md).
