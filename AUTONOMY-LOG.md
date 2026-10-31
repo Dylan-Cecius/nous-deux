@@ -2225,3 +2225,7 @@ Preuves : six cas rouges puis verts, six contrôles initiaux et huit contrôles 
 
 ### 31 octobre 2026 — Garde finale des colonnes supplémentaires (2026-10-31T17:30:22.577Z)
 - Revue avant compilation : refuser aussi un en-tête suivi d'autres colonnes (risque de perdre un deuxième créneau) et conserver une première ligne illisible sous l'en-tête. Un test ajouté couvrant les deux cas ; 42 tests ciblés, lint et TypeScript réussis en dernier état (suite ciblée 1,273 s). Les 1 882 tests globaux précédents restent datés avant cette garde. Aucun déploiement ou appel applicatif.
+
+### 31 octobre 2026 — Build corrective 9 lancée (2026-10-31T17:33:09.377Z)
+- Source f903692ee0b2f78a989024b29667cefcfa090d08, 246 blobs vérifiés sur MSI ; installation sans scripts réussie, garde preview/Firebase attendu et fonctions payantes désactivées vérifiés. EAS Free : 3/15 iOS, 4/30 total avant lancement, coût estimé/dépassement zéro.
+- Build beta iOS 1.0.0 (9) créée : b97bdd11-eb61-4640-9413-94d3e8d57548 ; commande code 0, 90,91 s incluant garde/envoi. Compilation en attente, aucune soumission de la 9 à ce checkpoint. Copie de livraison distincte, anciennes versions préservées ; aucune donnée utilisateur lue/écrite.

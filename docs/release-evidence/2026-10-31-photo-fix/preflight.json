@@ -1,0 +1,31 @@
+{
+  "source": "f903692ee0b2f78a989024b29667cefcfa090d08",
+  "buildId": "b97bdd11-eb61-4640-9413-94d3e8d57548",
+  "status": "STARTED",
+  "date": "2026-10-31T17:33:09.382Z",
+  "verifiedGitBlobs": 246,
+  "tests": {
+    "fullSuites": 71,
+    "fullTests": 1882,
+    "fullSeconds": 12.107,
+    "fullBeforeFinalGuard": true,
+    "finalTargetedTests": 42,
+    "finalTargetedSeconds": 1.273,
+    "lint": 0,
+    "typescript": 0
+  },
+  "usage": {
+    "plan": "Free",
+    "iosUsed": 3,
+    "iosLimit": 15,
+    "totalUsed": 4,
+    "totalLimit": 30,
+    "estimatedCents": 0,
+    "overageCents": 0
+  },
+  "limits": [
+    "Synthetic OCR positions, no original photo OCR execution",
+    "iPhone retest required",
+    "Android native compilation not performed"
+  ]
+}
