@@ -1,0 +1,28 @@
+{
+  "source": "d9f157a7986b309ff4a83847f316e84e9dc26df8",
+  "verifiedGitBlobs": 242,
+  "deltaArchiveSha256": "04e27a9a7a3e8ff8279072fe3813d10833a59b1eff982ab4fc04bb8e209aae5c",
+  "checks": {
+    "lint": 0,
+    "typescript": 0,
+    "jest": {
+      "suites": 70,
+      "tests": 1868,
+      "seconds": 29.477
+    }
+  },
+  "securityEvidence": "docs/security-evidence/2026-10-30-agenda",
+  "usageBeforeBuild": {
+    "date": "2026-10-31",
+    "plan": "Free",
+    "iosUsed": 2,
+    "iosLimit": 15,
+    "totalUsed": 3,
+    "totalLimit": 30,
+    "estimatedCents": 0,
+    "overageCents": 0,
+    "addons": []
+  },
+  "deviceTesting": false,
+  "productionDataAccess": false
+}

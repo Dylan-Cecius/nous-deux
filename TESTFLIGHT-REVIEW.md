@@ -1,5 +1,11 @@
 # Préparation de la revue TestFlight — Nous Deux
 
+## Build OCR du 31 octobre 2026 — en cours
+
+Source `d9f157a7986b309ff4a83847f316e84e9dc26df8`, 242 blobs Git vérifiés. Lint/TypeScript réussis, 70 suites / 1 868 tests réussis en 29,477 s. Installation MSI isolée réussie (1 154 paquets), garde EAS preview réussi : projet Firebase attendu, IA/Places désactivés. EAS Free relu avant lancement : 2/15 iOS, 3/30 total, zéro dépassement/option/coût estimé.
+
+Build **1.0.0 (8)** créée : [suivi](https://expo.dev/accounts/dylancecius/projects/nous-deux/builds/45d7c3a5-035e-4218-afe8-d607c322423e). Compilation native pas encore confirmée à ce checkpoint ; aucune soumission de la 8. Le propriétaire demande explicitement son envoi TestFlight pour essai ; la précision OCR et le parcours photo sur iPhone restent à vérifier. Aucun changement serveur/règles, aucun service payant activé ni modification de groupes/testeurs.
+
 ## Préparation TestFlight du 30 octobre 2026
 
 Le propriétaire demande une bêta privée sans ajout de nom légal ni de numéro de TVA dans l'application. Leur absence n'est plus traitée comme un blocage automatique de cette préparation TestFlight. Cela ne valide pas une publication publique : politique et liens restent en brouillon, conservation de l'assistance et copies à finaliser. Le compte Apple observé est individuel ; le nom affiché par Apple n'a pas été modifié et aucun anonymat n'est promis.
