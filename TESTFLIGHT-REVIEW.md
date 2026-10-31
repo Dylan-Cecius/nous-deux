@@ -1,5 +1,15 @@
 # Préparation de la revue TestFlight — Nous Deux
 
+## Correctif photo — 31 octobre 2026 (2026-10-31T17:44:53.046Z)
+
+La vidéo utilisateur montre le mélange des colonnes d'un tableau et du texte autour, puis zéro créneau. Correctif : boîtes OCR locales, reconstruction des lignes d'un unique tableau Jour / Début / Fin, conservation des cellules manquantes/colonnes ambiguës en correction manuelle et résumé des erreurs. Source `f903692ee0b2f78a989024b29667cefcfa090d08`, 246 blobs vérifiés, aucun serveur/règle modifié.
+
+- **1.0.0 (9)** compilée : FINISHED à 17:38:23 UTC, sans erreur. [Build](https://expo.dev/accounts/dylancecius/projects/nous-deux/builds/b97bdd11-eb61-4640-9413-94d3e8d57548).
+- Envoi Apple FINISHED à 17:39:39 UTC, sans erreur. [Soumission](https://expo.dev/accounts/dylancecius/projects/nous-deux/submissions/f22d3fd8-da72-41bf-805b-d83725d2fc29). Aucun ajout de groupe/testeur ni revue externe ; coût supplémentaire nul selon le plan Free et le quota contrôlés avant lancement.
+- Dernière lecture Apple réussie : **8 en test interne**, externe prête pour soumission ; la disponibilité de la **9 n'est pas encore confirmée**. Le contrôle suivant n'a pas rendu de résultat dans l'attente bornée. Aucun App Store public publié.
+- Contrôles : 71 suites / 1 882 tests avant la dernière garde, puis 42 tests ciblés et lint/TypeScript réussis sur la source finale. Swift compilé ; Android natif non compilé. Positions du tableau simulées dans les tests, photo originale non disponible, aucune recette iPhone du correctif revendiquée.
+- À tester sur la 9 : sélectionner à nouveau la photo, contrôler les cinq dates et plages dans la semaine choisie, puis confirmer. Une ancienne extraction de la 8 ne contient plus ses positions. Utiliser uniquement des données fictives pour la recette.
+
 ## Build OCR du 31 octobre 2026 — lancement consigné
 
 Source `d9f157a7986b309ff4a83847f316e84e9dc26df8`, 242 blobs Git vérifiés. Lint/TypeScript réussis, 70 suites / 1 868 tests réussis en 29,477 s. Installation MSI isolée réussie (1 154 paquets), garde EAS preview réussi : projet Firebase attendu, IA/Places désactivés. EAS Free relu avant lancement : 2/15 iOS, 3/30 total, zéro dépassement/option/coût estimé.

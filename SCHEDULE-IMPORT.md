@@ -1,6 +1,6 @@
 # Import local d’un planning photographié
 
-**31 octobre 2026 : build iOS 1.0.0 (8) compilée et envoyée à Apple avec succès.** La version 7 ne contient pas cette fonction. La disponibilité de la 8 dans TestFlight reste à confirmer ; la lecture photo et sa précision doivent encore être essayées sur iPhone. Voir TESTFLIGHT-REVIEW.md et docs/release-evidence/2026-10-31-photo/.
+**31 octobre 2026 : correctif de lecture des colonnes dans la build iOS 1.0.0 (9), compilée et envoyée à Apple avec succès.** La disponibilité de la 9 dans TestFlight n'est pas encore confirmée au dernier contrôle. La version 8 contient l'import initial mais peut mélanger les colonnes. Réimporter la photo après installation de la 9 ; précision et parcours sur la photo originale à confirmer sur iPhone. Voir TESTFLIGHT-REVIEW.md et docs/release-evidence/2026-10-31-photo-fix/.
 
 ## Parcours
 
@@ -54,4 +54,4 @@ Recette de la bêta iOS et prérequis avant validation générale : essai photo/
 
 La build 8 transmettait uniquement une liste de textes ; les colonnes pouvaient se retrouver séparées. La nouvelle reconnaissance transmet aussi les positions, puis rassemble chaque jour et ses deux heures avant analyse. Une cellule manquante ne décale pas les suivantes ; les erreurs bloquent toujours tout le lot. Les boîtes de texte restent en mémoire sur l'appareil, sans upload. Le champ ne grandit plus sans limite et les diagnostics sont résumés à trois lignes.
 
-71 suites / 1 882 tests, lint et TypeScript réussis ; positions synthétiques, aucun essai OCR sur la photo originale revendiqué. Une nouvelle compilation iOS et un nouveau réimport de la photo sont nécessaires : une ancienne extraction a déjà perdu ses positions. Native Android non compilé. En-têtes ou géométrie ambigus, fortes inclinaisons et tableaux complexes ne sont pas devinés.
+71 suites / 1 882 tests, lint et TypeScript réussis ; positions synthétiques, aucun essai OCR sur la photo originale revendiqué. La compilation iOS 9 a réussi. Un nouveau réimport de la photo reste nécessaire : une ancienne extraction a déjà perdu ses positions. Native Android non compilé. En-têtes ou géométrie ambigus, fortes inclinaisons et tableaux complexes ne sont pas devinés.
