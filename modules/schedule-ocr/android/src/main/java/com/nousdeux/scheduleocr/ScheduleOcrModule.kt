@@ -22,7 +22,14 @@ class ScheduleOcrModule : Module() {
           val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
           recognizer.process(image)
             .addOnSuccessListener { text ->
-              promise.resolve(text.textBlocks.flatMap { block -> block.lines.map { it.text } })
+              promise.resolve(text.textBlocks.flatMap { block -> block.lines.map { line ->
+                val box = line.boundingBox
+                // Retain a missing geometry as plain text, never drop recognised content.
+                if (box == null) line.text else mapOf(
+                  "text" to line.text, "x" to box.left, "y" to box.top,
+                  "width" to box.width(), "height" to box.height()
+                )
+              } })
             }
             .addOnFailureListener { promise.reject("OCR_FAILED", "Image recognition failed.", null) }
             .addOnCompleteListener { recognizer.close() }

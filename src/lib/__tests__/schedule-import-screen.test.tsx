@@ -101,3 +101,13 @@ test('mode local annoncé, absence de membre sélectionné et texte ambigu empê
   await act(async () => field().props.onChangeText('Alice 09h-17h'));
   expect(button('Ajouter 0 créneau(x)').props.disabled).toBe(true);
 });
+test('une longue sortie OCR invalide montre trois erreurs et le total, sans autoriser un import partiel', async () => {
+  await open();
+  await act(async () => field().props.onChangeText(Array.from({ length: 30 }, () => 'texte fictif hors planning').join('\n')));
+  const content = JSON.stringify(root.toJSON());
+  expect(content).toContain('Ligne 3');
+  expect(content).not.toContain('Ligne 4');
+  expect(content).toContain('27');
+  expect(button('Ajouter 0 créneau(x)').props.disabled).toBe(true);
+  expect(field().props.style.maxHeight).toBe(220);
+});

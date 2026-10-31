@@ -19,7 +19,7 @@ Jeudi repos
 
 Un jour sans date utilise la semaine choisie. Une date sans année utilise l’année choisie : elle n’est pas reportée automatiquement sur l’année suivante. Un jour de semaine incompatible avec une date explicite est refusé. Les dates impossibles, heures ambiguës, nuits traversant minuit et lignes non reconnues bloquent l’ajout jusqu’à correction. Limite de 52 créneaux distincts et 12 000 caractères ; pas de troncature silencieuse.
 
-Photographier/recadrer une seule personne et retirer les autres noms. Les tableaux à plusieurs colonnes ne sont pas reconstruits automatiquement : les heures peuvent devoir être replacées sur la ligne de leur date dans le texte modifiable. La reconnaissance manuscrite et les photos difficiles ne sont pas garanties. Une photo ne déclenche jamais directement une écriture sans revue.
+Photographier/recadrer une seule personne et retirer les autres noms. Le correctif du 31 octobre reconstruit les lignes d’un tableau simple avec un seul en-tête « Jour / Début / Fin » à partir de leurs positions. Le texte hors du tableau est écarté. Les tableaux sans cet en-tête, à plusieurs personnes ou ambigus restent à corriger manuellement : vérifier tous les jours sur la photo, y compris ceux qui pourraient ne pas avoir été reconnus. La reconnaissance manuscrite et les photos difficiles ne sont pas garanties. Une photo ne déclenche jamais directement une écriture sans revue.
 
 ## Partage et protection des écritures
 
@@ -49,3 +49,9 @@ Sources techniques consultées via leur dépôt officiel (le site de documentati
 - Le 31 octobre, compilation native iOS réussie via EAS Free, puis envoi Apple réussi, version 1.0.0 (8). Android natif non compilé ; aucun appareil physique essayé. Aucun changement de forfait, dépense, OTA, fusion, notification ou ajout de testeur.
 
 Recette de la bêta iOS et prérequis avant validation générale : essai photo/galerie sur appareils (rotation, refus d’accès, image illisible, tableau, texte imprimé et écrit à la main, annulation), puis deux comptes de démonstration rattachés au même espace pour observer l’ajout partagé. Aucun compte intime réel pour cette recette. Vérifier à nouveau le coût nul avant toute build distante.
+
+## Correctif préparé après le retour iPhone du 31 octobre
+
+La build 8 transmettait uniquement une liste de textes ; les colonnes pouvaient se retrouver séparées. La nouvelle reconnaissance transmet aussi les positions, puis rassemble chaque jour et ses deux heures avant analyse. Une cellule manquante ne décale pas les suivantes ; les erreurs bloquent toujours tout le lot. Les boîtes de texte restent en mémoire sur l'appareil, sans upload. Le champ ne grandit plus sans limite et les diagnostics sont résumés à trois lignes.
+
+71 suites / 1 882 tests, lint et TypeScript réussis ; positions synthétiques, aucun essai OCR sur la photo originale revendiqué. Une nouvelle compilation iOS et un nouveau réimport de la photo sont nécessaires : une ancienne extraction a déjà perdu ses positions. Native Android non compilé. En-têtes ou géométrie ambigus, fortes inclinaisons et tableaux complexes ne sont pas devinés.

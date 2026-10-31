@@ -40,3 +40,8 @@ test('erreur native ne divulgue pas son contenu et un résultat vide est explici
   recognize.mockResolvedValueOnce([]);
   await expect(readSchedulePhoto(true)).rejects.toThrow('Texte illisible');
 });
+test('le résultat natif avec positions retrouve les cellules de la même ligne', async () => {
+  const cell = (text: string, x: number, y: number) => ({ text, x, y, width: 50, height: 12 });
+  recognize.mockResolvedValue([cell('Jour', 0, 0), cell('Début', 100, 0), cell('Fin', 200, 0), cell('Lundi', 0, 30), cell('9h00', 100, 30), cell('Mardi', 0, 60), cell('14h00', 100, 60), cell('17h00', 200, 30), cell('22h00', 200, 60)]);
+  expect(await readSchedulePhoto(true)).toBe('Lundi 9h00-17h00\nMardi 14h00-22h00');
+});

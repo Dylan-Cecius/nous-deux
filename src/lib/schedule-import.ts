@@ -15,7 +15,7 @@ export function parseSchedule(text: string, referenceDate: string) {
   if (!reference) return { slots, issues: ['Choisis une date de référence valide.'] };
   const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   lines.forEach((source, index) => {
-    let line = source.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[–—]/g, '-');
+    let line = source.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[–—]/g, '-').replace(/^[•·*]\s*/, '');
     const day = /^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b[\s,:]*/.exec(line);
     if (day) line = line.slice(day[0].length);
     const explicit = /^(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}(?:\/\d{4})?)(?=\s|$)\s*/.exec(line);
