@@ -32,7 +32,8 @@ export function scheduleTextFromOcr(input: (ScheduleOcrLine | string)[]): string
     for (let start = 0; start < row.length; start++) {
       for (let count = 1; count <= 3 && start + count <= row.length; count++) {
         const cells = row.slice(start, start + count);
-        if (/^jours? debut fin$/.test(plain(cells.map(cell => cell.text).join(' ')))) headers.push({ row: index, cells });
+        // Extra columns to the right could contain another shift/person: do not hide them.
+        if (start + count === row.length && /^jours? debut fin$/.test(plain(cells.map(cell => cell.text).join(' ')))) headers.push({ row: index, cells });
       }
     }
   });
@@ -47,7 +48,7 @@ export function scheduleTextFromOcr(input: (ScheduleOcrLine | string)[]): string
   const indexes = below.flatMap((line, index) => relevant.test(line) ? [index] : []);
   if (!indexes.length) return joined.join('\n');
   // Keep incomplete/unknown rows inside the table, rather than silently dropping a shift.
-  return below.slice(indexes[0], indexes[indexes.length - 1] + 1).filter(Boolean).map(line => {
+  return below.slice(0, indexes[indexes.length - 1] + 1).filter(Boolean).map(line => {
     const cleaned = line.replace(/[|]/g, ' ').replace(/^[•·*]\s*/, '').replace(/\s+/g, ' ').trim();
     const match = tableRow.exec(cleaned);
     return match ? `${match[1]} ${match[2]}-${match[3]}` : cleaned;

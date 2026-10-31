@@ -59,6 +59,12 @@ test('deux tableaux ou colonnes inversées restent à corriger, sans en choisir 
   expect(parsed([...fixture(), ...header.map(line => ({ ...line, y: 350 })), cell('Samedi 9h00 17h00', 250, 380, 350)]).issues.length).toBeGreaterThan(0);
   expect(parsed([header[0], cell('Fin', 440, 100), cell('Début', 540, 100), cell('Lundi 9h00 17h00', 250, 130, 350)]).issues.length).toBeGreaterThan(0);
 });
+test('des colonnes supplémentaires ne sont pas masquées et une première ligne illisible reste bloquante', () => {
+  const extraColumns = [...header, cell('Début', 640, 100), cell('Fin', 740, 100), cell('Lundi', 250, 130), cell('9h00', 440, 130), cell('12h00', 540, 130), cell('13h00', 640, 130), cell('17h00', 740, 130)];
+  expect(scheduleTextFromOcr(extraColumns)).toContain('17h00');
+  expect(parsed(extraColumns).issues.length).toBeGreaterThan(0);
+  expect(parsed([...fixture(), cell('Date et heures illisibles', 250, 115, 320)]).issues).toHaveLength(1);
+});
 test('texte ancien sans positions conservé, sans deviner des colonnes', () => {
   expect(scheduleTextFromOcr(['Lundi 9h-17h', 'Mardi repos'])).toBe('Lundi 9h-17h\nMardi repos');
   expect(scheduleTextFromOcr([cell('Lundi', 0, 0), '17h00'])).toBe('Lundi\n17h00');
