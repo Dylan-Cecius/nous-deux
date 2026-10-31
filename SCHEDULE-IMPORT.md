@@ -1,6 +1,6 @@
 # Import local d’un planning photographié
 
-Préparation du 30 octobre 2026. **Non distribué dans TestFlight 1.0.0 (7).** Le module natif ajouté doit être compilé et essayé sur appareil avant de déclarer la lecture photo validée.
+**31 octobre 2026 : build iOS 1.0.0 (8) compilée et envoyée à Apple avec succès.** La version 7 ne contient pas cette fonction. La disponibilité de la 8 dans TestFlight reste à confirmer ; la lecture photo et sa précision doivent encore être essayées sur iPhone. Voir TESTFLIGHT-REVIEW.md et docs/release-evidence/2026-10-31-photo/.
 
 ## Parcours
 
@@ -46,6 +46,6 @@ Sources techniques consultées via leur dépôt officiel (le site de documentati
 - Suite applicative : 70 suites / 1 868 tests réussis ; lint et TypeScript réussis. Contrôles ciblés rejoués après les derniers gardes de confirmation/rejeu.
 - Emulateurs `demo-nous-deux-security`, Node 22.23.4 : 68 tests sécurité + 11 gardes réussis. Nouveau test : Alice écrit pour Bob, Bob reçoit le lot en temps réel, Bob modifie et Alice relit ; tiers et anonyme refusés. Aucun compte réel ni règle modifiée. Preuves : `docs/security-evidence/2026-10-30-agenda/`.
 - Export JavaScript iOS hors ligne réussi, Firebase vide et fonctionnalités payantes fausses. Résolution des modules natifs réussie pour Apple et Android. Cela **ne compile pas** Swift/Kotlin et ne valide pas la précision OCR.
-- Pas de Xcode, de compilateur Swift, de Gradle ni d’appareil natif dans cet environnement de contrôle. Aucune build EAS, soumission, OTA, fusion, facture ou notification déclenchée pour ce changement.
+- Le 31 octobre, compilation native iOS réussie via EAS Free, puis envoi Apple réussi, version 1.0.0 (8). Android natif non compilé ; aucun appareil physique essayé. Aucun changement de forfait, dépense, OTA, fusion, notification ou ajout de testeur.
 
-Avant diffusion : compilation native et essai photo/galerie sur appareils (rotation, refus d’accès, image illisible, tableau, texte imprimé et écrit à la main, annulation), puis deux comptes de démonstration rattachés au même espace pour observer l’ajout partagé. Aucun compte intime réel pour cette recette. Vérifier à nouveau le coût nul avant toute build distante.
+Recette de la bêta iOS et prérequis avant validation générale : essai photo/galerie sur appareils (rotation, refus d’accès, image illisible, tableau, texte imprimé et écrit à la main, annulation), puis deux comptes de démonstration rattachés au même espace pour observer l’ajout partagé. Aucun compte intime réel pour cette recette. Vérifier à nouveau le coût nul avant toute build distante.

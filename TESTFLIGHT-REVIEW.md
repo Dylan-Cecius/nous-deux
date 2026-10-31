@@ -1,6 +1,6 @@
 # Préparation de la revue TestFlight — Nous Deux
 
-## Build OCR du 31 octobre 2026 — en cours
+## Build OCR du 31 octobre 2026 — lancement consigné
 
 Source `d9f157a7986b309ff4a83847f316e84e9dc26df8`, 242 blobs Git vérifiés. Lint/TypeScript réussis, 70 suites / 1 868 tests réussis en 29,477 s. Installation MSI isolée réussie (1 154 paquets), garde EAS preview réussi : projet Firebase attendu, IA/Places désactivés. EAS Free relu avant lancement : 2/15 iOS, 3/30 total, zéro dépassement/option/coût estimé.
 
@@ -316,3 +316,10 @@ Preuves disponibles : structure React, interactions simulées et ratios numériq
 
 ### Choix du thème — recette préparée le 23 octobre à 01:33
 - [ ] Dans Nous, agrandir le texte système et réduire la largeur disponible : les quatre noms doivent rester lisibles sous leur pastille sans se chevaucher, les commandes restant séparées. Vérifier sélection, restauration et lecture des noms par VoiceOver/TalkBack. Rendu non exécuté ; les contrôles de code ne valident pas la géométrie native.
+
+### Livraison de la version 8 vérifiée le 31 octobre 2026
+
+- Source applicative `d9f157a7986b309ff4a83847f316e84e9dc26df8` ; build **1.0.0 (8)** **FINISHED** à 15:40:45 UTC, sans erreur. [Build](https://expo.dev/accounts/dylancecius/projects/nous-deux/builds/45d7c3a5-035e-4218-afe8-d607c322423e). Compilation native iOS réussie avec le module local de lecture du planning.
+- Soumission **FINISHED** à 15:41:34 UTC, sans erreur. [Envoi Apple](https://expo.dev/accounts/dylancecius/projects/nous-deux/submissions/42a3ea56-3037-43fb-95f0-b82d94d1d649). Build ciblée explicitement, `--no-auto-testflight-setup`, aucun ajout de groupe/testeur ou demande de revue externe.
+- À la première lecture App Store Connect après envoi, seule la version 7 apparaît comme dernière version TestFlight (interne en test ; externe prête à être soumise). La disponibilité de la 8 n'est donc pas encore établie. Aucune version App Store publique en ligne, en revue ou en attente.
+- Import photo et bandeau de partage inclus dans le binaire 8. Lint/TypeScript et 70 suites / 1 868 tests réussis ; preuve de partage sur émulateurs du 30 octobre : 68 tests sécurité + 11 gardes. Aucun essai physique iPhone ni précision OCR validés, Android natif non compilé. La bêta est envoyée à la demande du propriétaire pour permettre cette recette.
