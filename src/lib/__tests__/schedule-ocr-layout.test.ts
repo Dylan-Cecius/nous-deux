@@ -74,3 +74,27 @@ test('les limites s’appliquent aussi au texte hors tableau et aux géométries
   expect(() => scheduleTextFromOcr(Array.from({ length: 1001 }, () => cell('x', 0, 0)))).toThrow('trop long');
   expect(scheduleTextFromOcr([{ ...cell('Lundi 9h-17h', 0, 0), height: NaN }])).toBe('Lundi 9h-17h');
 });
+test('sans en-tête, les lignes sans jour ni heure (onglets, menus) sont ignorées', () => {
+  const lines = [
+    cell('Fur Away - Le rouleau-boule', 10, 20, 300), cell('src=history_search', 10, 50, 200),
+    cell('Horaires fictifs semaine', 10, 80, 250),
+    cell('Lundi 09h00-17h00', 10, 110, 250), cell('Mardi repos', 10, 140, 200), cell('Mercredi 10h00-18h00', 10, 170, 250),
+    cell('Check easyproclean…', 10, 200, 250),
+  ];
+  expect(scheduleTextFromOcr(lines)).toBe('Lundi 09h00-17h00\nMardi repos\nMercredi 10h00-18h00');
+  expect(parsed(lines)).toEqual({ issues: [], slots: [
+    { date: '2026-11-02', start: '09:00', end: '17:00' }, { date: '2026-11-04', start: '10:00', end: '18:00' },
+  ] });
+});
+test.each([-3, 3])('photo inclinée de %i° : les colonnes restent sur la bonne ligne', degrees => {
+  const a = (degrees * Math.PI) / 180;
+  const tilted = fixture().map(line => ({ ...line, x: line.x * Math.cos(a) - line.y * Math.sin(a), y: line.x * Math.sin(a) + line.y * Math.cos(a) }));
+  expect(parsed(tilted)).toEqual(parsed(fixture()));
+  expect(parsed(tilted).slots).toHaveLength(5);
+});
+test('sans en-tête, « Lundi 9h00 17h00 » devient un créneau ; une nuit reste bloquante', () => {
+  const lines = [cell('Mon planning', 10, 20, 200), cell('Lundi', 10, 60), cell('9h00', 200, 60), cell('17h00', 300, 60), cell('Mardi', 10, 90), cell('22h00', 200, 90), cell('6h00', 300, 90)];
+  const result = parsed(lines);
+  expect(result.slots).toEqual([{ date: '2026-11-02', start: '09:00', end: '17:00' }]);
+  expect(result.issues).toHaveLength(1);
+});
