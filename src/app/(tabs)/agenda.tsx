@@ -410,12 +410,15 @@ function EventSheet({
   });
 
   const validWho = who === BOTH || members.some((member) => member.id === who);
-  const valid = !!title.trim() && start < end && validWho;
+  // A new night shift (end before start) is saved as two events split at midnight.
+  const night = !event && start > end;
+  const valid = !!title.trim() && (start < end || night) && validWho;
 
   const save = () => runCurrent(async () => {
     const current = latest.current!;
     const { title, who, kind, date, start, end } = current.values;
-    if (!title.trim() || start >= end || (who !== BOTH && !current.members.some((member) => member.id === who))) return;
+    const overnight = !event && start > end;
+    if (!title.trim() || (start >= end && !overnight) || (who !== BOTH && !current.members.some((member) => member.id === who))) return;
     const data = { title: title.trim(), who, kind, date, start, end };
     try {
       if (event) {
@@ -424,7 +427,12 @@ function EventSheet({
       } else {
         const weeks = Number(current.repeat);
         const seriesId = weeks > 0 ? `${Date.now()}` : undefined;
-        await backend.addEvents(Array.from({ length: Math.max(1, weeks) }, (_, i) => ({ ...data, date: addDays(date, i * 7), seriesId, createdBy: backend.userId })));
+        await backend.addEvents(Array.from({ length: Math.max(1, weeks) }, (_, i) => {
+          const day = addDays(date, i * 7);
+          const base = { ...data, date: day, seriesId, createdBy: backend.userId };
+          if (!overnight) return [base];
+          return [{ ...base, end: '23:59' }, ...(end > '00:00' ? [{ ...base, date: addDays(day, 1), start: '00:00' }] : [])];
+        }).flat());
       }
     } catch {
       if (isCurrent()) showDialog('Enregistrement non confirmé', 'Vérifie l’agenda après son actualisation avant de réessayer : les horaires peuvent déjà avoir été enregistrés. Ton brouillon est conservé.');
@@ -494,7 +502,9 @@ function EventSheet({
         <TimeField label="Début" value={start} disabled={busy} onChange={(value) => run(() => { if (isCurrent()) setStart(value); })} grow />
         <TimeField label="Fin" value={end} disabled={busy} onChange={(value) => run(() => { if (isCurrent()) setEnd(value); })} grow />
       </Row>
-      {start >= end && <T variant="small">L’heure de fin doit être après l’heure de début. Pour une nuit, ajoute un horaire sur chaque journée.</T>}
+      {night
+        ? <T variant="small" muted>Horaire de nuit : enregistré jusqu’à minuit, puis le lendemain de 00:00 à {end}.</T>
+        : start >= end && <T variant="small">{start === end ? 'L’heure de fin doit être différente de l’heure de début.' : 'L’heure de fin doit être après l’heure de début. Pour modifier une nuit, ajuste chaque journée.'}</T>}
       {!event && <Chips label="Répéter chaque semaine" options={REPEATS} value={repeat} disabled={busy} onChange={(value) => run(() => { if (isCurrent()) setRepeat(value); })} />}
       {unavailable && <T variant="small" muted>Agenda indisponible ou horaire retiré. Ton brouillon est conservé ; recharge les horaires avant de continuer.</T>}
       {allEvents.error && !event?.seriesId && <Button label="Recharger l’agenda du formulaire" variant="outline" onPress={allEvents.retry} />}

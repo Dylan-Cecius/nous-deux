@@ -51,8 +51,8 @@ test('cellules fusionnées, colonnes proches mais lignes distinctes', () => {
 test.each(['Lundi 03/11/2026', 'Lunid'])('date/jour erroné reste bloquant : %s', day => {
   expect(parsed([...header, cell(day, 250, 130, 160), cell('9h00', 440, 130), cell('17h00', 540, 130)]).issues).toHaveLength(1);
 });
-test('heures invalides et nuit restent bloquantes', () => {
-  expect(parsed([...header, cell('Lundi 22h00 6h00', 250, 130, 350)]).issues).toHaveLength(1);
+test('heures invalides restent bloquantes, les nuits sont coupées à minuit', () => {
+  expect(parsed([...header, cell('Lundi 22h00 6h00', 250, 130, 350)]).slots).toHaveLength(2);
   expect(parsed([...header, cell('Lundi 9h70 17h00', 250, 130, 350)]).issues).toHaveLength(1);
 });
 test('deux tableaux ou colonnes inversées restent à corriger, sans en choisir un arbitrairement', () => {
@@ -95,9 +95,9 @@ test.each([-3, 3])('photo inclinée de %i° : les colonnes restent sur la bonne 
   expect(parsed(tilted)).toEqual(parsed(fixture()));
   expect(parsed(tilted).slots).toHaveLength(5);
 });
-test('sans en-tête, « Lundi 9h00 17h00 » devient un créneau ; une nuit reste bloquante', () => {
+test('sans en-tête, « Lundi 9h00 17h00 » devient un créneau ; une nuit est coupée à minuit', () => {
   const lines = [cell('Mon planning', 10, 20, 200), cell('Lundi', 10, 60), cell('9h00', 200, 60), cell('17h00', 300, 60), cell('Mardi', 10, 90), cell('22h00', 200, 90), cell('6h00', 300, 90)];
   const result = parsed(lines);
-  expect(result.slots).toEqual([{ date: '2026-11-02', start: '09:00', end: '17:00' }]);
-  expect(result.issues).toHaveLength(1);
+  expect(result.slots).toEqual([{ date: '2026-11-02', start: '09:00', end: '17:00' }, { date: '2026-11-03', start: '22:00', end: '23:59' }, { date: '2026-11-04', start: '00:00', end: '06:00' }]);
+  expect(result.issues).toEqual([]);
 });

@@ -15,13 +15,31 @@ test('année explicite et semaine à cheval sur une année ne sont pas remplacé
   expect(parseSchedule('2027-01-02 09:00-17:00\n01/01 10h-12h', '2026-12-30').slots.map(s => s.date)).toEqual(['2027-01-02', '2026-01-01']);
   expect(parseSchedule('Vendredi 09h-17h', '2026-12-30').slots[0].date).toBe('2027-01-01');
 });
-test.each(['31/02/2026 09h-17h', 'Lundi 03/11/2026 09h-17h', 'Lundi 9:70-17:00', 'Mardi 22h-06h', 'Alice 09h-17h', 'Lundi 09h-17h Bob 10h-18h', 'Lundi 09:00', 'Lundi 25h-26h', 'Lundi 09h-09h', 'Lundi 009h-17h'])('rejette sans deviner : %s', line => {
+test.each(['31/02/2026 09h-17h', 'Lundi 03/11/2026 09h-17h', 'Lundi 9:70-17:00', 'Alice 09h-17h', 'Lundi 09h-17h Bob 10h-18h', 'Lundi 09:00', 'Lundi 25h-26h', 'Lundi 09h-09h', 'Lundi 009h-17h'])('rejette sans deviner : %s', line => {
   const result = parseSchedule(line, reference);
   expect(result.issues.length).toBeGreaterThan(0);
   expect(result.slots).toHaveLength(0);
 });
+test('horaires de nuit coupés à minuit, y compris le dimanche et avec une pause après minuit', () => {
+  expect(parseSchedule('Lundi 09h-12h 23h-06h', reference)).toEqual({ issues: [], slots: [
+    { date: '2026-11-02', start: '09:00', end: '12:00' },
+    { date: '2026-11-02', start: '23:00', end: '23:59' },
+    { date: '2026-11-03', start: '00:00', end: '06:00' },
+  ] });
+  expect(parseSchedule('Dimanche 22h 6h', reference).slots).toEqual([
+    { date: '2026-11-08', start: '22:00', end: '23:59' }, { date: '2026-11-09', start: '00:00', end: '06:00' },
+  ]);
+  expect(parseSchedule('Mardi 21h-5h pause 1h-1h30', reference).slots).toEqual([
+    { date: '2026-11-03', start: '21:00', end: '23:59' },
+    { date: '2026-11-04', start: '00:00', end: '01:00' },
+    { date: '2026-11-04', start: '01:30', end: '05:00' },
+  ]);
+  expect(parseSchedule('Mercredi 20h-minuit\nJeudi minuit 6h', reference).slots).toEqual([
+    { date: '2026-11-04', start: '20:00', end: '23:59' }, { date: '2026-11-05', start: '00:00', end: '06:00' },
+  ]);
+});
 test('une ligne partiellement invalide ne laisse pas importer la première plage silencieusement', () => {
-  const result = parseSchedule('Lundi 09h-12h 23h-06h', reference);
+  const result = parseSchedule('Lundi 09h-12h 13h', reference);
   expect(result.slots).toEqual([]);
   expect(result.issues).toHaveLength(1);
 });
