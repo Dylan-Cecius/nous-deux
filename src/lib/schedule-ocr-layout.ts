@@ -1,4 +1,4 @@
-import { MAX_SCHEDULE_TEXT } from './schedule-import';
+import { MAX_SCHEDULE_TEXT, UNREADABLE_ROW } from './schedule-import';
 
 /** Coordinates use a top-left origin, in the same units for the whole image. */
 export type ScheduleOcrLine = { text: string; x: number; y: number; width: number; height: number };
@@ -15,7 +15,8 @@ const minutes = (value: string) => { const [h, m = '0'] = value.toLowerCase().sp
  */
 function looseRows(rows: string[]): string {
   const inverted = rows.some(row => /\bfin\b.*\bdebut\b/.test(plain(row)));
-  return rows.filter(row => relevant.test(plain(row))).map(row => {
+  // Header rows stay so the parser can flag an inverted Fin / Début order.
+  return rows.filter(row => relevant.test(plain(row)) || /\b(?:debut|fin)\b/.test(plain(row))).map(row => {
     const cleaned = row.replace(/[|]/g, ' ').replace(/^[•·*]\s*/, '').replace(/\s+/g, ' ').trim();
     const match = tableRow.exec(cleaned);
     if (inverted || !match || !dayOrDate.test(plain(match[1])) || minutes(match[2]) >= minutes(match[3])) return cleaned;
@@ -87,6 +88,8 @@ export function scheduleTextFromOcr(input: (ScheduleOcrLine | string)[]): string
   return below.slice(0, indexes[indexes.length - 1] + 1).filter(Boolean).map(line => {
     const cleaned = line.replace(/[|]/g, ' ').replace(/^[•·*]\s*/, '').replace(/\s+/g, ' ').trim();
     const match = tableRow.exec(cleaned);
-    return match ? `${match[1]} ${match[2]}-${match[3]}` : cleaned;
+    if (match) return `${match[1]} ${match[2]}-${match[3]}`;
+    // The tolerant parser ignores text without day/time: mark it so a row lost inside the table is not skipped.
+    return relevant.test(plain(cleaned)) ? cleaned : `${UNREADABLE_ROW}${cleaned}`;
   }).join('\n');
 }

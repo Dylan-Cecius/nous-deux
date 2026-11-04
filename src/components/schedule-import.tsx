@@ -68,10 +68,10 @@ export function ScheduleImport({ defaultDate, onClose }: { defaultDate: string; 
     <Button label="Choisir une photo du planning" icon="image-outline" variant="outline" disabled={disabled} onPress={() => scan(false)} />
     <Chips label="Horaires de" value={who} disabled={disabled} options={members.map(m => ({ value: m.id, label: m.name, color: m.color }))} onChange={value => change(() => setWho(value))} />
     <DateField label="Semaine et année de référence" value={reference} disabled={disabled} onChange={value => change(() => setReference(value))} />
-    <T variant="small" muted>Les jours seuls utilisent la semaine choisie ; les dates sans année utilisent son année. Les tableaux Jour / Début / Fin sont remis en lignes. Vérifie tous les jours et horaires avec ta photo avant de confirmer.</T>
-    <Field label="Texte du planning à corriger" value={text} multiline scrollEnabled style={{ minHeight: 140, maxHeight: 220 }} editable={!disabled} onChangeText={value => change(() => setText(value))} placeholder={'Lundi 09h00-12h00 13h00-17h00\n03/11/2026 10:00-18:00'} />
+    <T variant="small" muted>Écris comme tu veux : « Lundi 9h 17h », « mar. de 8h à 16h », « 3 novembre 9:00 → 17:00 ». Les lignes sans jour ni heure sont ignorées. Les jours seuls utilisent la semaine choisie. Vérifie les créneaux avec ta photo avant de confirmer.</T>
+    <Field label="Texte du planning à corriger" value={text} multiline scrollEnabled style={{ minHeight: 140, maxHeight: 220 }} editable={!disabled} onChangeText={value => change(() => setText(value))} placeholder={'Lundi 9h 12h et 13h 17h\nMardi de 10h à 18h\n05/11 8:00 16:00'} />
     {text.length > MAX_SCHEDULE_TEXT && <T>Réduis le texte à {MAX_SCHEDULE_TEXT} caractères maximum.</T>}
-    {!!parsed.issues.length && <T variant="small">Le planning n’est pas encore prêt : garde un jour et ses horaires sur chaque ligne (Lundi 09h00-17h00). Si les colonnes restent séparées, reprends une photo recadrée sur le tableau.</T>}
+    {!!parsed.issues.length && <T variant="small">Quelques lignes sont à corriger dans le texte ci-dessus (ou à supprimer si elles ne sont pas des horaires).</T>}
     {parsed.issues.slice(0, 3).map((issue, i) => <T key={i} variant="small">{issue}</T>)}
     {parsed.issues.length > 3 && <T variant="small">Et {parsed.issues.length - 3} autre(s) ligne(s) à corriger. L’ajout reste bloqué tant que toutes les lignes ne sont pas valides.</T>}
     {!!parsed.slots.length && <Card>

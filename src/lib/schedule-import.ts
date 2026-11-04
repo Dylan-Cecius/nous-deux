@@ -4,45 +4,153 @@ import type { AgendaEvent } from './types';
 
 export type ScheduleSlot = Pick<AgendaEvent, 'date' | 'start' | 'end'>;
 export const MAX_SCHEDULE_TEXT = 12000;
-const weekdays = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+/** Prefix used by the OCR table reader for a row it could not read inside a table. */
+export const UNREADABLE_ROW = 'Ligne illisible : ';
 
-/** Conservative OCR interpretation: never infer a person or a table's column order. */
+const weekdays = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+const months = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin', 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre'];
+// Full names first, then common abbreviations ("lun.", "mer", "ven").
+const dayPattern = /(?:^|[^a-z])(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lun|mar|mer|jeu|ven|sam|dim)\.?(?![a-z])/;
+const isoDate = /(?:^|[^\d])(\d{4})-(\d{2})-(\d{2})(?![\d])/;
+const slashDate = /(?:^|[^\d])(\d{1,2})[/.](\d{1,2})(?:[/.](\d{4}))?(?![\d]|\s*h|:)/;
+const wordDate = new RegExp(`(?:^|[^\\d])(\\d{1,2})(?:er)?\\s+(${months.join('|')})(?:\\s+(\\d{4}))?(?![a-z])`);
+// "9h", "9h30", "09:00", "9 h", "midi". The preceding character must not be a digit ("009h").
+const clock = /(^|[^\d])(?:(\d{1,2})\s*(?:h(\d{2})?|:(\d{2}))|(midi))(?![\d])/g;
+// A bare hour right before a range separator borrows the "h" of the end: "9-17h", "de 9 à 17h".
+const bareStart = /(^|[^\d:h])(\d{1,2})(?=\s*(?:-|>|→|a|au|jusqu'?a|jusque)\s*\d{1,2}\s*(?:h|:))/g;
+const rangeGap = /^\s*(?:-+|>|->|→|~|\/|a|au|to|jusqu'?a|jusque|jusqu'?au)?\s*$/;
+const pauseWord = /\b(?:pause|coupure|dejeuner|repas)\b/;
+const betweenGap = /^(?:\s|[,;+|/&-]|et|puis|pause|coupure|dejeuner|repas|:)*$/;
+const MISSING_TIME = 'une heure de début ou de fin manque.';
+const restDay = /\b(?:repos|off|conges?|libre|ferie|absent|rtt)\b/;
+
+const normalize = (text: string) => text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/[–—−]/g, '-').replace(/[’`]/g, "'").replace(/^[\s•·*]+/, '').trim();
+const hhmm = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+
+type Found = { date: string | null; dateError: boolean; rest: string; hasDay: boolean };
+
+/** Find a weekday and/or a date anywhere in the line; both are removed from `rest`. */
+function findDate(line: string, reference: string): Found {
+  let rest = line;
+  let date: string | null = null;
+  let explicit = false;
+  let dateError = false;
+  const take = (match: RegExpExecArray) => { rest = rest.slice(0, match.index) + ' ' + rest.slice(match.index + match[0].length); };
+  const iso = isoDate.exec(rest);
+  const word = !iso && wordDate.exec(rest);
+  const slash = !iso && !word && slashDate.exec(rest);
+  if (iso) { date = parseFrenchDate(`${iso[3]}/${iso[2]}/${iso[1]}`); take(iso); explicit = true; }
+  else if (word) { date = parseFrenchDate(`${word[1]}/${months.indexOf(word[2]) + 1}/${word[3] ?? reference.slice(0, 4)}`); take(word); explicit = true; }
+  else if (slash) { date = parseFrenchDate(`${slash[1]}/${slash[2]}/${slash[3] ?? reference.slice(0, 4)}`); take(slash); explicit = true; }
+  if (explicit && !date) dateError = true;
+  const day = dayPattern.exec(rest);
+  if (day) {
+    take(day);
+    const index = weekdays.findIndex(name => name.startsWith(day[1]));
+    if (date && (fromKey(date).getDay() + 6) % 7 !== index) { date = null; dateError = true; }
+    else if (!explicit) date = addDays(mondayOf(reference), index);
+  }
+  return { date, dateError, rest, hasDay: !!day || explicit };
+}
+
+type Ranges = { ranges: [number, number][] } | { error: string };
+
+/** Pair the times of a line in reading order: start, end, start, end… */
+function readRanges(text: string): Ranges {
+  const prepared = text.replace(bareStart, '$1$2h');
+  const times: { value: number; start: number; end: number }[] = [];
+  for (const match of prepared.matchAll(clock)) {
+    const at = match.index + match[1].length;
+    const h = match[5] ? 12 : +match[2];
+    const m = match[5] ? 0 : +(match[3] ?? match[4] ?? 0);
+    if (h > 23 || m > 59) return { error: 'heure invalide : corrige-la dans le texte.' };
+    times.push({ value: h * 60 + m, start: at, end: match.index + match[0].length });
+  }
+  if (!times.length) return { ranges: [] };
+  if (times.length % 2) return { error: MISSING_TIME };
+  const gap = (from: number, to: number) => prepared.slice(from, to).trim();
+  if (/\d/.test(gap(0, times[0].start)) || /\d/.test(gap(times[times.length - 1].end, prepared.length))) {
+    return { error: 'un nombre n’a pas été compris : garde le jour et les heures.' };
+  }
+  const ranges: [number, number][] = [];
+  for (let i = 0; i < times.length; i += 2) {
+    const [start, end] = [times[i], times[i + 1]];
+    if (!rangeGap.test(gap(start.end, end.start))) return { error: 'les heures doivent aller par deux (début puis fin).' };
+    if (start.value >= end.value) return { error: 'horaire de nuit ou fin avant le début : ajoute-le à la main dans l’agenda.' };
+    if (i) {
+      const between = gap(times[i - 1].end, start.start);
+      // Other words between two ranges may name another person: do not guess.
+      if (!betweenGap.test(between)) return { error: 'plusieurs horaires séparés par un texte inconnu (une autre personne ?). Garde une seule personne.' };
+      const last = ranges[ranges.length - 1];
+      // "9h-17h pause 12h-13h": the break is cut out of the shift.
+      if (pauseWord.test(between) && start.value >= last[0] && end.value <= last[1]) {
+        ranges.splice(ranges.length - 1, 1, ...[[last[0], start.value], [end.value, last[1]]].filter(([a, b]) => a < b) as [number, number][]);
+        continue;
+      }
+    }
+    ranges.push([start.value, end.value]);
+  }
+  return { ranges };
+}
+
+/**
+ * Tolerant reading of a schedule: a day or date and times anywhere on the line,
+ * with or without a dash ("Lundi 9h 17h", "lun. de 9h à 17h", "2 novembre 9:00 > 17:00").
+ * Lines with neither a day nor a time are ignored (titles, menus). It never infers a person,
+ * a night shift or an ambiguous column order: those lines are reported for correction.
+ */
 export function parseSchedule(text: string, referenceDate: string) {
   const slots: ScheduleSlot[] = [];
   const issues: string[] = [];
   if (text.length > MAX_SCHEDULE_TEXT) return { slots, issues: ['Le texte est trop long. Importe au maximum 52 créneaux à la fois.'] };
   const reference = parseFrenchDate(referenceDate.split('-').reverse().join('/'));
   if (!reference) return { slots, issues: ['Choisis une date de référence valide.'] };
-  const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-  lines.forEach((source, index) => {
-    let line = source.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[–—]/g, '-').replace(/^[•·*]\s*/, '');
-    const day = /^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b[\s,:]*/.exec(line);
-    if (day) line = line.slice(day[0].length);
-    const explicit = /^(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}(?:\/\d{4})?)(?=\s|$)\s*/.exec(line);
-    let date: string | null = null;
-    if (explicit) {
-      const raw = explicit[1];
-      const french = raw.includes('-') ? raw.split('-').reverse().join('/') : raw.split('/').length === 2 ? `${raw}/${reference.slice(0, 4)}` : raw;
-      date = parseFrenchDate(french);
-      line = line.slice(explicit[0].length);
-      if (day && date && (fromKey(date).getDay() + 6) % 7 !== weekdays.indexOf(day[1])) date = null;
-    } else if (day) date = addDays(mondayOf(reference), weekdays.indexOf(day[1]));
-    const fail = (reason: string) => issues.push(`Ligne ${index + 1} : ${reason}`);
-    if (!date) { fail('date absente, invalide ou incohérente avec le jour.'); return; }
-    if (/^(repos|off|conge|conges)$/.test(line)) return;
-    const ranges = [...line.matchAll(/(\d{1,2})(?::(\d{2})|h(\d{2})?)\s*(?:-|a)\s*(\d{1,2})(?::(\d{2})|h(\d{2})?)/g)];
-    const remainder = line.replace(/(\d{1,2})(?::(\d{2})|h(\d{2})?)\s*(?:-|a)\s*(\d{1,2})(?::(\d{2})|h(\d{2})?)/g, '').replace(/[\s,;|]/g, '');
-    if (!ranges.length || remainder) { fail('garde seulement la date et les heures, par exemple 02/11/2026 09:00-17:00.'); return; }
-    const parsed: ScheduleSlot[] = [];
-    for (const match of ranges) {
-      const [sh, sm, eh, em] = [+match[1], +(match[2] ?? match[3] ?? 0), +match[4], +(match[5] ?? match[6] ?? 0)];
-      if (sh > 23 || eh > 23 || sm > 59 || em > 59 || sh * 60 + sm >= eh * 60 + em) {
-        fail('heures invalides ou horaire de nuit : corrige ce créneau avant l’import.'); return;
+  const lines = text.split(/\r?\n/).map(normalize);
+  const headers = lines.filter(line => /\bjours?\b.*\bdebut\b.*\bfin\b/.test(line) && !/\d/.test(line));
+  if (headers.length > 1) issues.push('Plusieurs tableaux détectés : photographie un seul tableau à la fois.');
+  // Only when the first "Fin" comes before the first "Début" ("Jour Début Fin Début Fin" is a split shift).
+  if (lines.some(line => !/\d/.test(line) && /\bdebut\b/.test(line) && /^(?:(?!\bdebut\b).)*\bfin\b/.test(line))) issues.push('La colonne « Fin » est avant « Début » : vérifie l’ordre des heures dans le texte.');
+  const fail = (line: number, reason: string) => issues.push(`Ligne ${line + 1} : ${reason}`);
+  const add = (date: string, ranges: [number, number][]) => slots.push(...ranges.map(([start, end]) => ({ date, start: hhmm(start), end: hhmm(end) })));
+  // A day without (all) its times ("Lundi" / "9h00" / "17h00") collects the following lines.
+  let pending: { date: string; line: number; text: string } | null = null;
+  const closePending = () => {
+    if (pending && /\d/.test(pending.text)) fail(pending.line, MISSING_TIME);
+    pending = null;
+  };
+  const unreadable = normalize(UNREADABLE_ROW).replace(/\s+$/, '');
+  for (const [index, line] of lines.entries()) {
+    if (!line) continue;
+    if (line.startsWith(unreadable)) { closePending(); fail(index, 'illisible dans le tableau : corrige-la ou supprime-la.'); continue; }
+    const found = findDate(line, reference);
+    if (found.dateError) { closePending(); fail(index, 'date invalide ou qui ne correspond pas au jour.'); continue; }
+    if (!found.hasDay && pending) {
+      const text: string = `${pending.text} ${found.rest}`;
+      const read = readRanges(text);
+      if ('error' in read) {
+        if (read.error === MISSING_TIME) { pending.text = text; continue; }
+        pending = null; fail(index, read.error); continue;
       }
-      parsed.push({ date, start: `${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}`, end: `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}` });
+      if (read.ranges.length) { add(pending.date, read.ranges); pending = null; }
+      continue;
     }
-    slots.push(...parsed);
-  });
+    closePending();
+    const read = readRanges(found.rest);
+    if ('error' in read) {
+      if (read.error === MISSING_TIME && found.date) pending = { date: found.date, line: index, text: found.rest };
+      else fail(index, read.error);
+      continue;
+    }
+    if (!read.ranges.length) {
+      // Title, rest day or unrelated text are ignored; a day alone waits for its times.
+      if (found.date && !restDay.test(found.rest)) pending = { date: found.date, line: index, text: found.rest };
+      continue;
+    }
+    if (!found.date) { fail(index, 'jour ou date manquant devant ces horaires.'); continue; }
+    add(found.date, read.ranges);
+  }
+  closePending();
   const unique = [...new Map(slots.map(slot => [`${slot.date}/${slot.start}/${slot.end}`, slot])).values()];
   if (unique.length > 52) issues.push('Maximum 52 créneaux par import. Réduis le texte avant de continuer.');
   return { slots: unique, issues };

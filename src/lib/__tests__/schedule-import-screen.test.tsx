@@ -103,7 +103,7 @@ test('mode local annoncé, absence de membre sélectionné et texte ambigu empê
 });
 test('une longue sortie OCR invalide montre trois erreurs et le total, sans autoriser un import partiel', async () => {
   await open();
-  await act(async () => field().props.onChangeText(Array.from({ length: 30 }, () => 'texte fictif hors planning').join('\n')));
+  await act(async () => field().props.onChangeText(Array.from({ length: 30 }, () => 'Lundi 9h00').join('\n')));
   const content = JSON.stringify(root.toJSON());
   expect(content).toContain('Ligne 3');
   expect(content).not.toContain('Ligne 4');
