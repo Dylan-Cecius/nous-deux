@@ -3,8 +3,10 @@
 ## Distribution
 
 - **Android** : le build 1.0.0 (3) est terminé. La page Expo affiche **Succeeded** et propose l’APK de distribution interne : [installation Android](https://expo.dev/accounts/dylancecius/projects/nous-deux/builds/bcecf4ec-ebe0-42cc-b1af-34b17be18449). Ouvrir ce lien sur le téléphone Android et télécharger l’APK. Cette version est autonome : le PC et Expo Go ne sont pas nécessaires. Le téléchargement vers l’environnement de contrôle n’a pas abouti ; l’intégrité du fichier et son fonctionnement une fois installé restent à vérifier sur un appareil.
-- **iPhone** : le profil `beta` est prêt pour TestFlight, mais les certificats Apple ne sont pas configurés. Le build non interactif a été arrêté avant l’envoi. Il faut terminer la connexion Apple Developer et la signature avec `npx eas-cli@latest build --platform ios --profile beta`, puis soumettre le build avec `npx eas-cli@latest submit --platform ios --profile beta`.
-- Aucun envoi aux stores, aucune invitation de testeur et aucune publication publique n’ont été effectués.
+- **iPhone** : le [build iOS 1.0.0 (6)](https://expo.dev/accounts/dylancecius/projects/nous-deux/builds/cae1ceb6-139b-4ab9-8dc3-b67b48186d50) est terminé. Son [envoi à App Store Connect](https://expo.dev/accounts/dylancecius/projects/nous-deux/submissions/dbc90a6e-4d34-4316-8581-04a073a63ebd) porte le statut EAS `FINISHED`, achevé le 14 octobre à 22 h 53 min 43 s (Bruxelles), sans erreur. L’app porte l’identifiant App Store Connect `6822899165`, enregistré dans les profils de soumission `beta` et `production`. Apple confirme désormais le build avec `processingState=VALID`, `internalState=IN_BETA_TESTING` et `externalState=WAITING_FOR_BETA_REVIEW`. La version est disponible pour les tests internes du propriétaire ; la demande de revue pour les testeurs externes a été déposée et attend Apple. L’essai réel sur iPhone reste à confirmer. La création de la clé APNs ne prouve pas la réception effective des notifications.
+- Une clé App Store Connect avec le rôle `APP_MANAGER` a été créée et conservée par EAS. Seul son usage géré par EAS est nécessaire ; aucune clé privée n’est ajoutée au dépôt.
+- EAS a créé le groupe interne `Team (Expo)` et activé l’accès TestFlight pour le propriétaire du compte. Aucune invitation à une autre personne ni publication publique sur l’App Store n’a été lancée. Aucun envoi au Play Store n’a été effectué.
+- Le nom `Nous Deux` était indisponible dans App Store Connect ; EAS a créé l’app avec le nom provisoire `Nous Deux (2c885a)`. Choisir et vérifier un nom de boutique disponible avant la publication publique. Le bundle identifier reste `com.cecius.nousdeux`.
 
 Les six variables Firebase sont présentes dans l’environnement EAS `preview`. Le hook `eas-build-post-install` bloque un build si elles manquent. La clé de signature Android est gérée par EAS. La configuration de production et les identifiants de soumission aux stores restent à terminer.
 
@@ -36,7 +38,7 @@ Les deux comptes synthétiques du dernier test cloud ont été supprimés. Les r
 
 ## Parcours conseillé aux premiers testeurs
 
-1. Ouvrir le lien Android ci-dessus et installer l’APK sur un téléphone de test. Sur iPhone, attendre la préparation du build TestFlight : le fichier APK ne s’installe pas sur iOS.
+1. Ouvrir le lien Android ci-dessus et installer l’APK sur un téléphone de test. Sur iPhone, installer TestFlight puis ouvrir l’invitation dès que la version est approuvée pour le groupe : le fichier APK ne s’installe pas sur iOS.
 2. Créer un espace sur un premier téléphone. Générer une invitation et rejoindre cet espace sur le second téléphone.
 3. Dans **Nous > Ton compte**, associer un e-mail et un mot de passe avant de changer de téléphone ou de se déconnecter.
 4. Envoyer un mot doux, répondre chacun à la question du jour, ajouter un horaire répété, un restaurant, une course et une dépense. Vérifier les mises à jour sur l’autre téléphone.
@@ -48,8 +50,38 @@ Les deux comptes synthétiques du dernier test cloud ont été supprimés. Les r
 ## Avant une diffusion plus large
 
 - Valider l’APK et la version iOS sur de vrais téléphones, notamment le démarrage, le clavier, les photos, les permissions et les notifications.
-- Configurer la signature Apple et les comptes de distribution, puis les accès des testeurs.
-- Publier une politique de confidentialité avec l’identité et le contact de l’exploitant, ainsi qu’un parcours web de demande de suppression. La page d’aide intégrée ne remplace pas ces informations.
+- La signature Apple et l’envoi TestFlight sont configurés ; attendre la décision de revue externe puis vérifier le groupe et le lien public.
+- Finaliser puis publier les pages préparées dans `website/` : confidentialité, assistance et demande de suppression. L’aperçu est privé et les liens dans l’app restent masqués en mode brouillon. L’identité, le contact et la conservation doivent être finalisés selon `PRIVACY-RELEASE.md` ; la page d’aide intégrée ne remplace pas ces informations.
 - Compléter les déclarations de données des stores, les captures et les informations d’assistance.
 - Vérifier les alertes de budget, la surveillance des erreurs et la configuration App Check avant d’élargir le public.
 - Si l’IA ou Places doivent être ouverts : configurer les clés exclusivement côté serveur, déployer et tester les services, puis activer les indicateurs et reconstruire l’app.
+
+## Correctifs préparés après la soumission de la build 6
+
+- Contact d’assistance confirmé accessible dans Aide avant connexion, même si le site est encore privé ; adresse sélectionnable et solution de repli si aucune messagerie n’est configurée.
+- Permissions micro et reconnaissance vocale retirées de la configuration native quand l’assistant est désactivé. Le module vocal est également exclu de la compilation native. Sa réactivation future exige de retirer cette exclusion dans `package.json`, d’activer l’assistant et de reconstruire l’app.
+- Aide alignée sur les services activés et les limites du mode local.
+- Nettoyage des traces techniques implémenté et testé dans les émulateurs ; son déploiement Firebase et son exécution réelle restent à vérifier.
+- Consignes d’examen et points à finaliser dans `TESTFLIGHT-REVIEW.md`.
+
+Ces changements ne sont pas dans la build 6. Le projet n’intègre ni `expo-updates` ni configuration EAS Update : modifier GitHub ne modifie pas une application déjà installée. Les changements natifs nécessitent dans tous les cas une nouvelle build et un nouvel envoi. Les testeurs peuvent ensuite utiliser les mises à jour automatiques de TestFlight ou le bouton Mettre à jour, une fois la build disponible dans leur groupe.
+
+- [ ] Cartes interactives et bouton + : activer Réduire les animations sans quitter l’app ; vérifier l’absence de rétrécissement à l’appui, le retour visuel par opacité et l’ouverture normale des fiches. Désactiver la préférence et vérifier le retour du zoom ; aucune action réelle sur un compte de production.
+
+- [ ] Accueil : sur un espace de test ancien (compteur à quatre ou cinq chiffres), agrandir le texte et réduire la largeur disponible. Vérifier que le nombre et « jours ensemble » restent entièrement lisibles, quitte à passer sur deux rangées, et que l’ouverture de Votre histoire fonctionne. Essai non réalisé dans le runtime cloud.
+
+- [ ] Cœurs reçus : avec deux comptes de test autorisés sur un même téléphone, vérifier que chaque membre conserve son propre dernier cœur vu après déconnexion/reconnexion. Première ouverture après mise à jour : pas de replay historique. Vérifier aussi l’indépendance du mode local ; aucun envoi à un vrai utilisateur.
+
+- [ ] Premier cœur : sur un espace de test sans cœur reçu, laisser la liste se charger puis recevoir un cœur fictif depuis l’autre compte de test. Vérifier une seule annonce/célébration et aucune répétition au prochain affichage ; les historiques déjà présents à la première ouverture ne doivent pas être rejoués.
+
+- [ ] Bulle de célébration : avec comptes de test autorisés, quitter l’espace pendant l’affichage d’un message de cœur ; vérifier son retrait immédiat à la déconnexion et l’absence de réapparition dans un autre contexte. Un simple changement d’onglet dans le même espace conserve la fin normale de la bulle. À vérifier sur appareil et sur le web.
+
+- [ ] Agenda avec VoiceOver/TalkBack : créer uniquement dans un espace de test des horaires identiques pour chacun des membres et pour Nous deux. Vérifier que les boutons de la grille annoncent le bon membre et ouvrent sa fiche, y compris lorsque les horaires se superposent.
+
+- [ ] Agenda avec VoiceOver/TalkBack : vérifier que le jour courant annonce « aujourd’hui » même après sélection d’un autre jour. Franchir minuit avec l’app ouverte : le repère change de date sans déplacer la sélection ; changer de semaine et vérifier qu’aucun autre jour ne l’annonce. Contrôle sur appareil non réalisé.
+
+- [ ] Accueil avec photo : utiliser uniquement une image de test très claire, puis une image sombre. Vérifier la lisibilité des prénoms, du compteur, de la date et du prochain cap, ainsi que le cadrage conservé. Le voile est plus sombre pour assurer le contraste ; juger le rendu sur appareil. Aucun essai visuel réalisé dans le runtime.
+
+- [ ] Reprise de session : sur un compte de test autorisé, provoquer une indisponibilité de lecture puis agrandir fortement le texte et passer en paysage. Vérifier que le panneau peut défiler jusqu’à Réessayer et à l’assistance, que rien n’est caché par l’encoche/barre système et que la reprise fonctionne au retour du réseau. Vérifier aussi le centrage avec taille de texte normale ; essai non réalisé ici.
+
+- [ ] Web, espace de test : ouvrir un tirage fictif ou une confirmation, puis provoquer un changement de session depuis un autre onglet autorisé. Vérifier que l'ancien dialogue disparaît, qu'il ne revient pas après reconnexion et que les nouveaux dialogues fonctionnent. Un rendu ordinaire doit conserver la confirmation courante. Aucun essai dans un navigateur graphique réalisé ici ; cette correction ne ferme pas les alertes natives iOS/Android.

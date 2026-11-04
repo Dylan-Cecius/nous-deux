@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
-import { useRef, useState } from 'react';
-import { Platform, StyleSheet, View, type GestureResponderEvent, type LayoutChangeEvent, type ViewStyle } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Platform, StyleSheet, View, type GestureResponderEvent, type LayoutChangeEvent, type ViewProps, type ViewStyle } from 'react-native';
 
 import { IconButton, Row, T } from './ui';
 import { useTheme } from '@/constants/theme';
@@ -10,6 +10,10 @@ export const DEFAULT_FRAME: PhotoFrame = { x: 0.5, y: 0.5, zoom: 1 };
 const MAX_ZOOM = 3;
 
 type Size = { w: number; h: number };
+
+function validSize(w: number, h: number): Size | null {
+  return Number.isFinite(w) && w > 0 && Number.isFinite(h) && h > 0 ? { w, h } : null;
+}
 
 /**
  * Position de l'image dans le cadre. zoom = 1 : l'image remplit le cadre (recadrée) ;
@@ -35,14 +39,21 @@ function useFramedLayout(frame: PhotoFrame) {
   const [box, setBox] = useState<Size | null>(null);
   const [natural, setNatural] = useState<Size | null>(null);
   const layout = box && natural ? layoutFor(box, natural, frame) : null;
-  const onLayout = (e: LayoutChangeEvent) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
+  const onLayout = (e: LayoutChangeEvent) => setBox(validSize(e.nativeEvent.layout.width, e.nativeEvent.layout.height));
   const onLoad = (e: { source: { width: number; height: number } }) =>
-    setNatural({ w: e.source.width, h: e.source.height });
-  return { box, layout, onLayout, onLoad };
+    setNatural(validSize(e.source.width, e.source.height));
+  return { box, natural, layout, onLayout, onLoad };
 }
 
 /** Photo affichée selon le cadrage choisi. Remplit son parent. */
-export function FramedPhoto({ uri, frame = DEFAULT_FRAME }: { uri: string; frame?: PhotoFrame }) {
+type FramedPhotoProps = { uri: string; frame?: PhotoFrame };
+
+export function FramedPhoto(props: FramedPhotoProps) {
+  // Chaque source possède ses dimensions ; un ancien chargement ne peut pas les remplacer.
+  return <FramedPhotoContent key={props.uri} {...props} />;
+}
+
+function FramedPhotoContent({ uri, frame = DEFAULT_FRAME }: FramedPhotoProps) {
   const { layout, onLayout, onLoad } = useFramedLayout(frame);
   return (
     <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]} onLayout={onLayout} pointerEvents="none">
@@ -62,51 +73,145 @@ export function FramedPhoto({ uri, frame = DEFAULT_FRAME }: { uri: string; frame
 }
 
 /** Éditeur : glisser pour déplacer la photo, boutons pour zoomer. */
-export function PhotoFrameEditor({
-  uri,
-  frame,
-  onChange,
-  height = 230,
-}: {
+type PhotoFrameEditorProps = {
   uri: string;
   frame: PhotoFrame;
   onChange: (f: PhotoFrame) => void;
   height?: number;
-}) {
-  const t = useTheme();
-  const { box, layout, onLayout, onLoad } = useFramedLayout(frame);
+  disabled?: boolean;
+};
 
+export function PhotoFrameEditor(props: PhotoFrameEditorProps) {
+  return <PhotoFrameEditorContent key={props.uri} {...props} />;
+}
+
+function PhotoFrameEditorContent({
+  uri,
+  frame,
+  onChange,
+  height = 230,
+  disabled = false,
+}: PhotoFrameEditorProps) {
+  const t = useTheme();
+  const { box, natural, layout, onLayout, onLoad } = useFramedLayout(frame);
+  const [imageFailed, setImageFailed] = useState(false);
+  const unavailable = disabled || imageFailed || !layout;
   // Point de départ du glissement (doigt et cadrage).
-  const start = useRef({ pageX: 0, pageY: 0, frame });
+  const start = useRef<{ pageX: number; pageY: number; frame: PhotoFrame; layout: ReturnType<typeof layoutFor> } | null>(null);
+  // Plusieurs commandes peuvent arriver avant le retour du cadrage par le parent.
+  const latest = useRef({ frame, onChange });
+  useEffect(() => {
+    const previous = latest.current.frame;
+    // Le retour de notre propre valeur conserve le geste ; un remplacement l'arrête.
+    if (previous.x !== frame.x || previous.y !== frame.y || previous.zoom !== frame.zoom) start.current = null;
+    latest.current = { frame, onChange };
+  }, [frame, onChange]);
+  const changeFrame = (next: PhotoFrame) => {
+    latest.current.frame = next;
+    latest.current.onChange(next);
+  };
+
+  const width = box?.w, heightMeasured = box?.h;
+  const naturalWidth = natural?.w, naturalHeight = natural?.h;
+  // Une rotation ou un nouveau ratio termine le geste ; une mesure identique le conserve.
+  const context = useMemo(
+    () => ({ unavailable, width, heightMeasured, naturalWidth, naturalHeight }),
+    [unavailable, width, heightMeasured, naturalWidth, naturalHeight],
+  );
+  const current = useRef<typeof context | null>(null);
+  useEffect(() => {
+    current.current = context;
+    return () => {
+      current.current = null;
+      start.current = null;
+    };
+  }, [context]);
+  // Un événement retenu avant une désactivation ou un démontage reste inactif.
+  const canEdit = () => !unavailable && current.current === context;
+  const endGesture = () => { if (canEdit()) start.current = null; };
   const clamp = (v: number) => Math.min(1, Math.max(0, v));
 
   const responder = {
-    onStartShouldSetResponder: () => true,
-    onMoveShouldSetResponderCapture: () => true,
-    onResponderTerminationRequest: () => false,
+    onStartShouldSetResponder: canEdit,
+    onMoveShouldSetResponderCapture: canEdit,
+    onResponderTerminationRequest: () => !canEdit(),
+    onResponderRelease: endGesture,
+    onResponderTerminate: endGesture,
     onResponderGrant: (e: GestureResponderEvent) => {
-      start.current = { pageX: e.nativeEvent.pageX, pageY: e.nativeEvent.pageY, frame };
+      if (!canEdit() || !box || !natural) return;
+      const currentFrame = latest.current.frame;
+      start.current = {
+        pageX: e.nativeEvent.pageX, pageY: e.nativeEvent.pageY, frame: currentFrame,
+        layout: layoutFor(box, natural, currentFrame),
+      };
     },
     onResponderMove: (e: GestureResponderEvent) => {
-      if (!layout || !box) return;
+      if (!canEdit() || !layout || !box || !start.current) return;
       const from = start.current;
       const dx = e.nativeEvent.pageX - from.pageX;
       const dy = e.nativeEvent.pageY - from.pageY;
       // left = (largeur cadre − largeur image) × x : glisser de dx déplace l'image de dx.
-      const x = box.w !== layout.width ? clamp(from.frame.x + dx / (box.w - layout.width)) : from.frame.x;
-      const y = box.h !== layout.height ? clamp(from.frame.y + dy / (box.h - layout.height)) : from.frame.y;
-      onChange({ ...from.frame, x, y });
+      const x = box.w !== from.layout.width ? clamp(from.frame.x + dx / (box.w - from.layout.width)) : from.frame.x;
+      const y = box.h !== from.layout.height ? clamp(from.frame.y + dy / (box.h - from.layout.height)) : from.frame.y;
+      changeFrame({ ...from.frame, x, y });
     },
   };
 
   const zoomBy = (delta: number) => {
+    if (!canEdit()) return;
     const min = layout?.minZoom ?? 1;
-    onChange({ ...frame, zoom: Math.min(MAX_ZOOM, Math.max(min, (layout?.zoom ?? frame.zoom) + delta)) });
+    const currentFrame = latest.current.frame;
+    const zoom = Math.min(MAX_ZOOM, Math.max(min, currentFrame.zoom));
+    start.current = null;
+    changeFrame({ ...currentFrame, zoom: Math.min(MAX_ZOOM, Math.max(min, zoom + delta)) });
+  };
+  const resetFrame = (next: PhotoFrame) => {
+    if (!canEdit()) return;
+    start.current = null;
+    changeFrame(next);
+  };
+  const moveBy = (horizontal: number, vertical: number) => {
+    if (!canEdit() || !box || !natural) return;
+    const currentFrame = latest.current.frame;
+    const geometry = layoutFor(box, natural, currentFrame);
+    const x = box.w !== geometry.width ? clamp(currentFrame.x + horizontal * box.w / (box.w - geometry.width)) : currentFrame.x;
+    const y = box.h !== geometry.height ? clamp(currentFrame.y + vertical * box.h / (box.h - geometry.height)) : currentFrame.y;
+    start.current = null;
+    if (x !== currentFrame.x || y !== currentFrame.y) changeFrame({ ...currentFrame, x, y });
+  };
+  const accessibilityProps: ViewProps = Platform.OS === 'web' ? {} : {
+    accessible: true,
+    accessibilityRole: 'adjustable',
+    accessibilityLabel: 'Cadrage de la photo',
+    accessibilityHint: 'Ajuste le zoom ou utilise les actions de déplacement.',
+    accessibilityState: { disabled: unavailable },
+    accessibilityValue: {
+      text: unavailable ? 'Indisponible' : `Zoom ${Math.round((layout?.zoom ?? 1) * 100)} %, position horizontale ${Math.round(frame.x * 100)} %, verticale ${Math.round(frame.y * 100)} %`,
+    },
+    accessibilityActions: unavailable ? [] : [
+      { name: 'increment', label: 'Zoomer' },
+      { name: 'decrement', label: 'Dézoomer' },
+      { name: 'moveLeft', label: 'Déplacer la photo vers la gauche' },
+      { name: 'moveRight', label: 'Déplacer la photo vers la droite' },
+      { name: 'moveUp', label: 'Déplacer la photo vers le haut' },
+      { name: 'moveDown', label: 'Déplacer la photo vers le bas' },
+    ],
+    onAccessibilityAction: event => {
+      switch (event.nativeEvent.actionName) {
+        case 'increment': zoomBy(0.15); break;
+        case 'decrement': zoomBy(-0.15); break;
+        case 'moveLeft': moveBy(-0.1, 0); break;
+        case 'moveRight': moveBy(0.1, 0); break;
+        case 'moveUp': moveBy(0, -0.1); break;
+        case 'moveDown': moveBy(0, 0.1); break;
+      }
+    },
   };
 
   return (
     <View style={{ gap: 12 }}>
       <View
+        {...accessibilityProps}
         {...responder}
         onLayout={onLayout}
         style={[
@@ -120,7 +225,8 @@ export function PhotoFrameEditor({
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <Image
             source={{ uri }}
-            onLoad={onLoad}
+            onLoad={event => { setImageFailed(false); onLoad(event); }}
+            onError={() => setImageFailed(true)}
             contentFit="cover"
             style={
               layout
@@ -132,13 +238,25 @@ export function PhotoFrameEditor({
         </View>
       </View>
       <T variant="small" muted style={{ textAlign: 'center' }}>
-        Fais glisser la photo pour la repositionner
+        {imageFailed
+          ? 'Impossible d’afficher la photo. Vérifie ta connexion ou ferme puis rouvre le cadrage.'
+          : unavailable ? 'Cadrage temporairement indisponible'
+            : Platform.OS === 'web' ? 'Fais glisser la photo ou utilise les flèches pour la repositionner'
+              : 'Fais glisser la photo pour la repositionner'}
       </T>
+      {Platform.OS === 'web' && (
+        <Row style={{ justifyContent: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <IconButton icon="arrow-back" label="Déplacer la photo vers la gauche" disabled={unavailable} onPress={() => moveBy(-0.1, 0)} />
+          <IconButton icon="arrow-forward" label="Déplacer la photo vers la droite" disabled={unavailable} onPress={() => moveBy(0.1, 0)} />
+          <IconButton icon="arrow-up" label="Déplacer la photo vers le haut" disabled={unavailable} onPress={() => moveBy(0, -0.1)} />
+          <IconButton icon="arrow-down" label="Déplacer la photo vers le bas" disabled={unavailable} onPress={() => moveBy(0, 0.1)} />
+        </Row>
+      )}
       <Row style={{ justifyContent: 'center', gap: 12 }}>
-        <IconButton icon="remove" label="Dézoomer" onPress={() => zoomBy(-0.15)} />
-        <IconButton icon="expand-outline" label="Photo entière" onPress={() => onChange({ x: 0.5, y: 0.5, zoom: 0 })} />
-        <IconButton icon="scan-outline" label="Remplir le cadre" onPress={() => onChange(DEFAULT_FRAME)} />
-        <IconButton icon="add" label="Zoomer" onPress={() => zoomBy(0.15)} />
+        <IconButton icon="remove" label="Dézoomer" disabled={unavailable} onPress={() => zoomBy(-0.15)} />
+        <IconButton icon="expand-outline" label="Photo entière" disabled={unavailable} onPress={() => resetFrame({ x: 0.5, y: 0.5, zoom: 0 })} />
+        <IconButton icon="scan-outline" label="Remplir le cadre" disabled={unavailable} onPress={() => resetFrame(DEFAULT_FRAME)} />
+        <IconButton icon="add" label="Zoomer" disabled={unavailable} onPress={() => zoomBy(0.15)} />
       </Row>
     </View>
   );

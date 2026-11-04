@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, Text, View } from 'react-native';
 
 import {
@@ -12,7 +12,6 @@ import {
   Fab,
   Field,
   IconButton,
-  Ionicons,
   Row,
   Screen,
   Segmented,
@@ -21,10 +20,14 @@ import {
 } from '@/components/ui';
 import { showDialog } from '@/components/dialog';
 import { Fonts, useTheme } from '@/constants/theme';
-import { useCollection, useSession } from '@/lib/couple-context';
+import { useCollectionState, useSession } from '@/lib/couple-context';
 import { pickOne } from '@/lib/random';
 import { features } from '@/lib/features';
 import type { Restaurant, RestaurantStatus } from '@/lib/types';
+import { useAsyncAction } from '@/lib/use-async-action';
+import { restaurantMapUrl } from '@/lib/restaurant-map';
+import { RestaurantRating as Hearts } from '@/components/restaurant-rating';
+import { draftPatch, useSharedDraft } from '@/lib/use-shared-draft';
 
 const STATUSES: { value: RestaurantStatus; label: string }[] = [
   { value: 'envie', label: 'À tester' },
@@ -48,30 +51,30 @@ function tileFor(name: string) {
   return TILES[h % TILES.length];
 }
 
-function Hearts({ value, onChange, size = 18 }: { value: number; onChange?: (v: number) => void; size?: number }) {
-  const t = useTheme();
-  return (
-    <Row style={{ gap: onChange ? 8 : 2 }}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <Pressable
-          key={i}
-          disabled={!onChange}
-          accessibilityLabel={`${i} cœur${i > 1 ? 's' : ''}`}
-          onPress={() => onChange?.(i === value ? 0 : i)}
-          hitSlop={4}>
-          <Ionicons name={i <= value ? 'heart' : 'heart-outline'} size={size} color={i <= value ? t.primary : t.border} />
-        </Pressable>
-      ))}
-    </Row>
-  );
+export default function Restos() {
+  const { backend } = useSession();
+  return <RestosContent key={`${backend.mode}:${backend.coupleId}:${backend.userId}`} />;
 }
 
-export default function Restos() {
+function RestosContent() {
   const t = useTheme();
-  const { colorOf, nameOf } = useSession();
-  const restaurants = useCollection('restaurants');
+  const { backend, colorOf, nameOf } = useSession();
+  const restaurantState = useCollectionState('restaurants');
+  const unavailable = restaurantState.loading || restaurantState.error;
+  const restaurants = unavailable ? [] : restaurantState.items;
   const [tab, setTab] = useState<RestaurantStatus>('envie');
   const [editing, setEditing] = useState<Restaurant | 'new' | null>(null);
+  const context = useMemo(() => ({ backend, tab }), [backend, tab]);
+  const latest = useRef<{ context: typeof context; state: typeof restaurantState } | null>(null);
+  useEffect(() => {
+    latest.current = { context, state: restaurantState };
+    return () => { latest.current = null; };
+  }, [context, restaurantState]);
+  const currentRestaurants = () => {
+    const current = latest.current;
+    if (!current || current.context !== context || current.state.loading || current.state.error) return null;
+    return current.state.items;
+  };
 
   const count = (s: RestaurantStatus) => restaurants.filter((r) => r.status === s).length;
   const list = restaurants
@@ -79,7 +82,9 @@ export default function Restos() {
     .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || b.createdAt - a.createdAt);
 
   const pickRandom = () => {
-    const pool = restaurants.filter((r) => r.status !== 'teste');
+    const current = currentRestaurants();
+    if (!current) return;
+    const pool = current.filter((r) => r.status !== 'teste');
     if (pool.length === 0) return showDialog('Aucun resto', 'Ajoutez d’abord quelques envies ou favoris.');
     const r = pickOne(pool);
     showDialog('Ce soir, c’est…', `${r.name}${r.cuisine ? ` (${r.cuisine})` : ''}`, [
@@ -88,21 +93,31 @@ export default function Restos() {
     ]);
   };
 
-  const openMap = (r: Restaurant) =>
-    r.mapsUrl ? Linking.openURL(r.mapsUrl) : Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${r.name} ${r.place ?? ''}`)}`);
+  const openMap = async (r: Restaurant) => {
+    const current = currentRestaurants()?.find((entry) => entry.id === r.id);
+    if (!current) return;
+    const url = restaurantMapUrl(current);
+    try { await Linking.openURL(url); }
+    catch {
+      const active = currentRestaurants()?.find((entry) => entry.id === r.id);
+      if (active && restaurantMapUrl(active) === url) {
+        showDialog('Carte indisponible', 'La carte n’a pas pu être ouverte. Tu peux réessayer ou rechercher cette adresse dans ton application de cartes.');
+      }
+    }
+  };
 
   return (
     <>
       <Screen
-        overline={`${restaurants.length} adresse${restaurants.length > 1 ? 's' : ''}`}
+        overline={unavailable ? 'Vos adresses à deux' : `${restaurants.length} adresse${restaurants.length > 1 ? 's' : ''}`}
         title="Nos restos">
         <Segmented
-          options={STATUSES.map((s) => ({ value: s.value, label: `${s.label} · ${count(s.value)}` }))}
+          options={STATUSES.map((s) => ({ value: s.value, label: unavailable ? s.label : `${s.label} · ${count(s.value)}` }))}
           value={tab}
           onChange={setTab}
         />
 
-        <Card tone="feature" onPress={pickRandom} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        {!unavailable && <Card tone="feature" style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={{ fontFamily: Fonts.displayMedium, fontSize: 21, color: t.onFeature }}>On mange où ce soir ?</Text>
             <T variant="small" color={t.onFeatureMuted}>
@@ -110,9 +125,14 @@ export default function Restos() {
             </T>
           </View>
           <IconButton icon="dice-outline" label="Tirer un resto au sort" variant="accent" onPress={pickRandom} size={52} />
-        </Card>
+        </Card>}
 
-        {list.length === 0 ? (
+        {unavailable ? (
+          <Card>
+            <T>{restaurantState.loading ? 'Chargement des restos…' : 'Restos indisponibles. Impossible de charger vos adresses pour le moment.'}</T>
+            {restaurantState.error && <Button label="Réessayer les restos" variant="outline" onPress={restaurantState.retry} />}
+          </Card>
+        ) : list.length === 0 ? (
           <Empty
             icon={tab === 'envie' ? 'restaurant-outline' : tab === 'favori' ? 'heart-outline' : 'checkmark-done-outline'}
             title={tab === 'envie' ? 'Vos envies' : tab === 'favori' ? 'Vos adresses préférées' : 'Déjà testés'}
@@ -128,46 +148,61 @@ export default function Restos() {
           list.map((r) => {
             const [bg, fg] = tileFor(r.name);
             return (
-              <Card key={r.id} onPress={() => setEditing(r)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14 }}>
-                {r.photoUrl ? (
-                  <Image source={{ uri: r.photoUrl }} style={{ width: 56, height: 56, borderRadius: 16 }} contentFit="cover" />
-                ) : (
-                  <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontFamily: Fonts.display, fontSize: 24, color: fg }}>{r.name.charAt(0).toUpperCase()}</Text>
-                  </View>
-                )}
-                <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-                  <T variant="h3" numberOfLines={1}>
-                    {r.name}
-                  </T>
-                  {!!(r.cuisine || r.place) && (
-                    <T variant="small" muted numberOfLines={1}>
-                      {[r.cuisine, r.place].filter(Boolean).join(' · ')}
-                    </T>
-                  )}
-                  {r.status !== 'envie' && !!r.rating ? (
-                    <Hearts value={r.rating} size={14} />
+              <Card key={r.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14 }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={[r.name, r.cuisine, r.place, r.status !== 'envie' && r.rating ? `${r.rating} cœurs sur 5` : `Idée de ${nameOf(r.createdBy)}`].filter(Boolean).join('. ')}
+                  accessibilityHint="Ouvre la fiche du restaurant."
+                  onPress={() => setEditing(r)}
+                  style={({ pressed }) => ({ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 14, opacity: pressed ? 0.85 : 1 })}>
+                  {r.photoUrl ? (
+                    <Image source={{ uri: r.photoUrl }} style={{ width: 56, height: 56, borderRadius: 16 }} contentFit="cover" />
                   ) : (
-                    <Row style={{ gap: 6 }}>
-                      <Dot size={7} color={colorOf(r.createdBy)} />
-                      <T variant="small" muted style={{ fontSize: 12 }}>
-                        Idée de {nameOf(r.createdBy)}
-                      </T>
-                    </Row>
+                    <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontFamily: Fonts.display, fontSize: 24, color: fg }}>{r.name.charAt(0).toUpperCase()}</Text>
+                    </View>
                   )}
-                </View>
+                  <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                    <T variant="h3" numberOfLines={1}>
+                      {r.name}
+                    </T>
+                    {!!(r.cuisine || r.place) && (
+                      <T variant="small" muted numberOfLines={1}>
+                        {[r.cuisine, r.place].filter(Boolean).join(' · ')}
+                      </T>
+                    )}
+                    {r.status !== 'envie' && !!r.rating ? (
+                      <Hearts value={r.rating} size={14} />
+                    ) : (
+                      <Row style={{ gap: 6 }}>
+                        <Dot size={7} color={colorOf(r.createdBy)} />
+                        <T variant="small" muted style={{ fontSize: 12 }}>
+                          Idée de {nameOf(r.createdBy)}
+                        </T>
+                      </Row>
+                    )}
+                  </View>
+                </Pressable>
                 <IconButton icon="location-outline" label={`Voir ${r.name} sur la carte`} onPress={() => openMap(r)} />
               </Card>
             );
           })
         )}
       </Screen>
-      <Fab onPress={() => setEditing('new')} label="Ajouter un resto" />
+      {!unavailable && <Fab onPress={() => setEditing('new')} label="Ajouter un resto" />}
       {editing && (
-        <RestoSheet resto={editing === 'new' ? undefined : editing} defaultStatus={tab} onClose={() => setEditing(null)} />
+        <RestoSheet key={editing === 'new' ? 'new' : editing.id} resto={editing === 'new' ? undefined : editing} defaultStatus={tab} onClose={() => setEditing(null)} />
       )}
     </>
   );
+}
+
+function restaurantFields(resto: Restaurant | undefined, defaultStatus: RestaurantStatus) {
+  return {
+    name: resto?.name ?? '', cuisine: resto?.cuisine ?? '', place: resto?.place ?? '',
+    status: resto?.status ?? defaultStatus, rating: resto?.rating ?? 0, note: resto?.note ?? '',
+    address: resto?.address ?? '', photoUrl: resto?.photoUrl ?? '', mapsUrl: resto?.mapsUrl ?? '',
+  };
 }
 
 function RestoSheet({
@@ -180,19 +215,53 @@ function RestoSheet({
   onClose: () => void;
 }) {
   const { backend } = useSession();
-  const [name, setName] = useState(resto?.name ?? '');
-  const [cuisine, setCuisine] = useState(resto?.cuisine ?? '');
-  const [place, setPlace] = useState(resto?.place ?? '');
-  const [status, setStatus] = useState<RestaurantStatus>(resto?.status ?? defaultStatus);
-  const [rating, setRating] = useState(resto?.rating ?? 0);
-  const [note, setNote] = useState(resto?.note ?? '');
-  const [found, setFound] = useState<Pick<Restaurant, 'address' | 'photoUrl' | 'mapsUrl'>>({
-    address: resto?.address,
-    photoUrl: resto?.photoUrl,
-    mapsUrl: resto?.mapsUrl,
+  const collection = useCollectionState('restaurants');
+  const received = !collection.loading && !collection.error && resto
+    ? collection.items.find((entry) => entry.id === resto.id) : undefined;
+  const { base, values, setValues: setRenderedValues } = useSharedDraft(
+    restaurantFields(resto, defaultStatus), received ? restaurantFields(received, defaultStatus) : null,
+  );
+  const { name, cuisine, place, status, rating, note } = values;
+  const found = values;
+  const setName = (name: string) => setValues((previous) => ({ ...previous, name }));
+  const setCuisine = (cuisine: string) => setValues((previous) => ({ ...previous, cuisine }));
+  const setPlace = (place: string) => setValues((previous) => ({ ...previous, place }));
+  const setStatus = (status: RestaurantStatus) => setValues((previous) => ({ ...previous, status }));
+  const setRating = (rating: number) => setValues((previous) => ({ ...previous, rating }));
+  const setNote = (note: string) => setValues((previous) => ({ ...previous, note }));
+  const context = useMemo(() => ({ backend }), [backend]);
+  const latest = useRef<{ context: typeof context; collection: typeof collection; base: typeof base; values: typeof values } | null>(null);
+  const closed = useRef(false);
+  useEffect(() => {
+    latest.current = { context, collection, base, values };
+    return () => { latest.current = null; };
+  }, [context, collection, base, values]);
+  const { run, pending } = useAsyncAction((action: () => unknown) => action());
+  const isCurrent = () => !closed.current && latest.current?.context === context;
+  const setValues = (update: (previous: typeof values) => typeof values) => {
+    const current = latest.current;
+    if (!current || !isCurrent()) return;
+    const next = update(current.values);
+    current.values = next;
+    setRenderedValues(() => next);
+  };
+  const containsResto = (state: typeof collection) => !resto || state.items.some((entry) => entry.id === resto.id);
+  const unavailable = collection.loading || collection.error || !containsResto(collection);
+  const canWrite = () => {
+    const state = latest.current?.collection;
+    return isCurrent() && state && !state.loading && !state.error && containsResto(state);
+  };
+  const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
+  const runCurrent = (action: () => Promise<void>) => run(async () => {
+    if (!canWrite()) return;
+    try { await action(); }
+    catch (error) { if (isCurrent()) throw error; }
   });
 
-  const save = async () => {
+  const save = () => runCurrent(async () => {
+    const current = latest.current!;
+    const { name, cuisine, place, status, rating, note, address, photoUrl, mapsUrl } = current.values;
+    if (!name.trim()) return;
     const data = {
       name: name.trim(),
       cuisine: cuisine.trim(),
@@ -200,62 +269,74 @@ function RestoSheet({
       status,
       rating,
       note: note.trim(),
-      address: found.address ?? '',
-      photoUrl: found.photoUrl ?? '',
-      mapsUrl: found.mapsUrl ?? '',
+      address, photoUrl, mapsUrl,
     };
-    if (resto) await backend.update('restaurants', resto.id, data);
-    else await backend.add('restaurants', { ...data, createdBy: backend.userId, createdAt: Date.now() });
-    onClose();
+    try {
+      if (resto) {
+        const patch = draftPatch(current.base, data);
+        if (Object.keys(patch).length) await backend.update('restaurants', resto.id, patch);
+      }
+      else await backend.add('restaurants', { ...data, createdBy: backend.userId, createdAt: Date.now() });
+    } catch {
+      if (isCurrent()) showDialog('Enregistrement non confirmé', 'Vérifie les restaurants après leur actualisation avant de réessayer : la modification peut déjà avoir été enregistrée. Ton brouillon est conservé.');
+      return;
+    }
+    close();
+  });
+  const remove = () => {
+    if (!resto || pending || !canWrite()) return;
+    confirmDelete(resto.name, () => runCurrent(async () => {
+      await backend.remove('restaurants', resto.id);
+      close();
+    }));
   };
 
   return (
-    <Sheet visible title={resto ? resto.name : 'Nouveau resto'} onClose={onClose}>
+    <Sheet visible title={resto ? resto.name : 'Nouveau resto'} onClose={() => run(close)}>
       {!resto && backend.mode === 'cloud' && features.places && (
         <PlaceSearch
-          onPick={(p) => {
+          onPick={(p) => run(() => {
+            if (!isCurrent()) return;
             setName(p.name);
             setCuisine(p.cuisine);
             setPlace(p.address.split(',').slice(-2, -1)[0]?.trim().replace(/^\d{5}\s*/, '') ?? '');
-            setFound({ address: p.address, photoUrl: p.photoUrl ?? undefined, mapsUrl: p.mapsUrl });
-          }}
+            setValues((previous) => ({ ...previous, address: p.address, photoUrl: p.photoUrl ?? '', mapsUrl: p.mapsUrl }));
+          })}
         />
       )}
       {!!found.photoUrl && (
         <Image source={{ uri: found.photoUrl }} style={{ width: '100%', height: 160, borderRadius: 18 }} contentFit="cover" />
       )}
-      <Field label="Nom" value={name} maxLength={200} onChangeText={setName} placeholder="Chez Mario" />
+      <Field label="Nom" value={name} maxLength={200} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setName(value); })} placeholder="Chez Mario" />
       {!!found.address && (
         <T variant="small" muted>
           {found.address}
         </T>
       )}
       <Row style={{ gap: 12 }}>
-        <Field label="Cuisine" value={cuisine} maxLength={200} onChangeText={setCuisine} placeholder="Italien" grow />
-        <Field label="Ville / quartier" value={place} maxLength={500} onChangeText={setPlace} placeholder="Liège" grow />
+        <Field label="Cuisine" value={cuisine} maxLength={200} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setCuisine(value); })} placeholder="Italien" grow />
+        <Field label="Ville / quartier" value={place} maxLength={500} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setPlace(value); })} placeholder="Liège" grow />
       </Row>
-      <Chips label="Liste" options={STATUSES} value={status} onChange={setStatus} />
+      <Chips label="Liste" options={STATUSES} value={status} disabled={pending} onChange={(value) => run(() => { if (isCurrent()) setStatus(value); })} />
       {status !== 'envie' && (
         <View style={{ gap: 8 }}>
           <T variant="caption" muted>
             Votre note
           </T>
-          <Hearts value={rating} onChange={setRating} size={32} />
+          <Hearts value={rating} disabled={pending} onChange={(value) => run(() => { if (isCurrent()) setRating(value); })} size={32} />
         </View>
       )}
-      <Field label="Notes" value={note} maxLength={4000} onChangeText={setNote} placeholder="Prendre la burrata, réserver le samedi…" multiline />
-      <Button label="Enregistrer" disabled={!name.trim()} onPress={save} />
+      <Field label="Notes" value={note} maxLength={4000} editable={!pending} onChangeText={(value) => run(() => { if (isCurrent()) setNote(value); })} placeholder="Prendre la burrata, réserver le samedi…" multiline />
+      {unavailable && <T variant="small" muted>Restos indisponibles ou adresse retirée. Ton brouillon est conservé ; recharge les adresses avant de continuer.</T>}
+      {collection.error && <Button label="Recharger les restos du formulaire" variant="outline" onPress={collection.retry} />}
+      <Button label="Enregistrer" disabled={!name.trim() || pending || unavailable} onPress={save} />
       {resto && (
         <Button
           label="Supprimer"
           variant="danger"
           icon="trash-outline"
-          onPress={() =>
-            confirmDelete(resto.name, async () => {
-              await backend.remove('restaurants', resto.id);
-              onClose();
-            })
-          }
+          disabled={pending || unavailable}
+          onPress={remove}
         />
       )}
     </Sheet>

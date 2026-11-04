@@ -1,0 +1,4 @@
+Node loopback accepted; IPv4, IPv6 and external DNS blocked
+LOOPBACK_GUARD: blocked non-loopback network operation
+LOOPBACK_GUARD: blocked non-loopback network operation
+LOOPBACK_GUARD: blocked non-loopback name resolution

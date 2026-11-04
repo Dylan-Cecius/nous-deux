@@ -1,19 +1,17 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { ActivityIndicator, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, ColorPicker, Field, T } from '@/components/ui';
 import { SignInForm } from '@/components/account';
-import { showDialog } from '@/components/dialog';
 import { Fonts, MemberColors } from '@/constants/theme';
-import { createCloudCouple, createLocalCouple, joinCloudCouple, type Backend } from '@/lib/backend';
 import { useCouple } from '@/lib/couple-context';
 import { isFirebaseConfigured } from '@/lib/firebase';
-
-type Step = 'profile' | 'choice' | 'join' | 'local' | 'signin';
+import { useFloatingHeartMotion } from '@/lib/use-floating-heart-motion';
+import { useOnboardingForm, type OnboardingStep } from '@/lib/use-onboarding-form';
 
 const CREAM = '#FBF6F1';
 const PINK = '#FF8FB8';
@@ -48,18 +46,7 @@ const styles = StyleSheet.create({
 
 /** Le cœur du logo, qui flotte et respire doucement. */
 function FloatingHeart() {
-  const [anim] = useState(() => new Animated.Value(0));
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(anim, { toValue: 1, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [anim]);
+  const { translateY, scale } = useFloatingHeartMotion(1800);
 
   return (
     <Animated.Image
@@ -70,8 +57,8 @@ function FloatingHeart() {
         height: 190,
         marginBottom: -18,
         transform: [
-          { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) },
-          { scale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) },
+          { translateY },
+          { scale },
         ],
       }}
     />
@@ -81,25 +68,9 @@ function FloatingHeart() {
 export default function Onboarding() {
   const insets = useSafeAreaInsets();
   const { setBackend } = useCouple();
-  const [step, setStep] = useState<Step>('profile');
-  const [name, setName] = useState('');
-  const [color, setColor] = useState(MemberColors[0]);
-  const [code, setCode] = useState('');
-  const [partnerName, setPartnerName] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const me = { name: name.trim(), color };
-
-  const run = async (action: () => Promise<Backend>) => {
-    setBusy(true);
-    try {
-      setBackend(await action());
-    } catch (e) {
-      showDialog('Oups', e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const [step, setStep] = useState<OnboardingStep>('profile');
+  const form = useOnboardingForm(setBackend, step);
+  const { name, color, code, partnerName, busy, interact } = form;
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -124,24 +95,24 @@ export default function Onboarding() {
             <T variant="h2" color={CREAM}>
               Faisons connaissance
             </T>
-            <Field dark label="Ton prénom" value={name} maxLength={60} onChangeText={setName} placeholder="Ex. Camille" autoComplete="given-name" />
+            <Field dark label="Ton prénom" value={name} maxLength={60} editable={!busy} onChangeText={form.changeName} placeholder="Ex. Camille" autoComplete="given-name" />
             <View style={{ gap: 8 }}>
               <T variant="caption" color={MUTED}>
                 Ta couleur dans l’agenda
               </T>
-              <ColorPicker colors={MemberColors} value={color} onChange={setColor} ringColor={CREAM} />
+              <ColorPicker colors={MemberColors} value={color} disabled={busy} onChange={form.changeColor} ringColor={CREAM} />
             </View>
             <Button
               label="Continuer"
               variant="sunset"
-              disabled={!me.name}
-              onPress={() => setStep(isFirebaseConfigured ? 'choice' : 'local')}
+              disabled={busy || !name.trim()}
+              onPress={() => form.continueProfile(() => setStep(isFirebaseConfigured ? 'choice' : 'local'))}
             />
           </GlassCard>
         )}
 
         {step === 'profile' && isFirebaseConfigured && (
-          <Pressable accessibilityRole="button" onPress={() => setStep('signin')} style={{ alignSelf: 'center', padding: 12 }}>
+          <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => form.navigate(() => setStep('signin'))} style={{ alignSelf: 'center', padding: 12 }}>
             <T style={{ color: MUTED, fontFamily: Fonts.bodyBold }}>J’ai déjà un compte</T>
           </Pressable>
         )}
@@ -152,7 +123,7 @@ export default function Onboarding() {
               Te revoilà
             </T>
             <T color={MUTED}>Connecte-toi avec l’e-mail de ton compte pour retrouver votre espace.</T>
-            <SignInForm dark onSignedIn={setBackend} onBack={() => setStep('profile')} />
+            <SignInForm dark onSignedIn={setBackend} onBack={() => form.navigate(() => setStep('profile'))} />
           </GlassCard>
         )}
 
@@ -168,7 +139,7 @@ export default function Onboarding() {
                 variant="sunset"
                 icon="sparkles-outline"
                 disabled={busy}
-                onPress={() => run(() => createCloudCouple(me))}
+                onPress={form.createCloud}
               />
             </GlassCard>
             <GlassCard>
@@ -176,11 +147,12 @@ export default function Onboarding() {
                 J’ai reçu un code
               </T>
               <T color={MUTED}>Ta moitié a déjà créé votre espace ? Entre son code.</T>
-              <Button label="Rejoindre" variant="glass" disabled={busy} onPress={() => setStep('join')} />
+              <Button label="Rejoindre" variant="glass" disabled={busy} onPress={() => form.navigate(() => setStep('join'))} />
             </GlassCard>
-            <Pressable accessibilityRole="button" disabled={busy} onPress={() => setStep('local')} style={{ alignSelf: 'center', padding: 12 }}>
+            <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => form.navigate(() => setStep('local'))} style={{ alignSelf: 'center', padding: 12 }}>
               <T style={{ color: MUTED, fontFamily: Fonts.bodyBold }}>Essayer sans compte (sur ce téléphone)</T>
             </Pressable>
+            <Button label="Modifier mon profil" variant="glass" disabled={busy} onPress={() => form.navigate(() => setStep('profile'))} />
           </View>
         )}
 
@@ -189,11 +161,13 @@ export default function Onboarding() {
             <T variant="h2" color={CREAM}>
               Rejoindre
             </T>
+            <T color={MUTED}>Entre le code créé par ta moitié dans Nous Deux. L’invitation TestFlight sert séparément à installer l’app.</T>
             <Field
               dark
               label="Code d’invitation"
               value={code}
-              onChangeText={(v) => setCode(v.toUpperCase())}
+              editable={!busy}
+              onChangeText={form.changeCode}
               placeholder="ABCD234567"
               autoCapitalize="characters"
               autoCorrect={false}
@@ -203,10 +177,11 @@ export default function Onboarding() {
             <Button
               label="Rejoindre"
               variant="sunset"
-              disabled={busy || code.replace(/\s|-/g, '').length !== 10}
-              onPress={() => run(() => joinCloudCouple(code, me))}
+              disabled={busy || !form.validCode}
+              onPress={form.join}
             />
-            <Button label="Retour" variant="glass" disabled={busy} onPress={() => setStep('choice')} />
+            {!!code && !form.validCode && <T variant="small" color={MUTED}>Le code contient 10 caractères, sans les lettres I et O ni les chiffres 0 et 1.</T>}
+            <Button label="Retour" variant="glass" disabled={busy} onPress={() => form.navigate(() => setStep('choice'))} />
           </GlassCard>
         )}
 
@@ -220,26 +195,19 @@ export default function Onboarding() {
                 ? 'Les données resteront sur ce téléphone, sans synchronisation.'
                 : 'La synchronisation entre vos deux téléphones n’est pas encore activée : pour l’instant, tout reste sur ce téléphone.'}
             </T>
-            <Field dark label="Son prénom" value={partnerName} maxLength={60} onChangeText={setPartnerName} placeholder="Ex. Alex" />
+            <Field dark label="Son prénom" value={partnerName} maxLength={60} editable={!busy} onChangeText={form.changePartnerName} placeholder="Ex. Alex" />
             <Button
               label="C’est parti"
               variant="sunset"
               disabled={busy || !partnerName.trim()}
-              onPress={() =>
-                run(() =>
-                  createLocalCouple(me, {
-                    name: partnerName.trim(),
-                    color: MemberColors.find((c) => c !== color) ?? MemberColors[1],
-                  }),
-                )
-              }
+              onPress={form.createLocal}
             />
-            {isFirebaseConfigured && <Button label="Retour" variant="glass" onPress={() => setStep('choice')} />}
+            <Button label="Retour" variant="glass" disabled={busy} onPress={() => form.navigate(() => setStep(isFirebaseConfigured ? 'choice' : 'profile'))} />
           </GlassCard>
         )}
 
         {busy && <ActivityIndicator color={PINK} />}
-        <Pressable accessibilityRole="button" onPress={() => router.push('/aide')} style={{ alignSelf: 'center', padding: 12 }}>
+        <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => interact(() => router.push('/aide'))} style={{ alignSelf: 'center', padding: 12 }}>
           <T variant="small" color={MUTED}>Aide et confidentialité</T>
         </Pressable>
       </ScrollView>

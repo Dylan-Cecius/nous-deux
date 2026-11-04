@@ -1,27 +1,50 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, View } from 'react-native';
 
 import { celebrate } from '@/components/celebrate';
 import { showDialog } from '@/components/dialog';
-import { Card, confirmDelete, Dot, Field, IconButton, Ionicons, Row, T } from '@/components/ui';
+import { Button, Card, confirmDelete, Dot, Field, IconButton, Ionicons, Row, T } from '@/components/ui';
 import { cardShadow, Fonts, useTheme } from '@/constants/theme';
 import { sendLoveNote } from '@/lib/assistant';
-import { useCollection, useSession } from '@/lib/couple-context';
+import { useCollectionState, useSession } from '@/lib/couple-context';
 import { formatRelative, quote } from '@/lib/dates';
 import { bump, success } from '@/lib/haptics';
 import { useAsyncAction } from '@/lib/use-async-action';
+import { useReducedMotion } from '@/lib/use-reduced-motion';
+import { useToday } from '@/lib/use-today';
 
 /** Bouton « Je pense à toi » : un appui envoie un cœur et une notification à ta moitié. */
 export function PingCard() {
+  const { backend } = useSession();
+  return <ScopedPingCard key={JSON.stringify([backend.mode, backend.coupleId, backend.userId])} />;
+}
+
+function ScopedPingCard() {
   const t = useTheme();
+  const today = useToday();
+  const reducedMotion = useReducedMotion();
   const session = useSession();
   const { backend, partner } = session;
-  const notes = useCollection('notes');
+  const notes = useCollectionState('notes');
   const beat = useState(() => new Animated.Value(1))[0];
   const [sent, setSent] = useState(false);
+  const partnerId = partner?.id;
+  const context = useMemo(() => ({ backend, partnerId }), [backend, partnerId]);
+  const latest = useRef<{ context: typeof context; sent: boolean } | null>(null);
+  useEffect(() => {
+    latest.current = { context, sent };
+    return () => { latest.current = null; };
+  }, [context, sent]);
+  const isCurrent = () => latest.current?.context === context;
+  useEffect(() => {
+    if (!sent) return;
+    const timer = setTimeout(() => setSent(false), 2500);
+    return () => clearTimeout(timer);
+  }, [sent]);
 
   // Le cœur bat doucement en continu.
   useEffect(() => {
+    if (reducedMotion) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(beat, { toValue: 1.18, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true }),
@@ -32,84 +55,138 @@ export function PingCard() {
     );
     loop.start();
     return () => loop.stop();
-  }, [beat]);
+  }, [beat, reducedMotion]);
 
-  const lastReceived = notes
+  const lastReceived = notes.items
     .filter((n) => n.kind === 'ping' && n.from !== backend.userId)
     .sort((a, b) => b.createdAt - a.createdAt)[0];
 
   const { run: ping, pending } = useAsyncAction(async () => {
-    await sendLoveNote(session, '💗', 'ping');
-    success();
-    celebrate('hearts');
-    setSent(true);
-    setTimeout(() => setSent(false), 2500);
+    if (!isCurrent() || latest.current?.sent || (backend.mode === 'cloud' && !partnerId)) return;
+    try {
+      await sendLoveNote(session, '💗', 'ping', isCurrent);
+      if (!isCurrent() || !latest.current) return;
+      latest.current.sent = true;
+      success();
+      celebrate('hearts');
+      setSent(true);
+    } catch {
+      if (isCurrent()) showDialog('Enregistrement non confirmé', 'Le cœur a peut-être été enregistré, mais sa confirmation n’a pas été reçue. Évite de le renvoyer immédiatement.');
+    }
   });
   const waitingForPartner = backend.mode === 'cloud' && !partner;
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Envoyer « je pense à toi »"
-      onPress={ping}
-      disabled={pending || sent || waitingForPartner}
-      accessibilityState={{ disabled: pending || sent || waitingForPartner, busy: pending }}
-      style={({ pressed }) => [
-        {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 14,
-          backgroundColor: t.card,
-          borderRadius: 22,
-          padding: 16,
-          transform: [{ scale: pressed ? 0.98 : 1 }],
-        },
-        cardShadow(t.shadow),
-      ]}>
-      <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: t.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
-        <Animated.View style={{ transform: [{ scale: beat }] }}>
-          <Ionicons name="heart" size={28} color={t.primary} />
-        </Animated.View>
-      </View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <T variant="h3">{sent ? backend.mode === 'local' ? 'Cœur enregistré !' : 'Cœur envoyé !' : 'Je pense à toi'}</T>
-        <T variant="small" muted>
-          {waitingForPartner ? 'Invite ta moitié pour lui envoyer un petit cœur.' : backend.mode === 'local' ? 'Un petit cœur conservé sur ce téléphone.' : lastReceived && partner
-            ? `${partner.name} a pensé à toi ${formatRelative(lastReceived.createdAt)}`
-            : `Un appui, et ${partner?.name ?? 'ta moitié'} reçoit un petit cœur`}
-        </T>
-      </View>
-      <Ionicons name="paper-plane-outline" size={20} color={t.primary} />
-    </Pressable>
+    <View style={{ gap: 8 }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={backend.mode === 'local' ? 'Enregistrer un cœur sur ce téléphone' : 'Envoyer « je pense à toi »'}
+        onPress={ping}
+        disabled={pending || sent || waitingForPartner}
+        accessibilityState={{ disabled: pending || sent || waitingForPartner, busy: pending }}
+        style={({ pressed }) => [
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 14,
+            backgroundColor: t.card,
+            borderRadius: 22,
+            padding: 16,
+            transform: [{ scale: pressed && !reducedMotion ? 0.98 : 1 }],
+          },
+          cardShadow(t.shadow),
+        ]}>
+        <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: t.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Animated.View style={{ transform: [{ scale: reducedMotion ? 1 : beat }] }}>
+            <Ionicons name="heart" size={28} color={t.primary} />
+          </Animated.View>
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <T variant="h3">{sent ? backend.mode === 'local' ? 'Cœur enregistré !' : 'Cœur envoyé !' : 'Je pense à toi'}</T>
+          <T variant="small" muted>
+            {waitingForPartner ? 'Invite ta moitié pour lui envoyer un petit cœur.' : notes.loading ? 'Chargement des cœurs reçus…' : notes.error ? 'Historique des cœurs indisponible' : backend.mode === 'local' ? 'Un petit cœur conservé sur ce téléphone.' : lastReceived && partner
+              ? `${partner.name} a pensé à toi ${formatRelative(lastReceived.createdAt, today)}`
+              : `Un appui, et ${partner?.name ?? 'ta moitié'} reçoit un petit cœur`}
+          </T>
+        </View>
+        <Ionicons name={backend.mode === 'local' ? 'heart-outline' : 'paper-plane-outline'} size={20} color={t.primary} />
+      </Pressable>
+      {notes.error && <Button label="Réessayer les cœurs reçus" variant="outline" onPress={notes.retry} />}
+    </View>
   );
 }
 
 /** Dernier mot doux reçu, champ pour en écrire un, historique. */
 export function NoteCard() {
+  const { backend } = useSession();
+  return <ScopedNoteCard key={JSON.stringify([backend.mode, backend.coupleId, backend.userId])} />;
+}
+
+function ScopedNoteCard() {
   const t = useTheme();
+  const today = useToday();
   const session = useSession();
   const { backend, partner, nameOf, colorOf } = session;
-  const notes = useCollection('notes');
+  const notes = useCollectionState('notes');
   const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const partnerId = partner?.id;
+  const context = useMemo(() => ({ backend, partnerId }), [backend, partnerId]);
+  const latestDraft = useRef<{ context: typeof context; note: string } | null>(null);
+  const sending = useRef(false);
+  useEffect(() => {
+    latestDraft.current = { context, note };
+    return () => { latestDraft.current = null; };
+  }, [context, note]);
+  const isCurrent = () => latestDraft.current?.context === context;
 
-  const written = notes.filter((n) => n.kind !== 'ping').sort((a, b) => b.createdAt - a.createdAt);
+  const written = notes.loading || notes.error ? [] : notes.items.filter((n) => n.kind !== 'ping').sort((a, b) => b.createdAt - a.createdAt);
   const latest = written.find((n) => n.from !== backend.userId) ?? written[0];
+  const ready = !notes.loading && !notes.error;
+  const deleteContext = useMemo(() => ({ context, ready }), [context, ready]);
+  const latestNotes = useRef<{ context: typeof deleteContext; items: typeof notes.items } | null>(null);
+  useEffect(() => {
+    latestNotes.current = { context: deleteContext, items: notes.items };
+    return () => { latestNotes.current = null; };
+  }, [deleteContext, notes.items]);
+  const { run: runDelete, pending: deleting } = useAsyncAction((action: () => Promise<void>) => action());
+  const canRemove = (selected: (typeof notes.items)[number]) => {
+    if (latestNotes.current?.context !== deleteContext || !ready) return false;
+    const current = latestNotes.current.items.find((entry) => entry.id === selected.id);
+    return !!current && current.kind !== 'ping' && (backend.mode === 'local' || current.from === backend.userId) &&
+      current.text === selected.text && current.from === selected.from && current.kind === selected.kind && current.createdAt === selected.createdAt;
+  };
+  const removeNote = (selected: (typeof notes.items)[number]) => {
+    if (deleting || !canRemove(selected)) return;
+    let consumed = false;
+    confirmDelete(selected.text, () => runDelete(async () => {
+      if (consumed || !canRemove(selected)) return;
+      consumed = true;
+      try { await backend.remove('notes', selected.id); }
+      catch {
+        if (canRemove(selected)) showDialog('Suppression non confirmée', 'Recharge les mots doux pour vérifier si le message est encore présent avant de réessayer.');
+      }
+    }));
+  };
 
-  const send = async () => {
-    const text = note.trim();
-    if (!text || busy) return;
-    setBusy(true);
+  const { run: send, pending: busy } = useAsyncAction(async () => {
+    if (!isCurrent() || sending.current) return;
+    const text = latestDraft.current?.note.trim() ?? '';
+    if (!text || text.length > 4000) return;
+    sending.current = true;
     try {
-      await sendLoveNote(session, text);
+      await sendLoveNote(session, text, 'note', isCurrent);
+      if (!isCurrent() || !latestDraft.current) return;
+      latestDraft.current.note = '';
       setNote('');
       bump();
       celebrate('hearts');
     } catch {
-      showDialog('Mot doux non envoyé', 'Ton texte est conservé. Vérifie ta connexion et réessaie.');
-    } finally { setBusy(false); }
-  };
+      if (isCurrent()) showDialog('Enregistrement non confirmé', 'Ton texte est conservé. Recharge les mots doux pour vérifier si le message a été enregistré avant de réessayer.');
+    } finally {
+      sending.current = false;
+    }
+  });
 
   return (
     <Card tone="soft" style={{ gap: 12 }}>
@@ -119,27 +196,49 @@ export function NoteCard() {
         </T>
         {latest && (
           <T variant="small" muted>
-            {nameOf(latest.from)} · {formatRelative(latest.createdAt)}
+            {nameOf(latest.from)} · {formatRelative(latest.createdAt, today)}
           </T>
         )}
       </Row>
-      <T variant="quote">{latest ? quote(latest.text) : 'Pas encore de mot doux… et si tu commençais ?'}</T>
+      {notes.loading ? (
+        <T muted>Chargement des mots doux…</T>
+      ) : notes.error ? (
+        <>
+          <T>Mots doux indisponibles. Impossible de charger votre historique pour le moment.</T>
+          <Button label="Réessayer les mots doux" variant="outline" onPress={notes.retry} />
+        </>
+      ) : (
+        <T variant="quote">{latest ? quote(latest.text) : 'Pas encore de mot doux… et si tu commençais ?'}</T>
+      )}
+      {backend.mode === 'local' && (
+        <T variant="small" muted>Ce mot reste sur ce téléphone, sans envoi ni notification à ta moitié.</T>
+      )}
       <Row>
         <Field
+          accessibilityLabel="Ton mot doux"
           value={note}
           maxLength={4000}
           editable={!busy}
-          onChangeText={setNote}
+          onChangeText={(value) => {
+            if (!isCurrent() || sending.current || !latestDraft.current) return;
+            latestDraft.current.note = value;
+            setNote(value);
+          }}
           placeholder={partner ? `Un petit mot pour ${partner.name}…` : 'Un petit mot…'}
           grow
           onSubmitEditing={send}
-          returnKeyType="send"
+          returnKeyType={backend.mode === 'local' ? 'done' : 'send'}
           style={{ borderColor: 'transparent' }}
         />
-        <IconButton icon="arrow-forward" label="Envoyer" variant="primary" onPress={send} size={50} />
+        <IconButton icon={backend.mode === 'local' ? 'checkmark' : 'arrow-forward'} label={backend.mode === 'local' ? 'Enregistrer le mot' : 'Envoyer'} variant="primary" onPress={send} disabled={busy || !note.trim()} size={50} />
       </Row>
       {written.length > 1 && (
-        <Pressable onPress={() => setShowAll(!showAll)} hitSlop={8}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showAll }}
+          onPress={() => setShowAll(previous => !previous)}
+          hitSlop={8}
+          style={{ minHeight: 44, justifyContent: 'center' }}>
           <T variant="small" color={t.primaryDark} style={{ fontFamily: Fonts.bodyBold }}>
             {showAll ? 'Masquer l’historique' : `Voir les ${written.length} mots doux`}
           </T>
@@ -147,7 +246,7 @@ export function NoteCard() {
       )}
       {showAll &&
         written.map((n) => (
-          <Pressable key={n.id} onLongPress={backend.mode === 'local' || n.from === backend.userId ? () => confirmDelete(n.text, () => backend.remove('notes', n.id)) : undefined}>
+          <Pressable key={n.id} onLongPress={backend.mode === 'local' || n.from === backend.userId ? () => removeNote(n) : undefined}>
             <Row style={{ alignItems: 'flex-start', gap: 10 }}>
               <View style={{ marginTop: 7 }}>
                 <Dot color={colorOf(n.from)} />
@@ -155,7 +254,7 @@ export function NoteCard() {
               <View style={{ flex: 1 }}>
                 <T>{n.text}</T>
                 <T variant="small" muted>
-                  {nameOf(n.from)} · {formatRelative(n.createdAt)}
+                  {nameOf(n.from)} · {formatRelative(n.createdAt, today)}
                 </T>
               </View>
             </Row>

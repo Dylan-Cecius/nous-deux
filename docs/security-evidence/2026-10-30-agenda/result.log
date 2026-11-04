@@ -1,0 +1,645 @@
+v22.23.4
+Picked up JAVA_TOOL_OPTIONS: -Djava.net.preferIPv4Stack=true
+openjdk version "17.0.20" 2026-07-21
+OpenJDK Runtime Environment (build 17.0.20+8-1-24.04-Ubuntu)
+OpenJDK 64-Bit Server VM (build 17.0.20+8-1-24.04-Ubuntu, mixed mode, sharing)
+
+> build
+> tsc
+
+LOOPBACK_GUARD: blocked non-loopback name resolution
+⚠  Unable to fetch the CLI MOTD and remote config. This is not a fatal error, but may indicate an issue with your network connection.
+i  emulators: Starting emulators: auth, firestore, storage
+i  emulators: Detected demo project ID "demo-nous-deux-security", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+⚠  Unexpected rules runtime error: Picked up JAVA_TOOL_OPTIONS: -Djava.net.preferIPv4Stack=true
+
+i  Running script: npm --prefix functions test
+
+> test
+> npm run test:guard && node --test --test-concurrency=1 test/security.test.cjs
+
+
+> test:guard
+> node --test test/emulator-guard.test.cjs
+
+TAP version 13
+# Subtest: accepts the configured local endpoints without changing the environment
+ok 1 - accepts the configured local endpoints without changing the environment
+  ---
+  duration_ms: 4.210731
+  type: 'test'
+  ...
+# Subtest: accepts exact localhost and bracketed IPv6 loopback with explicit ports
+ok 2 - accepts exact localhost and bracketed IPv6 loopback with explicit ports
+  ---
+  duration_ms: 0.772978
+  type: 'test'
+  ...
+# Subtest: rejects a different project even with local addresses
+ok 3 - rejects a different project even with local addresses
+  ---
+  duration_ms: 1.283363
+  type: 'test'
+  ...
+# Subtest: rejects unsafe or malformed values of FIRESTORE_EMULATOR_HOST
+ok 4 - rejects unsafe or malformed values of FIRESTORE_EMULATOR_HOST
+  ---
+  duration_ms: 3.6832
+  type: 'test'
+  ...
+# Subtest: rejects unsafe or malformed values of FIREBASE_AUTH_EMULATOR_HOST
+ok 5 - rejects unsafe or malformed values of FIREBASE_AUTH_EMULATOR_HOST
+  ---
+  duration_ms: 0.32082
+  type: 'test'
+  ...
+# Subtest: rejects unsafe or malformed values of FIREBASE_STORAGE_EMULATOR_HOST
+ok 6 - rejects unsafe or malformed values of FIREBASE_STORAGE_EMULATOR_HOST
+  ---
+  duration_ms: 0.447924
+  type: 'test'
+  ...
+# Subtest: rejects unsafe or malformed values of FIREBASE_EMULATOR_HUB
+ok 7 - rejects unsafe or malformed values of FIREBASE_EMULATOR_HUB
+  ---
+  duration_ms: 0.819858
+  type: 'test'
+  ...
+# Subtest: rejects each missing required endpoint without exposing its value
+ok 8 - rejects each missing required endpoint without exposing its value
+  ---
+  duration_ms: 0.43936
+  type: 'test'
+  ...
+# Subtest: security entrypoint rejects non-local FIRESTORE_EMULATOR_HOST before loading any SDK
+ok 9 - security entrypoint rejects non-local FIRESTORE_EMULATOR_HOST before loading any SDK
+  ---
+  duration_ms: 51.606094
+  type: 'test'
+  ...
+# Subtest: security entrypoint rejects non-local FIREBASE_AUTH_EMULATOR_HOST before loading any SDK
+ok 10 - security entrypoint rejects non-local FIREBASE_AUTH_EMULATOR_HOST before loading any SDK
+  ---
+  duration_ms: 48.738658
+  type: 'test'
+  ...
+# Subtest: security entrypoint rejects non-local FIREBASE_STORAGE_EMULATOR_HOST before loading any SDK
+ok 11 - security entrypoint rejects non-local FIREBASE_STORAGE_EMULATOR_HOST before loading any SDK
+  ---
+  duration_ms: 41.537824
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 286.245137
+TAP version 13
+# Subtest: agenda partagé : Alice écrit pour Bob, Bob reçoit le lot en temps réel, un tiers ne peut pas le lire
+ok 1 - agenda partagé : Alice écrit pour Bob, Bob reçoit le lot en temps réel, un tiers ne peut pas le lire
+  ---
+  duration_ms: 4749.676376
+  type: 'test'
+  ...
+# Subtest: contrat client/serveur : réponse perdue après commit puis reprise sans doublon ni écrasement
+ok 2 - contrat client/serveur : réponse perdue après commit puis reprise sans doublon ni écrasement
+  ---
+  duration_ms: 737.77654
+  type: 'test'
+  ...
+# Subtest: contrat client/serveur : confirmation invalide puis fiche supprimée, reçu retrouvé sans recréation
+ok 3 - contrat client/serveur : confirmation invalide puis fiche supprimée, reçu retrouvé sans recréation
+  ---
+  duration_ms: 264.329346
+  type: 'test'
+  ...
+# Subtest: contrat client/serveur : instances concurrentes partageant la même intention, un seul souvenir
+ok 4 - contrat client/serveur : instances concurrentes partageant la même intention, un seul souvenir
+  ---
+  duration_ms: 3640.325889
+  type: 'test'
+  ...
+# Subtest: contrat client/serveur : invalidation après commit ne prétend pas annuler l’écriture
+ok 5 - contrat client/serveur : invalidation après commit ne prétend pas annuler l’écriture
+  ---
+  duration_ms: 122.700815
+  type: 'test'
+  ...
+# Subtest: association souvenir : les demandes concurrentes produisent un seul document et reçu
+ok 6 - association souvenir : les demandes concurrentes produisent un seul document et reçu
+  ---
+  duration_ms: 3649.044875
+  type: 'test'
+  ...
+# Subtest: association souvenir : une reprise conserve les éditions puis ne recrée pas une fiche supprimée
+ok 7 - association souvenir : une reprise conserve les éditions puis ne recrée pas une fiche supprimée
+  ---
+  duration_ms: 531.942956
+  type: 'test'
+  ...
+# Subtest: association souvenir : une clé ne peut pas changer de contenu
+ok 8 - association souvenir : une clé ne peut pas changer de contenu
+  ---
+  duration_ms: 267.875466
+  type: 'test'
+  ...
+# Subtest: association souvenir : identité, appartenance et suppression restent obligatoires
+ok 9 - association souvenir : identité, appartenance et suppression restent obligatoires
+  ---
+  duration_ms: 137.929989
+  type: 'test'
+  ...
+# [2026-10-30T17:37:01.130Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e04 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L149, false for 'update' @ L149
+# [2026-10-30T17:37:01.178Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e05 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L149
+# [2026-10-30T17:37:01.270Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e07 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L149, false for 'update' @ L149
+# [2026-10-30T17:37:01.309Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e08 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L149
+# [2026-10-30T17:37:01.396Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e0a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L149, false for 'update' @ L149
+# [2026-10-30T17:37:01.431Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e0b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L149
+# Subtest: association souvenir : reçus privés inaccessibles et intentions isolées par demandeur
+ok 10 - association souvenir : reçus privés inaccessibles et intentions isolées par demandeur
+  ---
+  duration_ms: 571.827494
+  type: 'test'
+  ...
+# Subtest: association souvenir : payloads invalides refusés sans créer de reçu
+ok 11 - association souvenir : payloads invalides refusés sans créer de reçu
+  ---
+  duration_ms: 114.268439
+  type: 'test'
+  ...
+# Subtest: association souvenir : limite existante anti-abus appliquée avant toute création
+ok 12 - association souvenir : limite existante anti-abus appliquée avant toute création
+  ---
+  duration_ms: 70.783951
+  type: 'test'
+  ...
+# Subtest: association souvenir : un reçu ne dispense jamais de vérifier l’appartenance actuelle
+ok 13 - association souvenir : un reçu ne dispense jamais de vérifier l’appartenance actuelle
+  ---
+  duration_ms: 104.403335
+  type: 'test'
+  ...
+# Subtest: association souvenir : appartenance et verrou sont revérifiés dans la transaction finale
+ok 14 - association souvenir : appartenance et verrou sont revérifiés dans la transaction finale
+  ---
+  duration_ms: 260.757954
+  type: 'test'
+  ...
+# Subtest: association souvenir : le repli compact proche du plafond reste borné et accepté
+ok 15 - association souvenir : le repli compact proche du plafond reste borné et accepté
+  ---
+  duration_ms: 109.018483
+  type: 'test'
+  ...
+# Subtest: association souvenir : vérifie le fichier propre, puis rejoue même après retrait du fichier
+ok 16 - association souvenir : vérifie le fichier propre, puis rejoue même après retrait du fichier
+  ---
+  duration_ms: 351.672302
+  type: 'test'
+  ...
+# Subtest: association souvenir : refuse les URL externes, les autres buckets et les photos du partenaire
+ok 17 - association souvenir : refuse les URL externes, les autres buckets et les photos du partenaire
+  ---
+  duration_ms: 102.519962
+  type: 'test'
+  ...
+# Subtest: association souvenir : refuse fichier absent, vide, non image et jeton erroné
+ok 18 - association souvenir : refuse fichier absent, vide, non image et jeton erroné
+  ---
+  duration_ms: 258.574323
+  type: 'test'
+  ...
+# [2026-10-30T17:37:02.962Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e0d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L145:26 for 'create' @ L145, false for 'create' @ L149, evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'create' @ L145, false for 'create' @ L149
+# [2026-10-30T17:37:03.022Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e0c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L145:26 for 'create' @ L145, false for 'create' @ L149, evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'create' @ L145, false for 'create' @ L149
+# Subtest: les anciennes écritures directes de marques sont refusées pour les deux membres
+ok 19 - les anciennes écritures directes de marques sont refusées pour les deux membres
+  ---
+  duration_ms: 239.917263
+  type: 'test'
+  ...
+# [2026-10-30T17:37:03.175Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e0e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+# [2026-10-30T17:37:03.206Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e0f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L145:26 for 'create' @ L145, false for 'create' @ L149, evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+# Subtest: une dépense ordinaire ne peut pas être convertie en marque par mise à jour ou remplacement
+ok 20 - une dépense ordinaire ne peut pas être convertie en marque par mise à jour ou remplacement
+  ---
+  duration_ms: 170.559311
+  type: 'test'
+  ...
+# [2026-10-30T17:37:03.410Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e10 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+# [2026-10-30T17:37:03.437Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e11 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+# [2026-10-30T17:37:03.491Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e12 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L145:26 for 'create' @ L145, false for 'create' @ L149, evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+# Subtest: une marque serveur ne peut pas être altérée ni déguisée en dépense ordinaire
+ok 21 - une marque serveur ne peut pas être altérée ni déguisée en dépense ordinaire
+  ---
+  duration_ms: 283.44603
+  type: 'test'
+  ...
+# [2026-10-30T17:37:03.820Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e16 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L144:26 for 'delete' @ L144, false for 'delete' @ L149, false for 'delete' @ L144, false for 'delete' @ L149
+# [2026-10-30T17:37:03.880Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e17 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L144:26 for 'delete' @ L144, false for 'delete' @ L149, false for 'delete' @ L144, false for 'delete' @ L149
+# Subtest: les marques serveur restent lisibles et retirables par les membres uniquement
+ok 22 - les marques serveur restent lisibles et retirables par les membres uniquement
+  ---
+  duration_ms: 456.261974
+  type: 'test'
+  ...
+# [2026-10-30T17:37:04.153Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e19 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+# Subtest: les dépenses ordinaires anciennes et explicites restent modifiables sans pouvoir forger une marque
+ok 23 - les dépenses ordinaires anciennes et explicites restent modifiables sans pouvoir forger une marque
+  ---
+  duration_ms: 217.27084
+  type: 'test'
+  ...
+# Subtest: une marque transactionnelle calcule le solde côté serveur et conserve un reçu privé minimal
+ok 24 - une marque transactionnelle calcule le solde côté serveur et conserve un reçu privé minimal
+  ---
+  duration_ms: 248.72902
+  type: 'test'
+  ...
+# Subtest: deux appareils ne peuvent pas solder deux fois le même relevé
+ok 25 - deux appareils ne peuvent pas solder deux fois le même relevé
+  ---
+  duration_ms: 2975.836075
+  type: 'test'
+  ...
+# Subtest: rejouer la même intention après réponse perdue ne recrée pas la marque, même si elle a ensuite été supprimée
+ok 26 - rejouer la même intention après réponse perdue ne recrée pas la marque, même si elle a ensuite été supprimée
+  ---
+  duration_ms: 241.45549
+  type: 'test'
+  ...
+# Subtest: un reçu ne peut pas être réutilisé avec une autre intention
+ok 27 - un reçu ne peut pas être réutilisé avec une autre intention
+  ---
+  duration_ms: 122.847502
+  type: 'test'
+  ...
+# Subtest: un relevé modifié, retiré ou complété est refusé sans écriture de marque ni reçu
+ok 28 - un relevé modifié, retiré ou complété est refusé sans écriture de marque ni reçu
+  ---
+  duration_ms: 346.56563
+  type: 'test'
+  ...
+# Subtest: l’identité, l’appartenance et le verrou de suppression sont contrôlés pour les marques
+ok 29 - l’identité, l’appartenance et le verrou de suppression sont contrôlés pour les marques
+  ---
+  duration_ms: 107.253593
+  type: 'test'
+  ...
+# Subtest: le protocole refuse les doublons d’identifiants, montants invalides et relevés trop grands
+ok 30 - le protocole refuse les doublons d’identifiants, montants invalides et relevés trop grands
+  ---
+  duration_ms: 71.942899
+  type: 'test'
+  ...
+# Subtest: les demi-centimes sont cohérents et un solde nul ne crée aucune marque
+ok 31 - les demi-centimes sont cohérents et un solde nul ne crée aucune marque
+  ---
+  duration_ms: 147.937488
+  type: 'test'
+  ...
+# Subtest: la même intention simultanée rend le même reçu et une seule marque
+ok 32 - la même intention simultanée rend le même reçu et une seule marque
+  ---
+  duration_ms: 2851.910849
+  type: 'test'
+  ...
+# [2026-10-30T17:37:11.419Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e1e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L149
+# [2026-10-30T17:37:11.434Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e1f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L149
+# [2026-10-30T17:37:11.478Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e20 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L149, false for 'update' @ L149
+# [2026-10-30T17:37:11.567Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e21 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L38:24 for 'update' @ L38, false for 'update' @ L149, false for 'update' @ L38, false for 'update' @ L149
+# Subtest: les reçus et le compteur transactionnel ne sont pas falsifiables par un client
+ok 33 - les reçus et le compteur transactionnel ne sont pas falsifiables par un client
+  ---
+  duration_ms: 337.21601
+  type: 'test'
+  ...
+# Subtest: la marque reste symétrique depuis le débiteur et indépendante de l’ordre des lignes
+ok 34 - la marque reste symétrique depuis le débiteur et indépendante de l’ordre des lignes
+  ---
+  duration_ms: 109.595557
+  type: 'test'
+  ...
+# Subtest: les anciens payeurs et les relevés stockés trop grands sont refusés sans modification
+ok 35 - les anciens payeurs et les relevés stockés trop grands sont refusés sans modification
+  ---
+  duration_ms: 411.389823
+  type: 'test'
+  ...
+# Subtest: un appel sans authentification ou sans identité confirmée est refusé avant tout quota
+ok 36 - un appel sans authentification ou sans identité confirmée est refusé avant tout quota
+  ---
+  duration_ms: 62.587556
+  type: 'test'
+  ...
+# Subtest: création et jonction refusent une identité différente avant tout quota ou rattachement
+ok 37 - création et jonction refusent une identité différente avant tout quota ou rattachement
+  ---
+  duration_ms: 118.220702
+  type: 'test'
+  ...
+# Subtest: création et jonction acceptent l’identité confirmée et restent compatibles avec les anciens clients
+ok 38 - création et jonction acceptent l’identité confirmée et restent compatibles avec les anciens clients
+  ---
+  duration_ms: 195.462981
+  type: 'test'
+  ...
+# Subtest: un visiteur et un tiers connecté ne lisent ni les espaces incomplets ni les données privées
+ok 39 - un visiteur et un tiers connecté ne lisent ni les espaces incomplets ni les données privées
+  ---
+  duration_ms: 205.100142
+  type: 'test'
+  ...
+# [2026-10-30T17:37:12.801Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e28 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L37, false for 'create' @ L149, evaluation error at L38:24 for 'update' @ L38, false for 'update' @ L149, false for 'create' @ L37, false for 'create' @ L149
+# [2026-10-30T17:37:12.816Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e29 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L38:24 for 'update' @ L38, false for 'update' @ L149, false for 'update' @ L38, false for 'update' @ L149
+# [2026-10-30T17:37:12.829Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e2a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L32, false for 'create' @ L149, false for 'update' @ L32, false for 'update' @ L149
+# [2026-10-30T17:37:12.838Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e2b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L37, false for 'delete' @ L149
+# Subtest: la création, les membres et les index ne sont modifiables que par le serveur
+ok 40 - la création, les membres et les index ne sont modifiables que par le serveur
+  ---
+  duration_ms: 122.870059
+  type: 'test'
+  ...
+# [2026-10-30T17:37:12.933Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e2d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L38:24 for 'update' @ L38, false for 'update' @ L149, false for 'update' @ L38, false for 'update' @ L149
+# [2026-10-30T17:37:12.957Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e2e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L38:24 for 'update' @ L38, false for 'update' @ L149, false for 'update' @ L38, false for 'update' @ L149
+# [2026-10-30T17:37:12.985Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e2f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L38:24 for 'update' @ L38, false for 'update' @ L149, false for 'update' @ L38, false for 'update' @ L149
+# Subtest: on peut modifier son profil mais pas celui du partenaire ni y ajouter un secret
+ok 41 - on peut modifier son profil mais pas celui du partenaire ni y ajouter un secret
+  ---
+  duration_ms: 157.855141
+  type: 'test'
+  ...
+# [2026-10-30T17:37:13.163Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e33 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L53, false for 'create' @ L149, false for 'update' @ L54, false for 'update' @ L149
+# [2026-10-30T17:37:13.231Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e35 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L59, false for 'create' @ L149, false for 'update' @ L59, false for 'update' @ L149
+# Subtest: les cadeaux et réponses privées sont isolés et les anciens accès aux réponses sont fermés
+ok 42 - les cadeaux et réponses privées sont isolés et les anciens accès aux réponses sont fermés
+  ---
+  duration_ms: 221.714773
+  type: 'test'
+  ...
+# [2026-10-30T17:37:13.298Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e36 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L71, false for 'create' @ L149, false for 'update' @ L72, false for 'update' @ L149
+# [2026-10-30T17:37:13.365Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e38 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L72:26 for 'update' @ L72, false for 'update' @ L149, false for 'update' @ L72, false for 'update' @ L149
+# [2026-10-30T17:37:13.381Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e37 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L72:26 for 'update' @ L72, false for 'update' @ L149, false for 'update' @ L72, false for 'update' @ L149
+# [2026-10-30T17:37:13.485Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e3b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L85:26 for 'update' @ L85, false for 'update' @ L149, false for 'update' @ L85, false for 'update' @ L149
+# [2026-10-30T17:37:13.521Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e3c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L85:26 for 'update' @ L85, false for 'update' @ L149, false for 'update' @ L85, false for 'update' @ L149
+# Subtest: les notes ne permettent pas d’usurper un auteur et les modifications partagées restent possibles
+ok 43 - les notes ne permettent pas d’usurper un auteur et les modifications partagées restent possibles
+  ---
+  duration_ms: 317.362096
+  type: 'test'
+  ...
+# [2026-10-30T17:37:13.637Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97e3e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L83:26 for 'delete' @ L83, false for 'delete' @ L149, evaluation error at L83:26 for 'delete' @ L83, false for 'delete' @ L149, false for 'delete' @ L83, false for 'delete' @ L149, false for 'delete' @ L83, false for 'delete' @ L149
+# Subtest: la suppression groupée de 52 horaires est atomique et refuse tout accès à un autre couple
+ok 44 - la suppression groupée de 52 horaires est atomique et refuse tout accès à un autre couple
+  ---
+  duration_ms: 282.317886
+  type: 'test'
+  ...
+# Subtest: un panier transactionnel de 100 articles est autorisé, un accès tiers ne supprime rien
+ok 45 - un panier transactionnel de 100 articles est autorisé, un accès tiers ne supprime rien
+  ---
+  duration_ms: 636.566633
+  type: 'test'
+  ...
+# Subtest: une course décochée pendant la transaction reste présente après réévaluation
+ok 46 - une course décochée pendant la transaction reste présente après réévaluation
+  ---
+  duration_ms: 1279.198071
+  type: 'test'
+  ...
+# [2026-10-30T17:37:15.813Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97ead error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L71, false for 'create' @ L149, false for 'update' @ L72, false for 'update' @ L149
+# [2026-10-30T17:37:15.830Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97eae error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L71, false for 'create' @ L149, false for 'update' @ L72, false for 'update' @ L149
+# [2026-10-30T17:37:15.882Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97eaf error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L72:26 for 'update' @ L72, false for 'update' @ L149, false for 'update' @ L72, false for 'update' @ L149
+# Subtest: l’heure serveur permet les écritures malgré une horloge client en avance, sans accepter les dates futures
+ok 47 - l’heure serveur permet les écritures malgré une horloge client en avance, sans accepter les dates futures
+  ---
+  duration_ms: 135.553689
+  type: 'test'
+  ...
+# [2026-10-30T17:37:15.957Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97eb1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L99:26 for 'update' @ L99, false for 'update' @ L149, false for 'update' @ L99, false for 'update' @ L149
+# [2026-10-30T17:37:16.030Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97eb3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L111:26 for 'update' @ L111, false for 'update' @ L149, false for 'update' @ L111, false for 'update' @ L149
+# [2026-10-30T17:37:16.093Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97eb5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L120:34 for 'update' @ L120, false for 'update' @ L149, false for 'update' @ L120, false for 'update' @ L149
+# [2026-10-30T17:37:16.170Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97eb7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L130:26 for 'update' @ L130, false for 'update' @ L149, false for 'update' @ L130, false for 'update' @ L149
+# [2026-10-30T17:37:16.255Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97eb9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+# [2026-10-30T17:37:16.344Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97ebc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+# Subtest: les listes, souvenirs et dépenses valident les champs sans bloquer les usages normaux
+ok 48 - les listes, souvenirs et dépenses valident les champs sans bloquer les usages normaux
+  ---
+  duration_ms: 462.112959
+  type: 'test'
+  ...
+# [2026-10-30T17:37:16.623Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97ec1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L130:26 for 'update' @ L130, false for 'update' @ L149, false for 'update' @ L130, false for 'update' @ L149
+# [2026-10-30T17:37:16.652Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97ec2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L130:26 for 'update' @ L130, false for 'update' @ L149, false for 'update' @ L130, false for 'update' @ L149
+# Subtest: les patches de souvenir conservent les champs du partenaire et refusent un tiers
+ok 49 - les patches de souvenir conservent les champs du partenaire et refusent un tiers
+  ---
+  duration_ms: 307.736801
+  type: 'test'
+  ...
+# [2026-10-30T17:37:16.879Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97ec7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L111:26 for 'update' @ L111, false for 'update' @ L149, false for 'update' @ L111, false for 'update' @ L149
+# [2026-10-30T17:37:17.076Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97ecc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L111:26 for 'update' @ L111, false for 'update' @ L149, false for 'update' @ L111, false for 'update' @ L149
+# [2026-10-30T17:37:17.324Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97ed1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L111:26 for 'update' @ L111, false for 'update' @ L149, false for 'update' @ L111, false for 'update' @ L149
+# Subtest: les patches de listes préservent détails, type et statut coché
+ok 50 - les patches de listes préservent détails, type et statut coché
+  ---
+  duration_ms: 672.195388
+  type: 'test'
+  ...
+# [2026-10-30T17:37:17.583Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97ed7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L99:26 for 'update' @ L99, false for 'update' @ L149, false for 'update' @ L99, false for 'update' @ L149
+# [2026-10-30T17:37:17.619Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97ed8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L99:26 for 'update' @ L99, false for 'update' @ L149, false for 'update' @ L99, false for 'update' @ L149
+# Subtest: les patches de restaurant préservent note, métadonnées et auteur
+ok 51 - les patches de restaurant préservent note, métadonnées et auteur
+  ---
+  duration_ms: 295.102882
+  type: 'test'
+  ...
+# [2026-10-30T17:37:17.883Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97edd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L85:26 for 'update' @ L85, false for 'update' @ L149, false for 'update' @ L85, false for 'update' @ L149
+# [2026-10-30T17:37:17.916Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97ede error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L85:26 for 'update' @ L85, false for 'update' @ L149, false for 'update' @ L85, false for 'update' @ L149
+# [2026-10-30T17:37:17.951Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97edf error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L85:26 for 'update' @ L85, false for 'update' @ L149, false for 'update' @ L85, false for 'update' @ L149
+# Subtest: les patches d’agenda préservent les heures reçues et la série
+ok 52 - les patches d’agenda préservent les heures reçues et la série
+  ---
+  duration_ms: 330.958798
+  type: 'test'
+  ...
+# [2026-10-30T17:37:18.132Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97ee3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L54, false for 'update' @ L149
+# [2026-10-30T17:37:18.222Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97ee5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L54:26 for 'update' @ L54, false for 'update' @ L149, false for 'update' @ L54, false for 'update' @ L149
+# Subtest: les patches privés de cadeaux restent réservés au propriétaire
+ok 53 - les patches privés de cadeaux restent réservés au propriétaire
+  ---
+  duration_ms: 271.807278
+  type: 'test'
+  ...
+# Subtest: Storage limite les fichiers au propriétaire, aux membres, aux images et à leur taille
+ok 54 - Storage limite les fichiers au propriétaire, aux membres, aux images et à leur taille
+  ---
+  duration_ms: 1034.704587
+  type: 'test'
+  ...
+# Subtest: invitations expirables : renouvellement, utilisation unique et concurrence
+ok 55 - invitations expirables : renouvellement, utilisation unique et concurrence
+  ---
+  duration_ms: 2951.717112
+  type: 'test'
+  ...
+# Subtest: un membre retrouve son rattachement après consommation du code sans réutiliser l’invitation
+ok 56 - un membre retrouve son rattachement après consommation du code sans réutiliser l’invitation
+  ---
+  duration_ms: 241.832358
+  type: 'test'
+  ...
+# Subtest: le quota atomique résiste aux appels simultanés et se réinitialise
+ok 57 - le quota atomique résiste aux appels simultanés et se réinitialise
+  ---
+  duration_ms: 3563.373099
+  type: 'test'
+  ...
+# Subtest: la purge retire les traces expirées, conserve les comptes et ne supprime jamais une tâche en attente
+ok 58 - la purge retire les traces expirées, conserve les comptes et ne supprime jamais une tâche en attente
+  ---
+  duration_ms: 339.770029
+  type: 'test'
+  ...
+# Subtest: la purge retire le pointeur d’une invitation expirée sans toucher à l’espace
+ok 59 - la purge retire le pointeur d’une invitation expirée sans toucher à l’espace
+  ---
+  duration_ms: 108.677574
+  type: 'test'
+  ...
+# [2026-10-30T17:37:26.760Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97eed error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L149, false for 'update' @ L149
+# Subtest: une réponse reste secrète côté serveur jusqu’à la seconde réponse
+ok 60 - une réponse reste secrète côté serveur jusqu’à la seconde réponse
+  ---
+  duration_ms: 296.251568
+  type: 'test'
+  ...
+# Subtest: les réponses simultanées sont révélées une seule fois, sans perte
+ok 61 - les réponses simultanées sont révélées une seule fois, sans perte
+  ---
+  duration_ms: 37.597914
+  type: 'test'
+  ...
+# [2026-10-30T17:37:26.867Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97eee error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L149, false for 'update' @ L149
+# Subtest: le consentement IA doit être explicite, personnel et révocable
+ok 62 - le consentement IA doit être explicite, personnel et révocable
+  ---
+  duration_ms: 88.540746
+  type: 'test'
+  ...
+# Subtest: suppression : réauthentification exigée avant toute modification
+ok 63 - suppression : réauthentification exigée avant toute modification
+  ---
+  duration_ms: 37.39039
+  type: 'test'
+  ...
+# Subtest: la suppression refuse une identité confirmée différente avant de créer une tâche
+ok 64 - la suppression refuse une identité confirmée différente avant de créer une tâche
+  ---
+  duration_ms: 47.811923
+  type: 'test'
+  ...
+# Subtest: la suppression accepte une identité correspondante et reste compatible avec les anciens clients
+ok 65 - la suppression accepte une identité correspondante et reste compatible avec les anciens clients
+  ---
+  duration_ms: 367.686812
+  type: 'test'
+  ...
+# [2026-10-30T17:37:27.579Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x88b97ef1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L38:24 for 'update' @ L38, false for 'update' @ L149, false for 'update' @ L38, false for 'update' @ L149
+# Subtest: suppression reprise après panne : photos, privé, Auth et index nettoyés ; partenaire conservé
+ok 66 - suppression reprise après panne : photos, privé, Auth et index nettoyés ; partenaire conservé
+  ---
+  duration_ms: 596.135815
+  type: 'test'
+  ...
+# Subtest: la suppression du dernier membre efface aussi les sous-collections et fichiers orphelins
+ok 67 - la suppression du dernier membre efface aussi les sous-collections et fichiers orphelins
+  ---
+  duration_ms: 139.66457
+  type: 'test'
+  ...
+# Subtest: migration : simulation sans écriture, confidentialité, jetons privés et réexécution sans perte
+ok 68 - migration : simulation sans écriture, confidentialité, jetons privés et réexécution sans perte
+  ---
+  duration_ms: 160.191533
+  type: 'test'
+  ...
+1..68
+# tests 68
+# suites 0
+# pass 68
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 42742.338607
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  auth: Stopping Authentication Emulator
+i  storage: Stopping Storage Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

@@ -1,0 +1,806 @@
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { StyleSheet, View } from 'react-native';
+import Agenda from '@/app/(tabs)/agenda';
+import Home from '@/app/(tabs)/index';
+import { useCollectionState, useSession } from '../couple-context';
+import { confirmDelete } from '@/components/ui';
+import { showDialog } from '@/components/dialog';
+import { addDays, formatLong, todayKey } from '../dates';
+import { notifyPartner } from '../assistant';
+import { MemberColors } from '@/constants/member-colors';
+
+jest.mock('../couple-context', () => {
+  const state = jest.fn();
+  return {
+    useCollection: (name: string) => state(name).items, useCollectionState: state,
+    useSession: jest.fn(),
+  };
+});
+jest.mock('@/components/assistant-context', () => ({ useAssistant: () => null }));
+jest.mock('../assistant', () => ({ notifyPartner: jest.fn() }));
+jest.mock('@/components/dialog', () => ({ showDialog: jest.fn() }));
+jest.mock('react-native', () => Object.create(jest.requireActual('react-native'), {
+  AppState: { value: { currentState: 'active', addEventListener: jest.fn(() => ({ remove: jest.fn() })) } },
+}));
+jest.mock('@/components/invitation-card', () => ({ InvitationCard: () => null }));
+jest.mock('@/components/home/home-hero', () => ({ HomeHero: () => null }));
+jest.mock('@/components/home/love-cards', () => ({ NoteCard: () => null, PingCard: () => null }));
+jest.mock('@/components/home/memories-strip', () => ({ MemoriesStrip: () => null }));
+jest.mock('@/components/home/question-card', () => ({ QuestionCard: () => null }));
+jest.mock('@/constants/theme', () => ({ useTheme: () => ({ successSoft: '#ddffee', primary: '#123456' }), cardShadow: () => ({}), Fonts: {}, Spacing: {} }));
+jest.mock('@/components/pickers', () => ({ TimeField: 'time', DateField: () => null }));
+jest.mock('@/components/ui', () => {
+  const React = jest.requireActual('react');
+  return { confirmDelete: jest.fn(), ...Object.fromEntries(['Screen', 'SectionTitle', 'Card', 'T', 'Button', 'Fab', 'Row', 'Dot', 'Ionicons', 'Sheet', 'Field', 'Chips', 'IconButton'].map((name) => [
+    name, (props: { children?: React.ReactNode; right?: React.ReactNode }) => name === 'Screen'
+      ? React.createElement('screen', props, props.right, props.children)
+      : React.createElement(name.toLowerCase(), props),
+  ])) };
+});
+
+let root: ReactTestRenderer;
+const ready = { items: [], loading: false, error: false, retry: jest.fn() };
+const event = { id: 'event', title: 'Horaire fictif', date: todayKey(), who: 'alice', start: '09:00', end: '12:00', kind: 'travail' };
+const backend = { mode: 'cloud', coupleId: 'couple', userId: 'alice', addEvents: jest.fn().mockResolvedValue(undefined), update: jest.fn().mockResolvedValue(undefined), remove: jest.fn().mockResolvedValue(undefined), removeEvents: jest.fn().mockResolvedValue(undefined) };
+const session = { backend, members: [{ id: 'alice', name: 'Alice' }, { id: 'bob', name: 'Bob' }], colorOf: () => '#000', nameOf: () => 'Alice' };
+beforeEach(() => { (useCollectionState as jest.Mock).mockReturnValue(ready); (useSession as jest.Mock).mockReturnValue(session); });
+afterEach(async () => { if (root) await act(async () => root.unmount()); jest.clearAllMocks(); jest.useRealTimers(); });
+const accessibleDayLabel = (key: string) => `${formatLong(key)}${key === todayKey() ? ', aujourd’hui' : ''}`;
+const text = () => root.root.findAllByType('t' as never).map((node) => node.children.filter((child) => typeof child === 'string').join('')).join('\n');
+
+test('la grille distingue à l’oral les horaires identiques des deux membres et du couple', async () => {
+  const entries = ['alice', 'bob', 'both'].map(who => ({ ...event, id: `event-${who}`, who }));
+  (useSession as jest.Mock).mockReturnValue({ ...session, nameOf: (id: string) => ({ alice: 'Alice', bob: 'Bob', both: 'Nous deux' })[id] });
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: entries });
+  await act(async () => { root = create(<Agenda />); });
+  const grid = () => root.root.findAll(node => node.props.accessibilityRole === 'button' && typeof node.props.onLongPress === 'function');
+  const labels = [...new Set(grid().map(node => node.props.accessibilityLabel))];
+  expect(labels).toEqual([
+    'Horaire fictif, 09:00 à 12:00, Alice',
+    'Horaire fictif, 09:00 à 12:00, Bob',
+    'Horaire fictif, 09:00 à 12:00, Nous deux',
+  ]);
+  for (const [index, label] of labels.entries()) {
+    await act(async () => grid().find(node => node.props.accessibilityLabel === label)!.props.onPress());
+    expect(root.root.findByProps({ label: 'Pour qui ?' }).props.value).toBe(entries[index].who);
+    await act(async () => root.root.findByType('sheet' as never).props.onClose());
+  }
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(backend.addEvents).not.toHaveBeenCalled();
+});
+
+test('le repère accessible aujourd’hui reste distinct de la sélection et suit minuit', async () => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(new Date(2026, 9, 21, 23, 59, 59));
+  await act(async () => { root = create(<Agenda />); });
+  const day = (label: string) => root.root.findAllByProps({ accessibilityLabel: label })
+    .find(node => typeof node.props.onPress === 'function');
+  expect(day('mercredi 21 octobre, aujourd’hui')).toBeDefined();
+  await act(async () => day('jeudi 22 octobre')!.props.onPress());
+  expect(day('mercredi 21 octobre, aujourd’hui')?.props.accessibilityState.selected).toBe(false);
+  expect(day('jeudi 22 octobre')?.props.accessibilityState.selected).toBe(true);
+  await act(async () => jest.advanceTimersByTime(2000));
+  expect(day('mercredi 21 octobre, aujourd’hui')).toBeUndefined();
+  expect(day('mercredi 21 octobre')).toBeDefined();
+  expect(day('jeudi 22 octobre, aujourd’hui')?.props.accessibilityState.selected).toBe(true);
+  await act(async () => root.root.findByProps({ label: 'Semaine suivante' }).props.onPress());
+  expect(root.root.findAll(node => typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.includes('aujourd’hui'))).toHaveLength(0);
+});
+
+test.each(['alice', 'both'])('les horaires superposés restent ouvrables dans le détail du jour : %s', async who => {
+  const entries = [event, { ...event, id: 'overlap', title: 'Autre rendez-vous fictif', who }];
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: entries });
+  await act(async () => { root = create(<Agenda />); });
+  const details = () => root.root.findAllByType('card' as never).filter(node => node.props.accessibilityHint === 'Ouvre la fiche de cet horaire.');
+  expect(details()).toHaveLength(2);
+  for (let i = 0; i < entries.length; i++) {
+    const card = details()[i];
+    expect(card.findAllByType('t' as never)[0].props.numberOfLines).toBeUndefined();
+    await act(async () => card.props.onPress());
+    expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(entries[i].title);
+    await act(async () => root.root.findByType('sheet' as never).props.onClose());
+  }
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(backend.remove).not.toHaveBeenCalled();
+});
+
+test.each(['loading', 'error'])('le détail du jour ne réaffiche pas les horaires obsolètes pendant %s', async status => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [event], [status]: true });
+  await act(async () => { root = create(<Agenda />); });
+  expect(root.root.findAllByType('card' as never).filter(node => node.props.accessibilityHint === 'Ouvre la fiche de cet horaire.')).toHaveLength(0);
+});
+
+test.each([
+  [['Semaine suivante', 'Semaine suivante'], '2026-11-02'],
+  [['Semaine précédente', 'Semaine précédente'], '2026-10-05'],
+  [['Semaine suivante', 'Semaine précédente'], '2026-10-19'],
+] as const)('la navigation cumule les appuis avant le rendu : %s', async (directions, expected) => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(new Date(2026, 9, 21, 12));
+  await act(async () => { root = create(<Agenda />); });
+  const callbacks = directions.map(label => root.root.findByProps({ label }).props.onPress);
+  await act(async () => callbacks.forEach(callback => callback()));
+  const selected = root.root.findAllByProps({ accessibilityLabel: accessibleDayLabel(expected) }).find(node => typeof node.props.onPress === 'function');
+  expect(selected?.props.accessibilityState.selected).toBe(true);
+});
+
+test.each([
+  [new Date(2026, 9, 26, 12), '2026-11-01', 'octobre 2026 – novembre 2026', 'dimanche 1 novembre 2026'],
+  [new Date(2026, 11, 28, 12), '2027-01-03', 'décembre 2026 – janvier 2027', 'dimanche 3 janvier 2027'],
+  [new Date(2026, 9, 19, 12), '2026-10-25', 'octobre 2026', 'dimanche 25 octobre 2026'],
+])('les mois de la semaine et la date choisie restent explicites : %s', async (now, selected, range, dayLabel) => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(now);
+  await act(async () => { root = create(<Agenda />); });
+  const day = root.root.findAllByProps({ accessibilityLabel: accessibleDayLabel(selected) }).find(node => typeof node.props.onPress === 'function')!;
+  await act(async () => day.props.onPress());
+  expect(root.root.findByType('screen' as never).props.overline).toBe(range);
+  expect(text()).toContain(dayLabel);
+  await act(async () => root.root.findByType('fab' as never).props.onPress());
+  const form = root.root.findByType('sheet' as never);
+  expect(form.findAllByType('t' as never).map(node => node.children.join('')).join(' ')).toContain(dayLabel);
+  expect(backend.addEvents).not.toHaveBeenCalled();
+});
+
+test('un ancien bouton de jour ne sélectionne pas une date hors de la semaine affichée', async () => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(new Date(2026, 9, 21, 12));
+  await act(async () => { root = create(<Agenda />); });
+  const day = (key: string) => root.root.findAllByProps({ accessibilityLabel: accessibleDayLabel(key) }).find(node => typeof node.props.onPress === 'function')!;
+  const oldDay = day('2026-10-23').props.onPress;
+  await act(async () => {
+    root.root.findByProps({ label: 'Semaine suivante' }).props.onPress();
+    oldDay();
+  });
+  expect(day('2026-10-26').props.accessibilityState.selected).toBe(true);
+  await act(async () => oldDay());
+  expect(day('2026-10-26').props.accessibilityState.selected).toBe(true);
+});
+
+test.each(['Semaine précédente', 'Semaine suivante'])('retour au jour courant après navigation : %s', async direction => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(new Date(2026, 9, 25, 23, 59, 59));
+  await act(async () => { root = create(<Agenda />); });
+  for (let i = 0; i < 3; i++) {
+    await act(async () => root.root.findByProps({ label: direction }).props.onPress());
+  }
+  const returnToday = root.root.findByProps({ label: 'Revenir à aujourd’hui' }).props.onPress;
+  // La semaine change après le rendu : le clic doit lire la date effective.
+  jest.setSystemTime(new Date(2026, 9, 26, 0, 0, 0));
+  await act(async () => returnToday());
+  const selected = root.root.findAllByProps({ accessibilityLabel: accessibleDayLabel('2026-10-26') })
+    .find(node => typeof node.props.onPress === 'function')!;
+  expect(selected.props.accessibilityState.selected).toBe(true);
+  expect(root.root.findAllByProps({ accessibilityLabel: accessibleDayLabel('2026-11-01') })).not.toHaveLength(0);
+  expect(backend.addEvents).not.toHaveBeenCalled();
+  expect(backend.update).not.toHaveBeenCalled();
+});
+
+test('à minuit le repère du jour avance sans changer la journée consultée', async () => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  jest.setSystemTime(new Date(2026, 9, 20, 23, 59, 59));
+  await act(async () => { root = create(<Agenda />); });
+  const day = (key: string) => root.root.findAllByProps({ accessibilityLabel: accessibleDayLabel(key) }).find(node => typeof node.props.onPress === 'function')!;
+  await act(async () => day('2026-10-19').props.onPress());
+  expect(day('2026-10-20').findAllByType('t' as never)[1].props.color).toBe('#123456');
+  await act(async () => jest.advanceTimersByTime(1025));
+  expect(day('2026-10-21').findAllByType('t' as never)[1].props.color).toBe('#123456');
+  expect(day('2026-10-20').findAllByType('t' as never)[1].props.color).not.toBe('#123456');
+  expect(day('2026-10-19').props.accessibilityState.selected).toBe(true);
+});
+
+// Opaque foreground or alpha composited on the actual opaque member background.
+const contrast = (foreground: string, background: string) => {
+  const rgb = (hex: string) => {
+    const digits = hex.length === 4 ? hex.slice(1).split('').map(x => x + x).join('') : hex.slice(1);
+    return digits.match(/../g)!.map(x => parseInt(x, 16));
+  };
+  const bg = rgb(background);
+  const rgba = /^rgba\(([^)]+)\)$/.exec(foreground)?.[1].split(',').map(Number);
+  const fg = rgba ? bg.map((channel, i) => rgba[i] * rgba[3] + channel * (1 - rgba[3])) : rgb(foreground);
+  const luminance = (channels: number[]) => {
+    const [r, g, b] = channels.map(x => x / 255).map(x => x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const a = luminance(bg), b = luminance(fg);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+};
+
+describe.each(MemberColors)('bloc agenda sur %s', color => {
+  test.each(['Horaire fictif', '09:00 – 12:00'])('le texte %s garde au moins 4,5:1', async label => {
+    (useSession as jest.Mock).mockReturnValue({ ...session, colorOf: () => color });
+    (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [event] });
+    await act(async () => { root = create(<Agenda />); });
+    const node = root.root.findAllByType('t' as never).find(node => node.children.join('') === label)!;
+    expect(node).toBeTruthy();
+    expect(contrast(node.props.color, color)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+test.each([['09:00', '12:00'], ['06:00', '07:00'], ['08:00', '22:00']])('la plage libre tient dans la grille après un événement %s–%s', async (start, end) => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...event, start, end }] });
+  await act(async () => { root = create(<Agenda />); });
+  const grid = root.root.findAllByType(View).find(node => {
+    const style = StyleSheet.flatten(node.props.style);
+    return style?.overflow === 'hidden' && style?.borderRadius === 18 && typeof style.height === 'number';
+  })!;
+  const height = StyleSheet.flatten(grid.props.style).height as number;
+  const slots = grid.findAllByType(View).map(node => StyleSheet.flatten(node.props.style))
+    .filter(style => style?.position === 'absolute' && style.backgroundColor === '#ddffee');
+  expect(slots.length).toBeGreaterThan(0);
+  for (const slot of slots) {
+    expect(slot.top).toBeGreaterThanOrEqual(0);
+    expect((slot.top as number) + (slot.height as number)).toBeLessThanOrEqual(height);
+  }
+});
+
+test.each([['empty', 560], ['alone', 560], ['late', 640]] as const)('les bornes habituelles de la grille restent conservées : %s', async (scenario, height) => {
+  if (scenario !== 'empty') (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...event, end: scenario === 'late' ? '23:30' : '12:00' }] });
+  if (scenario === 'alone') (useSession as jest.Mock).mockReturnValue({ ...session, members: [session.members[0]] });
+  await act(async () => { root = create(<Agenda />); });
+  const grid = root.root.findAllByType(View).map(node => StyleSheet.flatten(node.props.style))
+    .find(style => style?.overflow === 'hidden' && style?.borderRadius === 18 && typeof style.height === 'number')!;
+  expect(grid.height).toBe(height);
+});
+
+const seriesEvent = { ...event, seriesId: 'series' };
+const seriesButton = () => root.root.findByProps({ label: 'Supprimer aussi les semaines suivantes' });
+const openSeries = async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [seriesEvent] });
+  await act(async () => { root = create(<Agenda />); });
+  await act(async () => { root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00, Alice' }).find((node) => typeof node.props.onPress === 'function')!.props.onPress(); });
+};
+const formField = (label: string) => root.root.findByProps({ label });
+const changeTitle = async (value = 'Titre saisi') => { await act(async () => formField('Titre').props.onChangeText(value)); };
+
+test.each(['title', 'who', 'kind', 'start', 'end', 'date', 'all'])('dernière saisie agenda avant rendu : %s', async (key) => {
+  await openSeries();
+  const submit = formField('Enregistrer').props.onPress;
+  const patch: Record<string, string> = {};
+  await act(async () => {
+    if (key === 'title' || key === 'all') { formField('Titre').props.onChangeText(' Dernier titre '); patch.title = 'Dernier titre'; }
+    if (key === 'who' || key === 'all') { formField('Pour qui ?').props.onChange('bob'); patch.who = 'bob'; }
+    if (key === 'kind' || key === 'all') { formField('Type').props.onChange('perso'); patch.kind = 'perso'; }
+    if (key === 'start' || key === 'all') { formField('Début').props.onChange('10:00'); patch.start = '10:00'; }
+    if (key === 'end' || key === 'all') { formField('Fin').props.onChange('14:00'); patch.end = '14:00'; }
+    if (key === 'date' || key === 'all') {
+      const nextDay = formField('Jour suivant').props.onPress;
+      nextDay(); nextDay();
+      patch.date = addDays(seriesEvent.date, 2);
+    }
+    await submit();
+  });
+  expect(backend.update).toHaveBeenCalledWith('events', seriesEvent.id, patch);
+});
+
+test.each(['title', 'who', 'range'])('saisie agenda devenue invalide avant rendu : %s', async (key) => {
+  await openSeries();
+  const submit = formField('Enregistrer').props.onPress;
+  await act(async () => {
+    if (key === 'title') formField('Titre').props.onChangeText(' ');
+    if (key === 'who') formField('Pour qui ?').props.onChange('unknown');
+    if (key === 'range') formField('Début').props.onChange('13:00');
+    await submit();
+  });
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(root.root.findAllByType('sheet' as never)).toHaveLength(1);
+});
+
+test.each([false, true])('création immédiate avec répétition agenda (titre déjà saisi : %s)', async (typed) => {
+  await act(async () => { root = create(<Agenda />); });
+  await act(async () => formField('Ajouter un horaire').props.onPress());
+  if (typed) await changeTitle('Titre fictif');
+  const submit = formField('Enregistrer').props.onPress;
+  await act(async () => {
+    if (!typed) formField('Titre').props.onChangeText('Titre fictif');
+    formField('Répéter chaque semaine').props.onChange('4');
+    await submit();
+  });
+  expect(backend.addEvents).toHaveBeenCalledTimes(1);
+  const events = backend.addEvents.mock.calls[0][0];
+  expect(events).toHaveLength(4);
+  expect(events.map((entry: { date: string }) => entry.date)).toEqual([0, 7, 14, 21].map(days => addDays(todayKey(), days)));
+  expect(events.every((entry: { title: string; seriesId: string }) => entry.title === 'Titre fictif' && entry.seriesId === events[0].seriesId && !!entry.seriesId)).toBe(true);
+  expect(notifyPartner).toHaveBeenCalledTimes(1);
+});
+const receiveEvent = async (patch: object) => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [{ ...seriesEvent, ...patch }] });
+  await act(async () => root.update(<Agenda />));
+};
+
+test('le titre saisi ne réécrit pas les heures, membre ou type reçus', async () => {
+  await openSeries();
+  await changeTitle();
+  await receiveEvent({ start: '10:00', end: '14:00', who: 'bob', kind: 'perso' });
+  for (const [label, value] of [['Début', '10:00'], ['Fin', '14:00'], ['Pour qui ?', 'bob'], ['Type', 'perso']]) {
+    expect(formField(label).props.value).toBe(value);
+  }
+  await act(async () => { await formField('Enregistrer').props.onPress(); });
+  expect(backend.update).toHaveBeenCalledWith('events', event.id, { title: 'Titre saisi' });
+});
+
+test('une fiche agenda intacte ferme sans mutation', async () => {
+  await openSeries();
+  await act(async () => { await formField('Enregistrer').props.onPress(); });
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
+});
+
+test('le bouton agenda ancien utilise le titre et les heures courants', async () => {
+  await openSeries();
+  const save = formField('Enregistrer').props.onPress;
+  await changeTitle();
+  await act(async () => formField('Début').props.onChange('10:00'));
+  await act(async () => { await save(); });
+  expect(backend.update).toHaveBeenCalledWith('events', event.id, { title: 'Titre saisi', start: '10:00' });
+});
+
+test('un ancien bouton refuse un intervalle devenu invalide', async () => {
+  await openSeries();
+  const save = formField('Enregistrer').props.onPress;
+  await act(async () => formField('Début').props.onChange('13:00'));
+  await act(async () => { await save(); });
+  expect(backend.update).not.toHaveBeenCalled();
+});
+
+test('un ancien bouton de création utilise la répétition et le titre courants', async () => {
+  await act(async () => { root = create(<Agenda />); });
+  await act(async () => formField('Ajouter un horaire').props.onPress());
+  const save = formField('Enregistrer').props.onPress;
+  await changeTitle();
+  await act(async () => formField('Répéter chaque semaine').props.onChange('4'));
+  await act(async () => { await save(); });
+  expect(backend.addEvents).toHaveBeenCalledTimes(1);
+  expect(backend.addEvents.mock.calls[0][0]).toHaveLength(4);
+  expect(backend.addEvents.mock.calls[0][0][0].title).toBe('Titre saisi');
+});
+
+test('le changement de jour relit la date reçue et cumule deux appuis', async () => {
+  await openSeries();
+  const next = formField('Jour suivant').props.onPress;
+  await receiveEvent({ date: '2099-01-01' });
+  await act(async () => { await next(); await next(); });
+  await act(async () => { await formField('Enregistrer').props.onPress(); });
+  expect(backend.update).toHaveBeenCalledWith('events', event.id, { date: '2099-01-03' });
+});
+
+test.each([false, true])('le membre retiré est refusé puis peut être remplacé (création %s)', async (fresh) => {
+  if (fresh) {
+    await act(async () => { root = create(<Agenda />); });
+    await act(async () => formField('Ajouter un horaire').props.onPress());
+  } else await openSeries();
+  await changeTitle();
+  await act(async () => formField('Pour qui ?').props.onChange('bob'));
+  const save = formField('Enregistrer').props.onPress;
+  (useSession as jest.Mock).mockReturnValue({ ...session, members: [session.members[0]] });
+  await act(async () => root.update(<Agenda />));
+  expect(formField('Enregistrer').props.disabled).toBe(true);
+  await act(async () => { await save(); });
+  expect(backend.addEvents).not.toHaveBeenCalled();
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(notifyPartner).not.toHaveBeenCalled();
+  expect(formField('Titre').props.value).toBe('Titre saisi');
+  await act(async () => formField('Pour qui ?').props.onChange('alice'));
+  expect(formField('Enregistrer').props.disabled).toBe(false);
+  await act(async () => { await save(); });
+  if (fresh) expect(backend.addEvents).toHaveBeenCalledTimes(1);
+  else expect(backend.update).toHaveBeenCalledWith('events', event.id, { title: 'Titre saisi' });
+});
+
+test('Nous deux reste un choix valide avec un seul membre présent', async () => {
+  await openSeries();
+  await act(async () => formField('Pour qui ?').props.onChange('both'));
+  (useSession as jest.Mock).mockReturnValue({ ...session, members: [session.members[0]] });
+  await act(async () => root.update(<Agenda />));
+  expect(formField('Enregistrer').props.disabled).toBe(false);
+  await act(async () => { await formField('Enregistrer').props.onPress(); });
+  expect(backend.update).toHaveBeenCalledWith('events', event.id, { who: 'both' });
+});
+
+const askLongPressDelete = async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [seriesEvent] });
+  await act(async () => { root = create(<Agenda />); });
+  await act(async () => { root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00, Alice' }).find((node) => typeof node.props.onLongPress === 'function')!.props.onLongPress(); });
+  return (confirmDelete as jest.Mock).mock.calls[0][1];
+};
+
+test.each(['unmount', 'backend', 'loading', 'error', 'removed'])('un appui long confirmé après %s ne supprime rien', async (change) => {
+  const confirm = await askLongPressDelete();
+  if (change === 'backend') (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...backend, coupleId: 'new' } });
+  else if (change === 'removed') (useCollectionState as jest.Mock).mockReturnValue(ready);
+  else if (change !== 'unmount') (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [seriesEvent], [change]: true });
+  await act(async () => { if (change === 'unmount') root.unmount(); else root.update(<Agenda />); });
+  await act(async () => { await confirm(); });
+  expect(backend.remove).not.toHaveBeenCalled();
+});
+
+test('la confirmation par appui long reste disponible et ne supprime qu’une fois', async () => {
+  const confirm = await askLongPressDelete();
+  await act(async () => { await Promise.all([confirm(), confirm()]); });
+  expect(backend.remove).toHaveBeenCalledTimes(1);
+  expect(backend.remove).toHaveBeenCalledWith('events', 'event');
+});
+
+test('un refus de suppression par appui long permet une reprise sans masquer l’erreur', async () => {
+  const confirm = await askLongPressDelete();
+  backend.remove.mockRejectedValueOnce(new Error('Suppression fictive refusée'));
+  await act(async () => { await confirm(); });
+  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Suppression fictive refusée');
+  await act(async () => { await confirm(); });
+  expect(backend.remove).toHaveBeenCalledTimes(2);
+});
+
+test.each(['loading', 'error'])('la suppression de série est bloquée en %s sans perdre le formulaire', async (status) => {
+  await openSeries();
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [seriesEvent], [status]: true });
+  await act(async () => { root.update(<Agenda />); });
+  expect(seriesButton().props.disabled).toBe(true);
+  await act(async () => { seriesButton().props.onPress(); });
+  expect(confirmDelete).not.toHaveBeenCalled();
+  expect(backend.remove).not.toHaveBeenCalled();
+  expect(backend.removeEvents).not.toHaveBeenCalled();
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
+  if (status === 'error') {
+    await act(async () => { root.root.findByProps({ label: 'Réessayer la série' }).props.onPress(); });
+    expect(ready.retry).toHaveBeenCalledTimes(1);
+  }
+});
+
+test.each(['loading', 'error', 'backend', 'closed'])('une confirmation devenue obsolète (%s) ne supprime rien', async (change) => {
+  await openSeries();
+  await act(async () => { seriesButton().props.onPress(); });
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  if (change === 'backend') (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...backend } });
+  else if (change !== 'closed') (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [seriesEvent], [change]: true });
+  await act(async () => {
+    if (change === 'closed') root.root.findByProps({ title: 'Modifier l’horaire' }).props.onClose();
+    else root.update(<Agenda />);
+  });
+  await act(async () => { await confirm(); });
+  expect(backend.remove).not.toHaveBeenCalled();
+  expect(backend.removeEvents).not.toHaveBeenCalled();
+  if (change !== 'closed') {
+    expect(showDialog).toHaveBeenCalled();
+    expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
+  }
+});
+
+test('la confirmation utilise la série fraîche et préserve les autres horaires', async () => {
+  await openSeries();
+  await act(async () => { seriesButton().props.onPress(); });
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  const items = [seriesEvent, { ...seriesEvent, id: 'future', date: '2099-01-01' }, { ...seriesEvent, id: 'past', date: '2000-01-01' }, { ...seriesEvent, id: 'other', seriesId: 'other' }];
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items });
+  await act(async () => { root.update(<Agenda />); });
+  await act(async () => { await confirm(); });
+  expect(backend.removeEvents.mock.calls).toEqual([[['event', 'future']]]);
+  expect(backend.remove).not.toHaveBeenCalled();
+  expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
+});
+
+test('un refus du lot conserve le formulaire et permet de réessayer', async () => {
+  await openSeries();
+  await act(async () => { seriesButton().props.onPress(); });
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  backend.removeEvents.mockRejectedValueOnce(new Error('Lot fictif refusé'));
+  await act(async () => { await confirm(); });
+  expect(showDialog).toHaveBeenCalledWith('Action impossible', 'Lot fictif refusé');
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
+  await act(async () => { await confirm(); });
+  expect(backend.removeEvents).toHaveBeenCalledTimes(2);
+  expect(backend.remove).not.toHaveBeenCalled();
+  expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
+});
+
+test('une sauvegarde bloque la suppression et la fermeture du même formulaire', async () => {
+  await openSeries();
+  await changeTitle();
+  let finish!: () => void;
+  backend.update.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); });
+  await act(async () => {
+    root.root.findByProps({ label: 'Supprimer' }).props.onPress();
+    seriesButton().props.onPress();
+    root.root.findByProps({ title: 'Modifier l’horaire' }).props.onClose();
+  });
+  expect(confirmDelete).not.toHaveBeenCalled();
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe('Titre saisi');
+  await act(async () => { finish(); await pending; });
+  expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
+});
+
+test('deux confirmations identiques ne lancent qu’une suppression', async () => {
+  await openSeries();
+  await act(async () => { root.root.findByProps({ label: 'Supprimer' }).props.onPress(); });
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  await act(async () => { await Promise.all([confirm(), confirm()]); });
+  expect(backend.remove).toHaveBeenCalledTimes(1);
+});
+
+test.each(['Supprimer', 'Supprimer aussi les semaines suivantes'])('une confirmation déjà ouverte (%s) ne contourne pas une sauvegarde en cours', async (label) => {
+  await openSeries();
+  await changeTitle();
+  await act(async () => { root.root.findByProps({ label }).props.onPress(); });
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  let finish!: () => void;
+  backend.update.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); });
+  await act(async () => { await confirm(); });
+  expect(backend.remove).not.toHaveBeenCalled();
+  expect(backend.removeEvents).not.toHaveBeenCalled();
+  await act(async () => { finish(); await pending; });
+});
+
+test('les anciens gestionnaires de formulaire ne rouvrent pas de confirmation après fermeture', async () => {
+  await openSeries();
+  const removeOne = root.root.findByProps({ label: 'Supprimer' }).props.onPress;
+  const removeSeries = seriesButton().props.onPress;
+  const save = root.root.findByProps({ label: 'Enregistrer' }).props.onPress;
+  await act(async () => { root.root.findByProps({ title: 'Modifier l’horaire' }).props.onClose(); });
+  await act(async () => { removeOne(); removeSeries(); await save(); });
+  expect(confirmDelete).not.toHaveBeenCalled();
+  expect(backend.update).not.toHaveBeenCalled();
+});
+
+test('une confirmation individuelle après fermeture ne supprime rien', async () => {
+  await openSeries();
+  await act(async () => { root.root.findByProps({ label: 'Supprimer' }).props.onPress(); });
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  await act(async () => { root.root.findByProps({ title: 'Modifier l’horaire' }).props.onClose(); });
+  await act(async () => { await confirm(); });
+  expect(backend.remove).not.toHaveBeenCalled();
+});
+
+test.each(['success', 'failure'])('un ajout terminé en %s après changement de compte laisse le nouveau brouillon intact', async (result) => {
+  await act(async () => { root = create(<Agenda />); });
+  await act(async () => { root.root.findByProps({ label: 'Ajouter un horaire' }).props.onPress(); });
+  await act(async () => { root.root.findByProps({ label: 'Titre' }).props.onChangeText('Ancien brouillon'); });
+  let finish!: () => void; let fail!: (error: Error) => void;
+  backend.addEvents.mockImplementationOnce(() => new Promise<void>((yes, no) => { finish = yes; fail = no; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); pending.catch(() => {}); });
+  (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...backend, coupleId: 'new-couple', userId: 'bob' } });
+  await act(async () => { root.update(<Agenda />); });
+  expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
+  await act(async () => { root.root.findByProps({ label: 'Ajouter un horaire' }).props.onPress(); });
+  await act(async () => { root.root.findByProps({ label: 'Titre' }).props.onChangeText('Nouveau brouillon'); });
+  await act(async () => { if (result === 'success') finish(); else fail(new Error('Ancien échec')); await pending; });
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe('Nouveau brouillon');
+  expect(notifyPartner).not.toHaveBeenCalled();
+  expect(showDialog).not.toHaveBeenCalled();
+});
+
+test('un échec de sauvegarde reste visible, conserve la saisie et permet une reprise', async () => {
+  await openSeries();
+  await changeTitle();
+  backend.update.mockRejectedValueOnce(new Error('Échec fictif'));
+  await act(async () => { await root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); });
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('Vérifie l’agenda'));
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe('Titre saisi');
+  await act(async () => { await root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); });
+  expect(backend.update).toHaveBeenCalledTimes(2);
+  expect(root.root.findAllByProps({ label: 'Titre' })).toHaveLength(0);
+});
+
+test.each([false, true])('une réponse agenda perdue conserve le brouillon sans détail privé (création : %s)', async fresh => {
+  if (fresh) {
+    await act(async () => { root = create(<Agenda />); });
+    await act(async () => formField('Ajouter un horaire').props.onPress());
+  } else await openSeries();
+  await changeTitle();
+  const write = fresh ? backend.addEvents : backend.update;
+  let stored = false;
+  write.mockImplementationOnce(async () => { stored = true; throw new Error('Détail privé fictif : couples/test-secret/events/one'); });
+  await act(async () => { await formField('Enregistrer').props.onPress(); });
+  expect(stored).toBe(true);
+  expect(write).toHaveBeenCalledTimes(1);
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('avant de réessayer'));
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('test-secret');
+  expect(formField('Titre').props.value).toBe('Titre saisi');
+  expect(notifyPartner).not.toHaveBeenCalled();
+});
+
+test.each(['loading', 'error'])('un agenda en %s ne ressemble pas à une journée vide', async (status) => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, [status]: true });
+  await act(async () => { root = create(<Agenda />); });
+  expect(text()).not.toContain('Aucun horaire ce jour-là');
+  expect(text()).not.toContain('Libres ensemble');
+  expect(text()).toContain(status === 'loading' ? 'Chargement de l’agenda' : 'Agenda indisponible');
+  if (status === 'error') {
+    await act(async () => { root.root.findByProps({ label: 'Réessayer l’agenda' }).props.onPress(); });
+    expect(ready.retry).toHaveBeenCalledTimes(1);
+  }
+});
+
+test.each(['loading', 'error'])('l’accueil en %s n’annonce pas une journée libre', async (status) => {
+  (useCollectionState as jest.Mock).mockImplementation((name) => name === 'events' ? { ...ready, [status]: true } : ready);
+  await act(async () => { root = create(<Home />); });
+  expect(text()).not.toContain('Rien de prévu. Journée libre');
+  expect(text()).toContain(status === 'loading' ? 'Chargement de l’agenda' : 'Agenda indisponible');
+  if (status === 'error') {
+    await act(async () => { root.root.findByProps({ label: 'Réessayer l’agenda' }).props.onPress(); });
+    expect(ready.retry).toHaveBeenCalledTimes(1);
+  }
+});
+
+test('un agenda confirmé vide garde son état vide normal', async () => {
+  await act(async () => { root = create(<Agenda />); });
+  expect(text()).toContain('Aucun horaire ce jour-là');
+  expect(root.root.findByProps({ label: 'Ajouter un horaire' })).toBeTruthy();
+});
+
+test('une erreur masque les horaires et les disponibilités sans perdre la saisie ouverte', async () => {
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [event] });
+  await act(async () => { root = create(<Agenda />); });
+  expect(text()).toContain('Libres ensemble');
+  await act(async () => { root.root.findByProps({ label: 'Ajouter un horaire' }).props.onPress(); });
+  await act(async () => { root.root.findByProps({ label: 'Titre' }).props.onChangeText('Brouillon fictif'); });
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [event], error: true });
+  await act(async () => { root.update(<Agenda />); });
+  expect(text()).not.toContain('Libres ensemble');
+  expect(text()).not.toContain('Horaire fictif');
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe('Brouillon fictif');
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: [event] });
+  await act(async () => { root.update(<Agenda />); });
+  expect(text()).toContain('Libres ensemble');
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe('Brouillon fictif');
+});
+
+test('le résumé du jour affiche à nouveau les événements après reprise', async () => {
+  (useCollectionState as jest.Mock).mockImplementation((name) => name === 'events' ? { ...ready, error: true, items: [event] } : ready);
+  await act(async () => { root = create(<Home />); });
+  expect(text()).not.toContain('Horaire fictif');
+  (useCollectionState as jest.Mock).mockImplementation((name) => name === 'events' ? { ...ready, items: [event] } : ready);
+  await act(async () => { root.update(<Home />); });
+  expect(text()).toContain('Horaire fictif');
+  expect(text()).not.toContain('Agenda indisponible');
+});
+
+test.each(['loading', 'error'])('les dates à venir en %s ne proposent pas un faux démarrage à zéro', async (status) => {
+  (useCollectionState as jest.Mock).mockImplementation((name) => name === 'dates' ? { ...ready, [status]: true } : ready);
+  await act(async () => { root = create(<Home />); });
+  expect(text()).not.toContain('ajoutez les dates que vous attendez');
+  expect(text()).toContain(status === 'loading' ? 'Chargement des dates' : 'Dates indisponibles');
+  if (status === 'error') {
+    await act(async () => { root.root.findByProps({ label: 'Réessayer les dates' }).props.onPress(); });
+    expect(ready.retry).toHaveBeenCalledTimes(1);
+  }
+});
+
+test('une date revient après reprise sans effacer la saisie de la nouvelle date', async () => {
+  const date = { id: 'date', title: 'Sortie fictive', date: todayKey(), yearly: false };
+  (useCollectionState as jest.Mock).mockImplementation((name) => name === 'dates' ? { ...ready, items: [date] } : ready);
+  await act(async () => { root = create(<Home />); });
+  expect(text()).toContain('Sortie fictive');
+  await act(async () => { root.root.findByProps({ title: 'À venir' }).props.onAction(); });
+  await act(async () => { root.root.findByProps({ label: 'Quoi ?' }).props.onChangeText('Date en préparation'); });
+  (useCollectionState as jest.Mock).mockImplementation((name) => name === 'dates' ? { ...ready, error: true, items: [date] } : ready);
+  await act(async () => { root.update(<Home />); });
+  expect(text()).not.toContain('Sortie fictive');
+  expect(root.root.findByProps({ label: 'Quoi ?' }).props.value).toBe('Date en préparation');
+  (useCollectionState as jest.Mock).mockImplementation((name) => name === 'dates' ? { ...ready, items: [date] } : ready);
+  await act(async () => { root.update(<Home />); });
+  expect(text()).toContain('Sortie fictive');
+  expect(root.root.findByProps({ label: 'Quoi ?' }).props.value).toBe('Date en préparation');
+});
+
+test.each(['loading', 'error', 'removed'])('sauvegarde et suppression simple bloquées après %s', async (status) => {
+  await openSeries();
+  const save = root.root.findByProps({ label: 'Enregistrer' }).props.onPress;
+  await act(async () => root.root.findByProps({ label: 'Supprimer' }).props.onPress());
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: status === 'removed' ? [] : [seriesEvent], [status]: true });
+  await act(async () => root.update(<Agenda />));
+  await act(async () => { await save(); await confirm(); });
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(backend.remove).not.toHaveBeenCalled();
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe(event.title);
+  expect(root.root.findByProps({ label: 'Enregistrer' }).props.disabled).toBe(true);
+  expect(root.root.findByProps({ label: 'Supprimer' }).props.disabled).toBe(true);
+});
+
+test.each(['loading', 'error'])('création bloquée si la lecture devient %s', async (status) => {
+  await act(async () => { root = create(<Agenda />); });
+  await act(async () => root.root.findByProps({ label: 'Ajouter un horaire' }).props.onPress());
+  await act(async () => root.root.findByProps({ label: 'Titre' }).props.onChangeText('Brouillon fictif'));
+  const save = root.root.findByProps({ label: 'Enregistrer' }).props.onPress;
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, [status]: true });
+  await act(async () => root.update(<Agenda />));
+  await act(async () => { await save(); });
+  expect(backend.addEvents).not.toHaveBeenCalled();
+  expect(notifyPartner).not.toHaveBeenCalled();
+});
+
+test('tous les champs du formulaire agenda partagent le verrou de sauvegarde', async () => {
+  await openSeries();
+  await changeTitle();
+  const title = root.root.findByProps({ label: 'Titre' }).props.onChangeText;
+  const who = root.root.findByProps({ label: 'Pour qui ?' }).props.onChange;
+  const kind = root.root.findByProps({ label: 'Type' }).props.onChange;
+  const start = root.root.findByProps({ label: 'Début' }).props.onChange;
+  const end = root.root.findByProps({ label: 'Fin' }).props.onChange;
+  const day = root.root.findByProps({ label: 'Jour suivant' }).props.onPress;
+  let finish!: () => void;
+  backend.update.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = root.root.findByProps({ label: 'Enregistrer' }).props.onPress();
+    await title('Trop tard'); await who('bob'); await kind('perso'); await start('08:00'); await end('20:00'); await day();
+  });
+  expect(root.root.findByProps({ label: 'Titre' }).props).toMatchObject({ value: 'Titre saisi', editable: false });
+  for (const [label, value] of [['Pour qui ?', event.who], ['Type', event.kind], ['Début', event.start], ['Fin', event.end]]) {
+    expect(root.root.findByProps({ label }).props).toMatchObject({ value, disabled: true });
+  }
+  expect(root.root.findByProps({ label: 'Jour suivant' }).props.disabled).toBe(true);
+  expect(root.root.findByProps({ label: 'Jour précédent' }).props.disabled).toBe(true);
+  await act(async () => { finish(); await pending; });
+});
+
+test('la répétition d’un nouvel horaire est figée pendant son ajout', async () => {
+  await act(async () => { root = create(<Agenda />); });
+  await act(async () => root.root.findByProps({ label: 'Ajouter un horaire' }).props.onPress());
+  await act(async () => root.root.findByProps({ label: 'Titre' }).props.onChangeText('Nouveau fictif'));
+  const change = root.root.findByProps({ label: 'Répéter chaque semaine' }).props.onChange;
+  let finish!: () => void;
+  backend.addEvents.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = root.root.findByProps({ label: 'Enregistrer' }).props.onPress(); await change('12'); });
+  expect(root.root.findByProps({ label: 'Répéter chaque semaine' }).props).toMatchObject({ value: '0', disabled: true });
+  await act(async () => { finish(); await pending; });
+});
+
+test.each(['save', 'delete', 'series', 'longpress'])('un aller-retour de backend n’actualise pas une ancienne action %s', async (action) => {
+  await openSeries();
+  let old: () => Promise<void>;
+  if (action === 'save') old = root.root.findByProps({ label: 'Enregistrer' }).props.onPress;
+  else {
+    await act(async () => {
+      if (action === 'longpress') root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00, Alice' }).find((node) => node.props.onLongPress)!.props.onLongPress();
+      else root.root.findByProps({ label: action === 'series' ? 'Supprimer aussi les semaines suivantes' : 'Supprimer' }).props.onPress();
+    });
+    old = (confirmDelete as jest.Mock).mock.calls[0][1];
+  }
+  (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...backend } });
+  await act(async () => root.update(<Agenda />));
+  (useSession as jest.Mock).mockReturnValue(session);
+  await act(async () => root.update(<Agenda />));
+  await act(async () => { await old(); });
+  expect(backend.update).not.toHaveBeenCalled();
+  expect(backend.remove).not.toHaveBeenCalled();
+  expect(backend.removeEvents).not.toHaveBeenCalled();
+});
+
+test.each(['removed', 'series', 'date'])('une confirmation de série refuse une ancre %s', async (change) => {
+  await openSeries();
+  await act(async () => seriesButton().props.onPress());
+  const confirm = (confirmDelete as jest.Mock).mock.calls[0][1];
+  const anchor = change === 'series' ? { ...seriesEvent, seriesId: 'other' } : { ...seriesEvent, date: '2099-01-01' };
+  (useCollectionState as jest.Mock).mockReturnValue({ ...ready, items: change === 'removed' ? [] : [anchor] });
+  await act(async () => root.update(<Agenda />));
+  await act(async () => { await confirm(); });
+  expect(backend.removeEvents).not.toHaveBeenCalled();
+});
+
+test.each(['save', 'delete', 'series', 'longpress'])('une ancienne erreur %s n’interrompt pas le backend courant', async (action) => {
+  await openSeries();
+  await changeTitle();
+  let reject!: (error: Error) => void;
+  const method = action === 'save' ? backend.update : action === 'series' ? backend.removeEvents : backend.remove;
+  method.mockImplementationOnce(() => new Promise<void>((_, no) => { reject = no; }));
+  let pending!: Promise<void>;
+  await act(async () => {
+    if (action === 'save') pending = root.root.findByProps({ label: 'Enregistrer' }).props.onPress();
+    else {
+      if (action === 'longpress') root.root.findAllByProps({ accessibilityLabel: 'Horaire fictif, 09:00 à 12:00, Alice' }).find((node) => node.props.onLongPress)!.props.onLongPress();
+      else root.root.findByProps({ label: action === 'series' ? 'Supprimer aussi les semaines suivantes' : 'Supprimer' }).props.onPress();
+      pending = (confirmDelete as jest.Mock).mock.calls[0][1]();
+    }
+  });
+  (useSession as jest.Mock).mockReturnValue({ ...session, backend: { ...backend } });
+  await act(async () => root.update(<Agenda />));
+  await act(async () => { reject(new Error('Ancien échec')); await pending; });
+  expect(showDialog).not.toHaveBeenCalled();
+  expect(root.root.findByProps({ label: 'Titre' }).props.value).toBe('Titre saisi');
+});

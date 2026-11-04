@@ -1,41 +1,53 @@
-import { useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { showDialog } from './dialog';
 import { Button, Card, Field, Ionicons, Row, Sheet, T } from './ui';
 import { useTheme } from '@/constants/theme';
+import { accountErrorMessage } from '@/lib/account-errors';
 import { currentAccount, deleteMyAccount, resetPassword, secureAccount, signInWithEmail, type Backend } from '@/lib/backend';
 import { useCouple, useSession } from '@/lib/couple-context';
 import { success } from '@/lib/haptics';
+import { useAsyncAction } from '@/lib/use-async-action';
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Onglet Nous : état du compte, sécurisation par e-mail, suppression. */
 export function AccountCard() {
+  const { backend } = useSession();
+  return <AccountCardContent key={`${backend.mode}:${backend.coupleId}:${backend.userId}`} />;
+}
+
+function AccountCardContent() {
   const t = useTheme();
   const { backend } = useSession();
-  const { signOut } = useCouple();
+  const { completeDeletion } = useCouple();
   const [securing, setSecuring] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => { active.current = false; };
+  }, []);
+  const { run, pending: busy } = useAsyncAction((action: () => Promise<void>) => action());
   const [deletionError, setDeletionError] = useState<string | null>(null);
   const [, refresh] = useState(0);
   const account = backend.mode === 'cloud' ? currentAccount() : null;
 
-  const executeDelete = async () => {
-    if (busy) return;
-    setBusy(true);
+  const executeDelete = () => run(async () => {
     setDeletionError(null);
     try {
       const status = await deleteMyAccount(backend, password);
+      // Le provider vérifie l’identité du backend, même si cet écran a été fermé.
+      const completed = completeDeletion(backend);
+      if (!active.current) return;
       setPassword('');
       setDeleting(false);
-      await signOut();
-      if (status === 'pending') showDialog('Suppression en cours', 'Ton accès est désactivé. Le nettoyage se poursuivra automatiquement, même si tu fermes l’app.');
-    } catch (error) { setDeletionError(errorText(error)); }
-    finally { setBusy(false); }
-  };
+      if (completed && status === 'pending') showDialog('Suppression en cours', 'Ton accès est désactivé. Le nettoyage se poursuivra automatiquement, même si tu fermes l’app.');
+    } catch (error) { if (active.current) setDeletionError(errorText(error)); }
+  });
   const askDelete = () => { setPassword(''); setDeletionError(null); setDeleting(true); };
 
   return (
@@ -97,28 +109,48 @@ function SecureSheet({ onClose, onDone }: { onClose: () => void; onDone: () => v
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [busy, setBusy] = useState(false);
+  const latest = useRef<{ email: string; password: string; confirm: string } | null>({ email: '', password: '', confirm: '' });
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    latest.current = { email: '', password: '', confirm: '' };
+    return () => { active.current = false; latest.current = null; };
+  }, []);
+  const { run, pending: busy } = useAsyncAction((action: () => void | Promise<void>) => action());
   const valid = email.includes('@') && password.length >= 6 && password === confirm;
+  const change = (key: 'email' | 'password' | 'confirm', value: string) => run(() => {
+    if (!active.current || !latest.current) return;
+    latest.current[key] = value;
+    if (key === 'email') setEmail(value);
+    else if (key === 'password') setPassword(value);
+    else setConfirm(value);
+  });
 
-  const submit = async () => {
-    setBusy(true);
+  const submit = () => run(async () => {
+    if (!active.current || !latest.current) return;
+    const { email, password, confirm } = latest.current;
+    if (!email.includes('@') || password.length < 6 || password !== confirm) return;
     try {
       await secureAccount(email, password);
+      if (!active.current) return;
       success();
       showDialog('Compte sécurisé', 'Tu pourras te reconnecter avec cet e-mail sur n’importe quel téléphone.');
       onDone();
     } catch (e) {
-      showDialog('Oups', errorText(e));
-    } finally {
-      setBusy(false);
+      if (active.current) showDialog('Sécurisation non confirmée', accountErrorMessage(e) ?? 'Ferme ce formulaire et vérifie l’état de ton compte avant de réessayer : il peut déjà être sécurisé.');
     }
-  };
+  });
 
   return (
-    <Sheet visible title="Sécuriser mon compte" onClose={onClose}>
-      <Field label="E-mail" value={email} onChangeText={setEmail} placeholder="toi@exemple.fr" keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-      <Field label="Mot de passe (6 caractères minimum)" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
-      <Field label="Confirme le mot de passe" value={confirm} onChangeText={setConfirm} secureTextEntry autoComplete="new-password" />
+    <Sheet visible title="Sécuriser mon compte" onClose={() => run(() => {
+      if (!active.current) return;
+      active.current = false;
+      latest.current = null;
+      onClose();
+    })}>
+      <Field label="E-mail" value={email} editable={!busy} onChangeText={(value) => change('email', value)} placeholder="toi@exemple.fr" keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
+      <Field label="Mot de passe (6 caractères minimum)" value={password} editable={!busy} onChangeText={(value) => change('password', value)} secureTextEntry autoComplete="new-password" />
+      <Field label="Confirme le mot de passe" value={confirm} editable={!busy} onChangeText={(value) => change('confirm', value)} secureTextEntry autoComplete="new-password" />
       {!!confirm && password !== confirm && <T variant="small" muted>Les deux mots de passe sont différents.</T>}
       <Button label="Sécuriser" disabled={!valid || busy} onPress={submit} />
     </Sheet>
@@ -137,36 +169,65 @@ export function SignInForm({
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
+  const latest = useRef<{ email: string; password: string } | null>({ email: '', password: '' });
+  const active = useRef(true);
+  const focus = useRef<object | null>(null);
+  useFocusEffect(useCallback(() => {
+    focus.current = {};
+    return () => { focus.current = null; };
+  }, []));
+  useEffect(() => {
+    active.current = true;
+    latest.current = { email: '', password: '' };
+    return () => { active.current = false; latest.current = null; };
+  }, []);
+  const { run, pending: busy } = useAsyncAction((action: () => void | Promise<void>) => action());
 
-  const submit = async () => {
-    setBusy(true);
+  const change = (key: 'email' | 'password', value: string) => run(() => {
+    if (!active.current || !focus.current || !latest.current) return;
+    latest.current[key] = value;
+    if (key === 'email') setEmail(value);
+    else setPassword(value);
+  });
+
+  const submit = () => run(async () => {
+    const currentFocus = focus.current;
+    if (!active.current || !currentFocus || !latest.current) return;
+    const { email, password } = latest.current;
+    if (!email.trim() || !password) return;
     try {
-      onSignedIn(await signInWithEmail(email, password));
+      const backend = await signInWithEmail(email, password);
+      if (active.current && focus.current === currentFocus) onSignedIn(backend);
     } catch (e) {
-      showDialog('Connexion impossible', errorText(e));
-    } finally {
-      setBusy(false);
+      if (active.current && focus.current === currentFocus) showDialog('Connexion impossible', accountErrorMessage(e) ?? 'Impossible de retrouver votre espace pour le moment. Vérifie ta connexion et réessaie.');
     }
-  };
+  });
 
-  const forgot = async () => {
+  const forgot = () => run(async () => {
+    const currentFocus = focus.current;
+    if (!active.current || !currentFocus || !latest.current) return;
+    const { email } = latest.current;
     if (!email.includes('@')) return showDialog('Mot de passe oublié', 'Entre d’abord ton adresse e-mail.');
     try {
       await resetPassword(email);
-      showDialog('E-mail envoyé', 'Regarde ta boîte mail pour choisir un nouveau mot de passe.');
+      if (active.current && focus.current === currentFocus) showDialog('E-mail envoyé', 'Regarde ta boîte mail pour choisir un nouveau mot de passe.');
     } catch (e) {
-      showDialog('Oups', errorText(e));
+      if (active.current && focus.current === currentFocus) showDialog('Envoi non confirmé', accountErrorMessage(e) ?? 'Vérifie ta boîte mail avant de réessayer : le message peut déjà avoir été envoyé.');
     }
-  };
+  });
 
   return (
     <View style={{ gap: 16 }}>
-      <Field dark={dark} label="E-mail" value={email} onChangeText={setEmail} placeholder="toi@exemple.fr" keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-      <Field dark={dark} label="Mot de passe" value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" />
+      <Field dark={dark} label="E-mail" value={email} editable={!busy} onChangeText={(value) => change('email', value)} placeholder="toi@exemple.fr" keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
+      <Field dark={dark} label="Mot de passe" value={password} editable={!busy} onChangeText={(value) => change('password', value)} secureTextEntry autoComplete="current-password" />
       <Button label="Me connecter" variant={dark ? 'sunset' : 'primary'} disabled={busy || !email || !password} onPress={submit} />
-      <Button label="Mot de passe oublié ?" variant={dark ? 'glass' : 'ghost'} small onPress={forgot} />
-      <Button label="Retour" variant={dark ? 'glass' : 'ghost'} onPress={onBack} />
+      <Button label="Mot de passe oublié ?" variant={dark ? 'glass' : 'ghost'} small disabled={busy} onPress={forgot} />
+      <Button label="Retour" variant={dark ? 'glass' : 'ghost'} disabled={busy} onPress={() => run(() => {
+        if (!active.current || !focus.current) return;
+        active.current = false;
+        latest.current = null;
+        onBack();
+      })} />
     </View>
   );
 }

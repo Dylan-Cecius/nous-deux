@@ -1,0 +1,59 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> app-couple@1.0.0 test
+> jest --runInBand src/lib/__tests__/build-env.test.ts
+
+FAIL src/lib/__tests__/build-env.test.ts
+  ✕ la build refuse l’activation du service payant EXPO_PUBLIC_ASSISTANT_ENABLED (49 ms)
+  ✕ la build refuse l’activation du service payant EXPO_PUBLIC_PLACES_ENABLED (38 ms)
+  ✓ la configuration Firebase complète et les fonctions inactives restent acceptées : {} (39 ms)
+  ✓ la configuration Firebase complète et les fonctions inactives restent acceptées : {"EXPO_PUBLIC_ASSISTANT_ENABLED":"false","EXPO_PUBLIC_PLACES_ENABLED":"false"} (35 ms)
+  ✓ la configuration Firebase complète et les fonctions inactives restent acceptées : {"EXPO_PUBLIC_ASSISTANT_ENABLED":"","EXPO_PUBLIC_PLACES_ENABLED":""} (33 ms)
+  ✓ une valeur invalide de EXPO_PUBLIC_ASSISTANT_ENABLED est refusée sans afficher son contenu (34 ms)
+  ✓ une valeur invalide de EXPO_PUBLIC_PLACES_ENABLED est refusée sans afficher son contenu (45 ms)
+  ✓ la build refuse la configuration Firebase incomplète : API_KEY (29 ms)
+  ✓ la build refuse la configuration Firebase incomplète : AUTH_DOMAIN (30 ms)
+  ✓ la build refuse la configuration Firebase incomplète : PROJECT_ID (34 ms)
+  ✓ la build refuse la configuration Firebase incomplète : STORAGE_BUCKET (35 ms)
+  ✓ la build refuse la configuration Firebase incomplète : MESSAGING_SENDER_ID (30 ms)
+  ✓ la build refuse la configuration Firebase incomplète : APP_ID (36 ms)
+
+  ● la build refuse l’activation du service payant EXPO_PUBLIC_ASSISTANT_ENABLED
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 0
+
+      14 |   const result = check({ [name]: 'true' });
+      15 |   expect(result.error).toBeUndefined();
+    > 16 |   expect(result.status).toBe(1);
+         |                         ^
+      17 |   expect(result.stderr).toContain(name);
+      18 |   expect(result.stderr).toContain('désactivé');
+      19 |   expect(result.stdout).not.toContain('vérifiée');
+
+      at toBe (src/lib/__tests__/build-env.test.ts:16:25)
+
+  ● la build refuse l’activation du service payant EXPO_PUBLIC_PLACES_ENABLED
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 0
+
+      14 |   const result = check({ [name]: 'true' });
+      15 |   expect(result.error).toBeUndefined();
+    > 16 |   expect(result.status).toBe(1);
+         |                         ^
+      17 |   expect(result.stderr).toContain(name);
+      18 |   expect(result.stderr).toContain('désactivé');
+      19 |   expect(result.stdout).not.toContain('vérifiée');
+
+      at toBe (src/lib/__tests__/build-env.test.ts:16:25)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 11 passed, 13 total
+Snapshots:   0 total
+Time:        1.348 s
+Ran all test suites matching /src\/lib\/__tests__\/build-env.test.ts/i.

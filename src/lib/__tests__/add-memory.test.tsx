@@ -1,0 +1,236 @@
+import { useEffect } from 'react';
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { useAddMemory } from '@/components/home/memories-strip';
+import { showDialog } from '@/components/dialog';
+import { useSession } from '../couple-context';
+import { pickPhoto } from '../photos';
+import { success } from '../haptics';
+
+jest.mock('../couple-context', () => ({ useSession: jest.fn() }));
+jest.mock('../photos', () => ({ pickPhoto: jest.fn() }));
+jest.mock('../haptics', () => ({ success: jest.fn() }));
+jest.mock('@/components/dialog', () => ({ showDialog: jest.fn() }));
+jest.mock('@/components/ui', () => ({}));
+jest.mock('@/constants/theme', () => ({}));
+jest.mock('expo-image', () => ({}));
+jest.mock('expo-router', () => ({}));
+
+let root: ReactTestRenderer;
+let action!: ReturnType<typeof useAddMemory>;
+let available = true;
+const backend = { userId: 'alice', coupleId: 'old', uploadPhoto: jest.fn(), add: jest.fn() };
+const nextBackend = { userId: 'bob', coupleId: 'new', uploadPhoto: jest.fn(), add: jest.fn() };
+function Consumer() {
+  const current = useAddMemory(available);
+  useEffect(() => { action = current; });
+  return null;
+}
+beforeEach(async () => {
+  available = true;
+  (useSession as jest.Mock).mockReturnValue({ backend });
+  (pickPhoto as jest.Mock).mockResolvedValue({ uri: 'fictitious://picked' });
+  for (const b of [backend, nextBackend]) { b.uploadPhoto.mockResolvedValue('fictitious://saved'); b.add.mockResolvedValue(undefined); }
+  await act(async () => { root = create(<Consumer />); });
+});
+
+test('un album indisponible ne permet pas de rouvrir la galerie avec un ancien bouton', async () => {
+  const oldAdd = action.add;
+  available = false;
+  await act(async () => { root.update(<Consumer />); });
+  await act(async () => { await oldAdd(); await action.add(); });
+  expect(pickPhoto).not.toHaveBeenCalled();
+  available = true;
+  await act(async () => { root.update(<Consumer />); });
+  await act(async () => { await oldAdd(); });
+  expect(pickPhoto).not.toHaveBeenCalled();
+});
+
+test.each(['picker', 'upload'])('une indisponibilité pendant %s abandonne les étapes suivantes même après reprise', async (stage) => {
+  let finish!: (value: any) => void;
+  const deferred = new Promise(resolve => { finish = resolve; });
+  if (stage === 'picker') (pickPhoto as jest.Mock).mockReturnValueOnce(deferred);
+  else backend.uploadPhoto.mockReturnValueOnce(deferred);
+  let pending!: Promise<void>;
+  await act(async () => { pending = action.add(); });
+  available = false;
+  await act(async () => { root.update(<Consumer />); });
+  available = true;
+  await act(async () => { root.update(<Consumer />); });
+  await act(async () => { finish(stage === 'picker' ? { uri: 'fictitious://picked' } : 'fictitious://saved'); await pending; });
+  if (stage === 'picker') expect(backend.uploadPhoto).not.toHaveBeenCalled();
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(success).not.toHaveBeenCalled();
+  expect(action.busy).toBe(false);
+});
+
+test('une ancienne écriture terminée après perte de disponibilité reste silencieuse', async () => {
+  let finish!: () => void;
+  backend.add.mockReturnValueOnce(new Promise<void>(resolve => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = action.add(); });
+  available = false;
+  await act(async () => { root.update(<Consumer />); });
+  await act(async () => { finish(); await pending; });
+  expect(success).not.toHaveBeenCalled(); expect(showDialog).not.toHaveBeenCalled();
+});
+afterEach(async () => { await act(async () => { root.unmount(); }); jest.resetAllMocks(); });
+const leave = async (change: string) => {
+  await act(async () => {
+    if (change === 'unmount') root.unmount();
+    else { (useSession as jest.Mock).mockReturnValue({ backend: nextBackend }); root.update(<Consumer />); }
+  });
+};
+
+test.each(['unmount', 'backend'])('un sélecteur retardé ne lance plus un upload après %s', async (change) => {
+  let finish!: (value: unknown) => void;
+  (pickPhoto as jest.Mock).mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = action.add(); });
+  await leave(change);
+  await act(async () => { finish({ uri: 'fictitious://old' }); await pending; });
+  expect(backend.uploadPhoto).not.toHaveBeenCalled();
+  expect(nextBackend.uploadPhoto).not.toHaveBeenCalled();
+  expect(success).not.toHaveBeenCalled();
+});
+
+test.each(['unmount', 'backend'])('un upload terminé après %s ne crée plus de souvenir dans l’ancien contexte', async (change) => {
+  let finish!: (value: string) => void;
+  backend.uploadPhoto.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = action.add(); });
+  await leave(change);
+  await act(async () => { finish('fictitious://old'); await pending; });
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(success).not.toHaveBeenCalled();
+});
+
+test.each(['success', 'failure'])('le retour %s d’une ancienne écriture ne touche pas le nouvel écran', async (result) => {
+  let resolve!: () => void; let reject!: (error: Error) => void;
+  backend.add.mockReturnValue(new Promise<void>((yes, no) => { resolve = yes; reject = no; }));
+  let pending!: Promise<void>;
+  await act(async () => { pending = action.add(); });
+  await leave('backend');
+  const newBusyBefore = action.busy;
+  await act(async () => { if (result === 'success') resolve(); else reject(new Error('Ancien envoi')); await pending; });
+  expect(newBusyBefore).toBe(false);
+  expect(success).not.toHaveBeenCalled();
+  expect(showDialog).not.toHaveBeenCalled();
+  await act(async () => { await action.add(); });
+  expect(nextBackend.add).toHaveBeenCalledTimes(1);
+});
+
+test('un ancien gestionnaire ne rouvre pas la galerie après démontage', async () => {
+  const add = action.add;
+  await leave('unmount');
+  await act(async () => { await add(); });
+  expect(pickPhoto).not.toHaveBeenCalled();
+});
+
+test('un ancien gestionnaire ne lance pas de travail sur le nouvel espace', async () => {
+  const oldAdd = action.add;
+  await leave('backend');
+  await act(async () => { await oldAdd(); });
+  expect(pickPhoto).not.toHaveBeenCalled();
+});
+
+test('la fin d’un ancien envoi ne libère pas le verrou du nouvel envoi', async () => {
+  let finishOld!: (value: string) => void;
+  let finishNew!: (value: string) => void;
+  backend.uploadPhoto.mockReturnValue(new Promise((resolve) => { finishOld = resolve; }));
+  nextBackend.uploadPhoto.mockReturnValue(new Promise((resolve) => { finishNew = resolve; }));
+  let oldPending!: Promise<void>; let newPending!: Promise<void>;
+  await act(async () => { oldPending = action.add(); });
+  await leave('backend');
+  await act(async () => { newPending = action.add(); });
+  await act(async () => { finishOld('fictitious://old'); await oldPending; });
+  expect(action.busy).toBe(true);
+  await act(async () => { await action.add(); });
+  expect(pickPhoto).toHaveBeenCalledTimes(2);
+  await act(async () => { finishNew('fictitious://new'); await newPending; });
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(nextBackend.add).toHaveBeenCalledTimes(1);
+  expect(action.busy).toBe(false);
+});
+
+test('deux demandes simultanées gardent un seul sélecteur et un seul souvenir', async () => {
+  await act(async () => { await Promise.all([action.add(), action.add()]); });
+  expect(pickPhoto).toHaveBeenCalledTimes(1);
+  expect(backend.uploadPhoto).toHaveBeenCalledTimes(1);
+  expect(backend.add).toHaveBeenCalledWith('memories', expect.objectContaining({ photoUrl: 'fictitious://saved', createdBy: 'alice' }));
+  expect(backend.add).toHaveBeenCalledTimes(1);
+  expect(success).toHaveBeenCalledTimes(1);
+  expect(action.busy).toBe(false);
+});
+
+test('annuler le sélecteur ne fait aucune écriture', async () => {
+  (pickPhoto as jest.Mock).mockResolvedValue(null);
+  await act(async () => { await action.add(); });
+  expect(backend.uploadPhoto).not.toHaveBeenCalled();
+  expect(backend.add).not.toHaveBeenCalled();
+  expect(action.busy).toBe(false);
+});
+
+test('un échec courant est visible et le verrou permet de réessayer', async () => {
+  backend.uploadPhoto.mockRejectedValueOnce(new Error('Envoi fictif refusé'));
+  await act(async () => { await action.add(); });
+  expect(showDialog).toHaveBeenCalledWith('Photo non enregistrée', expect.stringContaining('Vérifie'));
+  expect(backend.add).not.toHaveBeenCalled();
+  await act(async () => { await action.add(); });
+  expect(backend.add).toHaveBeenCalledTimes(1);
+});
+
+test('un rejet de création ne prétend pas que la photo est absente et invite à vérifier l’album', async () => {
+  backend.add.mockRejectedValueOnce(new Error('Réponse fictive perdue'));
+  await act(async () => { await action.add(); });
+  expect(showDialog).toHaveBeenCalledWith('Enregistrement non confirmé', expect.stringContaining('Vérifie ton album'));
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('Réponse fictive perdue');
+  expect(success).not.toHaveBeenCalled();
+  expect(backend.uploadPhoto).toHaveBeenCalledTimes(1);
+  expect(backend.add).toHaveBeenCalledTimes(1);
+});
+
+test.each(['picker', 'upload', 'save'])('la reprise de lecture attend la fin du travail %s déjà engagé', async (stage) => {
+  let finish!: (value?: unknown) => void;
+  const pendingStage = new Promise(resolve => { finish = resolve; });
+  if (stage === 'picker') (pickPhoto as jest.Mock).mockReturnValueOnce(pendingStage);
+  else if (stage === 'upload') backend.uploadPhoto.mockReturnValueOnce(pendingStage);
+  else backend.add.mockReturnValueOnce(pendingStage);
+  let pending!: Promise<void>;
+  await act(async () => { pending = action.add(); });
+  available = false;
+  await act(async () => { root.update(<Consumer />); });
+  available = true;
+  await act(async () => { root.update(<Consumer />); });
+  const busyDuringRecovery = action.busy;
+  await act(async () => { await action.add(); });
+  const callsDuringRecovery = (pickPhoto as jest.Mock).mock.calls.length;
+  await act(async () => { finish(stage === 'picker' ? { uri: 'fictitious://old' } : 'fictitious://saved'); await pending; });
+  expect(busyDuringRecovery).toBe(true);
+  expect(callsDuringRecovery).toBe(1);
+  expect(action.busy).toBe(false);
+  expect(success).not.toHaveBeenCalled();
+  await act(async () => { await action.add(); });
+  expect(pickPhoto).toHaveBeenCalledTimes(2);
+  expect(success).toHaveBeenCalledTimes(1);
+});
+
+test.each(['picker', 'upload', 'save'])('l’erreur %s n’affiche pas les détails privés du fournisseur', async (stage) => {
+  const error = new Error('PRIVATE_PHOTO_URL?token=secret-fictif /private/alice/photo.jpg');
+  if (stage === 'picker') (pickPhoto as jest.Mock).mockRejectedValueOnce(error);
+  else if (stage === 'upload') backend.uploadPhoto.mockRejectedValueOnce(error);
+  else backend.add.mockRejectedValueOnce(error);
+  await act(async () => { await action.add(); });
+  expect(showDialog).toHaveBeenCalledTimes(1);
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('PRIVATE_PHOTO_URL');
+  expect(JSON.stringify((showDialog as jest.Mock).mock.calls)).not.toContain('secret-fictif');
+  expect(action.busy).toBe(false);
+});
+
+test('une erreur non standard ne masque pas le retour utilisateur et libère le verrou', async () => {
+  backend.uploadPhoto.mockRejectedValueOnce({ toString() { throw new Error('Conversion impossible'); } });
+  await act(async () => { await action.add(); });
+  expect(showDialog).toHaveBeenCalledTimes(1);
+  expect(action.busy).toBe(false);
+  await act(async () => { await action.add(); });
+  expect(backend.add).toHaveBeenCalledTimes(1);
+});

@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAssistant } from '@/components/assistant-context';
@@ -9,7 +9,9 @@ import { CounterSheet } from '@/components/home/counter-card';
 import { Ionicons, Row, T } from '@/components/ui';
 import { Fonts } from '@/constants/theme';
 import { useSession } from '@/lib/couple-context';
-import { daysBetween, formatLong, formatNumber, fromKey, nextMilestone, todayKey } from '@/lib/dates';
+import { daysBetween, formatLong, formatNumber, fromKey, nextMilestone } from '@/lib/dates';
+import { useToday } from '@/lib/use-today';
+import { useFloatingHeartMotion } from '@/lib/use-floating-heart-motion';
 
 const CREAM = '#FBF6F1';
 const PINK = '#FF8FB8';
@@ -17,17 +19,7 @@ const MUTED = 'rgba(251,246,241,0.75)';
 
 /** Le cœur du logo qui flotte doucement dans le bandeau. */
 function FloatingHeart() {
-  const [anim] = useState(() => new Animated.Value(0));
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(anim, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [anim]);
+  const { translateY } = useFloatingHeartMotion(2000);
   return (
     <Animated.Image
       source={require('@/assets/images/logo-heart.png')}
@@ -40,7 +32,7 @@ function FloatingHeart() {
         width: 170,
         height: 170,
         opacity: 0.9,
-        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) }],
+        transform: [{ translateY }],
       }}
     />
   );
@@ -56,9 +48,32 @@ export function HomeHero() {
   const { couple, me, partner } = useSession();
   const [open, setOpen] = useState(false);
 
-  const today = todayKey();
-  const together = couple?.since ? daysBetween(couple.since, today) : null;
+  const today = useToday();
+  const futureSince = !!couple?.since && couple.since > today;
+  const together = couple?.since && !futureSince ? daysBetween(couple.since, today) : null;
   const milestone = together !== null ? nextMilestone(together) : null;
+  const dayUnit = together !== null && together > 1 ? 'jours ensemble' : 'jour ensemble';
+  const sinceDate = couple?.since
+    ? fromKey(couple.since).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
+  const sinceLabel = sinceDate ? `Depuis le ${sinceDate}` : null;
+  const milestoneLabel = milestone
+    ? `Cap des ${formatNumber(milestone.next)} jours dans ${milestone.left} jour${milestone.left > 1 ? 's' : ''}`
+    : null;
+  const futureMessage = futureSince
+    ? `Date enregistrée : ${sinceDate}. Vérifiez-la ou la date de votre téléphone.`
+    : null;
+  const fallbackTitle = !couple ? 'Votre histoire est indisponible' : futureSince ? 'Date de rencontre à vérifier' : 'Depuis quand êtes-vous ensemble ?';
+  const fallbackMessage = !couple
+    ? 'Attends la synchronisation de votre espace avant de consulter votre date et votre photo de couple.'
+    : futureMessage ?? 'Ajoutez votre date de rencontre et une photo de vous deux.';
+  const storyLabel = !couple
+    ? `${fallbackTitle}. ${fallbackMessage}`
+    : futureSince
+    ? `Votre histoire. Date de rencontre à vérifier. ${futureMessage}`
+    : together !== null && milestone
+    ? `Votre histoire. ${formatNumber(together)} ${dayUnit}. ${sinceLabel}. ${milestoneLabel}.`
+    : 'Votre histoire. Date de rencontre non renseignée.';
   const photo = couple?.photoUrl;
 
   return (
@@ -67,7 +82,8 @@ export function HomeHero() {
         <>
           <FramedPhoto uri={photo} frame={couple?.photoFrame} />
           <LinearGradient
-            colors={['rgba(26,11,20,0.55)', 'rgba(26,11,20,0.35)', 'rgba(26,11,20,0.85)']}
+            // Keep every text color legible even over a white photo.
+            colors={['rgba(26,11,20,0.82)', 'rgba(26,11,20,0.80)', 'rgba(26,11,20,0.85)']}
             style={StyleSheet.absoluteFill}
           />
         </>
@@ -105,19 +121,19 @@ export function HomeHero() {
           )}
         </Text>
 
-        <Pressable accessibilityRole="button" accessibilityLabel="Votre histoire : date de rencontre et photo" onPress={() => setOpen(true)} style={{ gap: 10, paddingTop: 6 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel={storyLabel} accessibilityHint="Ouvre les réglages de votre date de rencontre et de votre photo de couple." onPress={() => setOpen(true)} style={{ gap: 10, paddingTop: 6 }}>
           {together !== null && milestone ? (
             <>
-              <Row style={{ alignItems: 'baseline', gap: 10 }}>
-                <Text style={{ fontFamily: Fonts.displayMedium, fontSize: 64, lineHeight: 68, color: CREAM }}>
+              <Row style={{ alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                <Text style={{ fontFamily: Fonts.displayMedium, fontSize: 64, lineHeight: 68, color: CREAM, maxWidth: '100%' }}>
                   {formatNumber(together)}
                 </Text>
-                <Text style={{ fontFamily: Fonts.displayItalic, fontSize: 22, color: PINK }}>
-                  {together > 1 ? 'jours ensemble' : 'jour ensemble'}
+                <Text style={{ fontFamily: Fonts.displayItalic, fontSize: 22, color: PINK, maxWidth: '100%' }}>
+                  {dayUnit}
                 </Text>
               </Row>
               <T variant="small" color={MUTED}>
-                Depuis le {fromKey(couple!.since!).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {sinceLabel}
               </T>
               <View style={styles.track}>
                 <View style={{ width: `${Math.max(4, milestone.progress * 100)}%`, height: '100%', borderRadius: 4, overflow: 'hidden' }}>
@@ -125,7 +141,7 @@ export function HomeHero() {
                 </View>
               </View>
               <T variant="small" color={MUTED}>
-                Cap des {formatNumber(milestone.next)} jours dans {milestone.left} jour{milestone.left > 1 ? 's' : ''}
+                {milestoneLabel}
               </T>
             </>
           ) : (
@@ -133,10 +149,10 @@ export function HomeHero() {
               <Ionicons name="heart-circle-outline" size={26} color={PINK} />
               <View style={{ flex: 1 }}>
                 <T variant="bodyBold" color={CREAM}>
-                  Depuis quand êtes-vous ensemble ?
+                  {fallbackTitle}
                 </T>
                 <T variant="small" color={MUTED}>
-                  Ajoutez votre date de rencontre et une photo de vous deux.
+                  {fallbackMessage}
                 </T>
               </View>
               <Ionicons name="chevron-forward" size={18} color={MUTED} />

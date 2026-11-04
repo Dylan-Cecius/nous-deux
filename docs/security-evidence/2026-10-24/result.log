@@ -1,0 +1,240 @@
+
+> build
+> tsc
+
+LOOPBACK_GUARD: blocked non-loopback name resolution
+⚠  Unable to fetch the CLI MOTD and remote config. This is not a fatal error, but may indicate an issue with your network connection.
+i  emulators: Starting emulators: auth, firestore, storage
+i  emulators: Detected demo project ID "demo-nous-deux-security", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+⚠  Unexpected rules runtime error: Picked up JAVA_TOOL_OPTIONS: -Djava.net.preferIPv4Stack=true
+
+i  Running script: npm --prefix functions test
+
+> test
+> npm run test:guard && node --test --test-concurrency=1 test/security.test.cjs
+
+
+> test:guard
+> node --test test/emulator-guard.test.cjs
+
+✔ accepts the configured local endpoints without changing the environment (1.658018ms)
+✔ accepts exact localhost and bracketed IPv6 loopback with explicit ports (0.176937ms)
+✔ rejects a different project even with local addresses (0.516398ms)
+✔ rejects unsafe or malformed values of FIRESTORE_EMULATOR_HOST (0.342305ms)
+✔ rejects unsafe or malformed values of FIREBASE_AUTH_EMULATOR_HOST (0.23957ms)
+✔ rejects unsafe or malformed values of FIREBASE_STORAGE_EMULATOR_HOST (0.184948ms)
+✔ rejects unsafe or malformed values of FIREBASE_EMULATOR_HUB (0.19895ms)
+✔ rejects each missing required endpoint without exposing its value (0.214192ms)
+✔ security entrypoint rejects non-local FIRESTORE_EMULATOR_HOST before loading any SDK (32.922128ms)
+✔ security entrypoint rejects non-local FIREBASE_AUTH_EMULATOR_HOST before loading any SDK (28.846994ms)
+✔ security entrypoint rejects non-local FIREBASE_STORAGE_EMULATOR_HOST before loading any SDK (30.466393ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 169.041107
+✔ contrat client/serveur : réponse perdue après commit puis reprise sans doublon ni écrasement (2285.222523ms)
+✔ contrat client/serveur : confirmation invalide puis fiche supprimée, reçu retrouvé sans recréation (166.118317ms)
+✔ contrat client/serveur : instances concurrentes partageant la même intention, un seul souvenir (2760.453779ms)
+✔ contrat client/serveur : invalidation après commit ne prétend pas annuler l’écriture (59.865156ms)
+✔ association souvenir : les demandes concurrentes produisent un seul document et reçu (3503.186735ms)
+✔ association souvenir : une reprise conserve les éditions puis ne recrée pas une fiche supprimée (175.475091ms)
+✔ association souvenir : une clé ne peut pas changer de contenu (97.424371ms)
+✔ association souvenir : identité, appartenance et suppression restent obligatoires (64.130689ms)
+[2026-10-24T12:11:26.374Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8be error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L149, false for 'update' @ L149
+[2026-10-24T12:11:26.396Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8bf error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L149
+[2026-10-24T12:11:26.437Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8c1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L149, false for 'update' @ L149
+[2026-10-24T12:11:26.458Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8c2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L149
+[2026-10-24T12:11:26.500Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8c4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L149, false for 'update' @ L149
+[2026-10-24T12:11:26.524Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8c5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L149
+✔ association souvenir : reçus privés inaccessibles et intentions isolées par demandeur (296.295009ms)
+✔ association souvenir : payloads invalides refusés sans créer de reçu (49.354954ms)
+✔ association souvenir : limite existante anti-abus appliquée avant toute création (31.005154ms)
+✔ association souvenir : un reçu ne dispense jamais de vérifier l’appartenance actuelle (47.320009ms)
+✔ association souvenir : appartenance et verrou sont revérifiés dans la transaction finale (95.456468ms)
+✔ association souvenir : le repli compact proche du plafond reste borné et accepté (52.890009ms)
+✔ association souvenir : vérifie le fichier propre, puis rejoue même après retrait du fichier (157.184149ms)
+✔ association souvenir : refuse les URL externes, les autres buckets et les photos du partenaire (42.509573ms)
+✔ association souvenir : refuse fichier absent, vide, non image et jeton erroné (129.203451ms)
+[2026-10-24T12:11:27.202Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8c7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L145:26 for 'create' @ L145, false for 'create' @ L149, evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'create' @ L145, false for 'create' @ L149
+[2026-10-24T12:11:27.203Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8c6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L145:26 for 'create' @ L145, false for 'create' @ L149, evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'create' @ L145, false for 'create' @ L149
+✔ les anciennes écritures directes de marques sont refusées pour les deux membres (77.887994ms)
+[2026-10-24T12:11:27.251Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8c8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+[2026-10-24T12:11:27.272Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8c9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L145:26 for 'create' @ L145, false for 'create' @ L149, evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+✔ une dépense ordinaire ne peut pas être convertie en marque par mise à jour ou remplacement (67.560818ms)
+[2026-10-24T12:11:27.367Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8ca error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+[2026-10-24T12:11:27.378Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8cb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+[2026-10-24T12:11:27.393Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8cc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L145:26 for 'create' @ L145, false for 'create' @ L149, evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+✔ une marque serveur ne peut pas être altérée ni déguisée en dépense ordinaire (124.618986ms)
+[2026-10-24T12:11:27.562Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8d0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L144:26 for 'delete' @ L144, false for 'delete' @ L149, false for 'delete' @ L144, false for 'delete' @ L149
+[2026-10-24T12:11:27.590Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8d1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L144:26 for 'delete' @ L144, false for 'delete' @ L149, false for 'delete' @ L144, false for 'delete' @ L149
+✔ les marques serveur restent lisibles et retirables par les membres uniquement (223.092407ms)
+[2026-10-24T12:11:27.700Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8d3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+✔ les dépenses ordinaires anciennes et explicites restent modifiables sans pouvoir forger une marque (85.67883ms)
+✔ une marque transactionnelle calcule le solde côté serveur et conserve un reçu privé minimal (105.953369ms)
+✔ deux appareils ne peuvent pas solder deux fois le même relevé (2815.97658ms)
+✔ rejouer la même intention après réponse perdue ne recrée pas la marque, même si elle a ensuite été supprimée (136.349967ms)
+✔ un reçu ne peut pas être réutilisé avec une autre intention (73.917934ms)
+✔ un relevé modifié, retiré ou complété est refusé sans écriture de marque ni reçu (159.81401ms)
+✔ l’identité, l’appartenance et le verrou de suppression sont contrôlés pour les marques (36.654853ms)
+✔ le protocole refuse les doublons d’identifiants, montants invalides et relevés trop grands (35.577231ms)
+✔ les demi-centimes sont cohérents et un solde nul ne crée aucune marque (88.156281ms)
+✔ la même intention simultanée rend le même reçu et une seule marque (2738.519264ms)
+[2026-10-24T12:11:33.993Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8d8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L149
+[2026-10-24T12:11:34.008Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8d9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L149
+[2026-10-24T12:11:34.031Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8da error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L149, false for 'update' @ L149
+[2026-10-24T12:11:34.067Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8db error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L38:24 for 'update' @ L38, false for 'update' @ L149, false for 'update' @ L38, false for 'update' @ L149
+✔ les reçus et le compteur transactionnel ne sont pas falsifiables par un client (198.412247ms)
+✔ la marque reste symétrique depuis le débiteur et indépendante de l’ordre des lignes (88.548875ms)
+✔ les anciens payeurs et les relevés stockés trop grands sont refusés sans modification (232.227032ms)
+✔ un appel sans authentification ou sans identité confirmée est refusé avant tout quota (35.319294ms)
+✔ création et jonction refusent une identité différente avant tout quota ou rattachement (58.325114ms)
+✔ création et jonction acceptent l’identité confirmée et restent compatibles avec les anciens clients (113.421838ms)
+✔ un visiteur et un tiers connecté ne lisent ni les espaces incomplets ni les données privées (140.63801ms)
+[2026-10-24T12:11:34.824Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8e2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L37, false for 'create' @ L149, evaluation error at L38:24 for 'update' @ L38, false for 'update' @ L149, false for 'create' @ L37, false for 'create' @ L149
+[2026-10-24T12:11:34.855Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8e3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L38:24 for 'update' @ L38, false for 'update' @ L149, false for 'update' @ L38, false for 'update' @ L149
+[2026-10-24T12:11:34.862Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8e4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L32, false for 'create' @ L149, false for 'update' @ L32, false for 'update' @ L149
+[2026-10-24T12:11:34.867Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8e5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L37, false for 'delete' @ L149
+✔ la création, les membres et les index ne sont modifiables que par le serveur (107.729172ms)
+[2026-10-24T12:11:34.918Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8e7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L38:24 for 'update' @ L38, false for 'update' @ L149, false for 'update' @ L38, false for 'update' @ L149
+[2026-10-24T12:11:34.937Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8e8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L38:24 for 'update' @ L38, false for 'update' @ L149, false for 'update' @ L38, false for 'update' @ L149
+[2026-10-24T12:11:34.949Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8e9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L38:24 for 'update' @ L38, false for 'update' @ L149, false for 'update' @ L38, false for 'update' @ L149
+✔ on peut modifier son profil mais pas celui du partenaire ni y ajouter un secret (82.286612ms)
+[2026-10-24T12:11:35.063Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8ed error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L53, false for 'create' @ L149, false for 'update' @ L54, false for 'update' @ L149
+[2026-10-24T12:11:35.105Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8ef error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L59, false for 'create' @ L149, false for 'update' @ L59, false for 'update' @ L149
+✔ les cadeaux et réponses privées sont isolés et les anciens accès aux réponses sont fermés (146.353224ms)
+[2026-10-24T12:11:35.147Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8f0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L71, false for 'create' @ L149, false for 'update' @ L72, false for 'update' @ L149
+[2026-10-24T12:11:35.179Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8f2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L72:26 for 'update' @ L72, false for 'update' @ L149, false for 'update' @ L72, false for 'update' @ L149
+[2026-10-24T12:11:35.186Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8f1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L72:26 for 'update' @ L72, false for 'update' @ L149, false for 'update' @ L72, false for 'update' @ L149
+[2026-10-24T12:11:35.268Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8f5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L85:26 for 'update' @ L85, false for 'update' @ L149, false for 'update' @ L85, false for 'update' @ L149
+[2026-10-24T12:11:35.294Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8f6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L85:26 for 'update' @ L85, false for 'update' @ L149, false for 'update' @ L85, false for 'update' @ L149
+✔ les notes ne permettent pas d’usurper un auteur et les modifications partagées restent possibles (210.938812ms)
+[2026-10-24T12:11:35.359Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a8f8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L83:26 for 'delete' @ L83, false for 'delete' @ L149, evaluation error at L83:26 for 'delete' @ L83, false for 'delete' @ L149, false for 'delete' @ L83, false for 'delete' @ L149, false for 'delete' @ L83, false for 'delete' @ L149
+✔ la suppression groupée de 52 horaires est atomique et refuse tout accès à un autre couple (190.689596ms)
+✔ un panier transactionnel de 100 articles est autorisé, un accès tiers ne supprime rien (333.086684ms)
+✔ une course décochée pendant la transaction reste présente après réévaluation (1329.537792ms)
+[2026-10-24T12:11:37.200Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a967 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L71, false for 'create' @ L149, false for 'update' @ L72, false for 'update' @ L149
+[2026-10-24T12:11:37.209Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a968 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L71, false for 'create' @ L149, false for 'update' @ L72, false for 'update' @ L149
+[2026-10-24T12:11:37.245Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a969 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L72:26 for 'update' @ L72, false for 'update' @ L149, false for 'update' @ L72, false for 'update' @ L149
+✔ l’heure serveur permet les écritures malgré une horloge client en avance, sans accepter les dates futures (76.019046ms)
+[2026-10-24T12:11:37.284Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a96b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L99:26 for 'update' @ L99, false for 'update' @ L149, false for 'update' @ L99, false for 'update' @ L149
+[2026-10-24T12:11:37.327Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a96d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L111:26 for 'update' @ L111, false for 'update' @ L149, false for 'update' @ L111, false for 'update' @ L149
+[2026-10-24T12:11:37.370Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a96f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L120:34 for 'update' @ L120, false for 'update' @ L149, false for 'update' @ L120, false for 'update' @ L149
+[2026-10-24T12:11:37.420Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a971 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L130:26 for 'update' @ L130, false for 'update' @ L149, false for 'update' @ L130, false for 'update' @ L149
+[2026-10-24T12:11:37.464Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a973 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+[2026-10-24T12:11:37.533Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a976 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L146:26 for 'update' @ L146, false for 'update' @ L149, false for 'update' @ L146, false for 'update' @ L149
+✔ les listes, souvenirs et dépenses valident les champs sans bloquer les usages normaux (288.034135ms)
+[2026-10-24T12:11:37.644Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a97b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L130:26 for 'update' @ L130, false for 'update' @ L149, false for 'update' @ L130, false for 'update' @ L149
+[2026-10-24T12:11:37.668Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a97c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L130:26 for 'update' @ L130, false for 'update' @ L149, false for 'update' @ L130, false for 'update' @ L149
+✔ les patches de souvenir conservent les champs du partenaire et refusent un tiers (134.259677ms)
+[2026-10-24T12:11:37.780Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a981 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L111:26 for 'update' @ L111, false for 'update' @ L149, false for 'update' @ L111, false for 'update' @ L149
+[2026-10-24T12:11:37.903Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a986 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L111:26 for 'update' @ L111, false for 'update' @ L149, false for 'update' @ L111, false for 'update' @ L149
+[2026-10-24T12:11:38.020Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a98b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L111:26 for 'update' @ L111, false for 'update' @ L149, false for 'update' @ L111, false for 'update' @ L149
+✔ les patches de listes préservent détails, type et statut coché (352.059229ms)
+[2026-10-24T12:11:38.163Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a991 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L99:26 for 'update' @ L99, false for 'update' @ L149, false for 'update' @ L99, false for 'update' @ L149
+[2026-10-24T12:11:38.182Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a992 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L99:26 for 'update' @ L99, false for 'update' @ L149, false for 'update' @ L99, false for 'update' @ L149
+✔ les patches de restaurant préservent note, métadonnées et auteur (161.523756ms)
+[2026-10-24T12:11:38.307Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a997 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L85:26 for 'update' @ L85, false for 'update' @ L149, false for 'update' @ L85, false for 'update' @ L149
+[2026-10-24T12:11:38.325Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a998 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L85:26 for 'update' @ L85, false for 'update' @ L149, false for 'update' @ L85, false for 'update' @ L149
+[2026-10-24T12:11:38.343Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a999 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L85:26 for 'update' @ L85, false for 'update' @ L149, false for 'update' @ L85, false for 'update' @ L149
+✔ les patches d’agenda préservent les heures reçues et la série (160.916962ms)
+[2026-10-24T12:11:38.435Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a99d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L54, false for 'update' @ L149
+[2026-10-24T12:11:38.475Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a99f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L54:26 for 'update' @ L54, false for 'update' @ L149, false for 'update' @ L54, false for 'update' @ L149
+✔ les patches privés de cadeaux restent réservés au propriétaire (132.006057ms)
+✔ Storage limite les fichiers au propriétaire, aux membres, aux images et à leur taille (592.55578ms)
+✔ invitations expirables : renouvellement, utilisation unique et concurrence (2770.045093ms)
+✔ un membre retrouve son rattachement après consommation du code sans réutiliser l’invitation (102.005315ms)
+✔ le quota atomique résiste aux appels simultanés et se réinitialise (3292.851021ms)
+✔ la purge retire les traces expirées, conserve les comptes et ne supprime jamais une tâche en attente (143.924813ms)
+✔ la purge retire le pointeur d’une invitation expirée sans toucher à l’espace (53.227304ms)
+[2026-10-24T12:11:45.597Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a9a7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L149, false for 'update' @ L149
+✔ une réponse reste secrète côté serveur jusqu’à la seconde réponse (167.430481ms)
+✔ les réponses simultanées sont révélées une seule fois, sans perte (3074.686148ms)
+[2026-10-24T12:11:48.718Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a9a8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L149, false for 'update' @ L149
+✔ le consentement IA doit être explicite, personnel et révocable (56.785269ms)
+✔ suppression : réauthentification exigée avant toute modification (16.236559ms)
+✔ la suppression refuse une identité confirmée différente avant de créer une tâche (31.179838ms)
+✔ la suppression accepte une identité correspondante et reste compatible avec les anciens clients (188.446888ms)
+[2026-10-24T12:11:49.132Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x7823a9ab error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L38:24 for 'update' @ L38, false for 'update' @ L149, false for 'update' @ L38, false for 'update' @ L149
+✔ suppression reprise après panne : photos, privé, Auth et index nettoyés ; partenaire conservé (358.568558ms)
+✔ la suppression du dernier membre efface aussi les sous-collections et fichiers orphelins (86.711848ms)
+✔ migration : simulation sans écriture, confidentialité, jetons privés et réexécution sans perte (116.122871ms)
+ℹ tests 67
+ℹ suites 0
+ℹ pass 67
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 32939.43155
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  auth: Stopping Authentication Emulator
+i  storage: Stopping Storage Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { ComponentProps, ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ComponentProps, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   ActivityIndicator,
@@ -14,6 +14,7 @@ import {
   View,
   type StyleProp,
   type TextInputProps,
+  type TextProps,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
@@ -22,9 +23,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAssistant } from './assistant-context';
 import { showDialog } from './dialog';
 import { cardShadow, Fonts, Radius, Spacing, useTheme } from '@/constants/theme';
+import { MemberColorOptions } from '@/constants/member-colors';
 import { tap } from '@/lib/haptics';
+import { foregroundOnColor } from '@/lib/color-contrast';
 import { useAsyncAction } from '@/lib/use-async-action';
 import { userError } from '@/lib/errors';
+import { useReducedMotion } from '@/lib/use-reduced-motion';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 export { Ionicons };
@@ -63,6 +67,8 @@ export function T({
   style,
   children,
   numberOfLines,
+  selectable,
+  accessibilityRole,
 }: {
   variant?: Variant;
   muted?: boolean;
@@ -70,11 +76,15 @@ export function T({
   style?: StyleProp<TextStyle>;
   children: ReactNode;
   numberOfLines?: number;
+  selectable?: boolean;
+  accessibilityRole?: TextProps['accessibilityRole'];
 }) {
   const t = useTheme();
   return (
     <Text
+      accessibilityRole={accessibilityRole}
       numberOfLines={numberOfLines}
+      selectable={selectable}
       style={[variants[variant], { color: color ?? (muted ? t.textSecondary : t.text) }, style]}>
       {children}
     </Text>
@@ -138,7 +148,7 @@ export function Screen({
         <View style={styles.header}>
           <View style={{ flex: 1, gap: 4 }}>
             {overline ? <T variant="caption" muted>{overline}</T> : null}
-            <T variant="title">{title}</T>
+            <T variant="title" accessibilityRole={title == null ? undefined : 'header'}>{title}</T>
           </View>
           {right}
           {assistant && (
@@ -158,12 +168,16 @@ export function Card({
   style,
   onPress,
   onLongPress,
+  accessibilityLabel,
+  accessibilityHint,
   tone = 'default',
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   onLongPress?: () => void;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
   tone?: Tone;
 }) {
   const t = useTheme();
@@ -171,13 +185,26 @@ export function Card({
   const base = [styles.card, { backgroundColor: bg }, tone === 'default' && cardShadow(t.shadow), style];
   if (!onPress && !onLongPress) return <View style={base}>{children}</View>;
   return (
-    <Pressable
+    <InteractiveCard
+      base={base}
       onPress={onPress}
       onLongPress={onLongPress}
-      style={({ pressed }) => [base, pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }]}>
+      accessibilityRole={accessibilityLabel ? 'button' : undefined}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}>
       {children}
-    </Pressable>
+    </InteractiveCard>
   );
+}
+
+// Static cards do not need a subscription to the system motion preference.
+function InteractiveCard({ base, ...props }: ComponentProps<typeof Pressable> & { base: StyleProp<ViewStyle> }) {
+  const reducedMotion = useReducedMotion();
+  return <Pressable {...props} style={({ pressed }) => [
+    base,
+    pressed && { opacity: 0.85 },
+    pressed && !reducedMotion && { transform: [{ scale: 0.99 }] },
+  ]} />;
 }
 
 export function Row({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
@@ -187,10 +214,10 @@ export function Row({ children, style }: { children: ReactNode; style?: StylePro
 export function SectionTitle({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
   const t = useTheme();
   return (
-    <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-      <T variant="h2">{title}</T>
+    <Row style={{ justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap' }}>
+      <T variant="h2" accessibilityRole="header" style={{ maxWidth: '100%' }}>{title}</T>
       {action && onAction ? (
-        <Pressable onPress={onAction} hitSlop={10}>
+        <Pressable onPress={onAction} hitSlop={10} accessibilityRole="button" accessibilityLabel={`${action} — ${title}`} style={{ maxWidth: '100%' }}>
           <Text style={{ fontFamily: Fonts.bodyMedium, fontSize: 15, color: t.primary }}>{action}</Text>
         </Pressable>
       ) : null}
@@ -205,7 +232,7 @@ export function Empty({ icon, title, text }: { icon: IconName; title: string; te
       <View style={[styles.emptyIcon, { backgroundColor: t.primarySoft }]}>
         <Ionicons name={icon} size={30} color={t.primary} />
       </View>
-      <T variant="h2" style={{ textAlign: 'center' }}>
+      <T variant="h2" accessibilityRole="header" style={{ textAlign: 'center' }}>
         {title}
       </T>
       <T muted style={{ textAlign: 'center' }}>
@@ -232,7 +259,7 @@ export function Avatar({ name, color, size = 40, ring }: { name: string; color: 
         borderWidth: ring ? 3 : 0,
         borderColor: ring,
       }}>
-      <Text style={{ color: '#fff', fontFamily: Fonts.bodyBold, fontSize: size * 0.4 }}>
+      <Text style={{ color: foregroundOnColor(color), fontFamily: Fonts.bodyBold, fontSize: size * 0.4 }}>
         {name.trim().charAt(0).toUpperCase() || '?'}
       </Text>
     </View>
@@ -248,6 +275,18 @@ export function ProgressBar({ value, color, track, height = 6 }: { value: number
 }
 
 // --- Contrôles ----------------------------------------------------------------
+
+// A queued event must respect both the state in which it was captured and the
+// current committed state. Disabling then enabling does not revive old events.
+function useEnabledControl(disabled: boolean) {
+  const context = useMemo(() => ({ disabled }), [disabled]);
+  const current = useRef<typeof context | null>(null);
+  useEffect(() => {
+    current.current = context;
+    return () => { current.current = null; };
+  }, [context]);
+  return () => !disabled && current.current === context;
+}
 
 export function Button({
   label,
@@ -268,7 +307,8 @@ export function Button({
   style?: StyleProp<ViewStyle>;
 }) {
   const t = useTheme();
-  const { run, pending } = useAsyncAction(onPress);
+  const canPress = useEnabledControl(!!disabled);
+  const { run, pending } = useAsyncAction(() => { if (canPress()) return onPress(); });
   const unavailable = disabled || pending;
   const bg = {
     primary: t.primary,
@@ -285,7 +325,7 @@ export function Button({
     outline: t.text,
     ghost: t.primary,
     danger: t.danger,
-    sunset: '#FFFFFF',
+    sunset: '#2A1420',
     glass: '#FBF6F1',
   }[variant];
   return (
@@ -324,23 +364,27 @@ export function IconButton({
   onPress,
   variant = 'outline',
   size = 44,
+  disabled = false,
 }: {
   icon: IconName;
   label: string;
   onPress: () => void;
   variant?: 'outline' | 'primary' | 'accent';
   size?: number;
+  disabled?: boolean;
 }) {
   const t = useTheme();
-  const { run, pending } = useAsyncAction(onPress);
+  const canPress = useEnabledControl(disabled);
+  const { run, pending } = useAsyncAction(() => { if (canPress()) return onPress(); });
+  const unavailable = disabled || pending;
   const bg = { outline: t.card, primary: t.primary, accent: t.featureAccent }[variant];
   const fg = { outline: t.primary, primary: t.onPrimary, accent: t.feature }[variant];
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      disabled={pending}
-      accessibilityState={{ disabled: pending, busy: pending }}
+      disabled={unavailable}
+      accessibilityState={{ disabled: unavailable, busy: pending }}
       onPress={run}
       hitSlop={6}
       style={({ pressed }) => [
@@ -351,7 +395,7 @@ export function IconButton({
           backgroundColor: bg,
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: pressed ? 0.75 : 1,
+          opacity: unavailable ? 0.5 : pressed ? 0.75 : 1,
         },
         variant === 'outline' && { borderWidth: 1, borderColor: t.border },
       ]}>
@@ -368,8 +412,9 @@ export function Field({
   ...props
 }: TextInputProps & { label?: string; grow?: boolean; /** Pour un fond sombre (écran de bienvenue). */ dark?: boolean }) {
   const t = useTheme();
+  const editable = props.readOnly !== undefined ? !props.readOnly : props.editable !== false;
   const colors = dark
-    ? { bg: 'rgba(0,0,0,0.28)', fg: '#FBF6F1', border: 'rgba(255,255,255,0.16)', placeholder: 'rgba(251,246,241,0.45)', label: 'rgba(251,246,241,0.7)' }
+    ? { bg: 'rgba(0,0,0,0.28)', fg: '#FBF6F1', border: 'rgba(255,255,255,0.16)', placeholder: 'rgba(251,246,241,0.65)', label: 'rgba(251,246,241,0.7)' }
     : { bg: t.card, fg: t.text, border: t.border, placeholder: t.textSecondary, label: t.textSecondary };
   return (
     <View style={[{ gap: 6, minWidth: 0 }, grow && { flex: 1 }]}>
@@ -379,9 +424,10 @@ export function Field({
         </T>
       ) : null}
       <TextInput
-        accessibilityLabel={label}
         placeholderTextColor={colors.placeholder}
         {...props}
+        accessibilityLabel={props.accessibilityLabel ?? label ?? props.placeholder}
+        accessibilityState={{ ...props.accessibilityState, disabled: props.accessibilityState?.disabled ?? !editable }}
         style={[
           styles.input,
           { backgroundColor: colors.bg, color: colors.fg, borderColor: colors.border, fontFamily: Fonts.body },
@@ -419,8 +465,7 @@ export function Segmented<V extends string>({
             }}
             style={[styles.seg, active && [{ backgroundColor: t.card }, cardShadow(t.shadow)]]}>
             <Text
-              numberOfLines={1}
-              style={{ fontFamily: Fonts.bodyBold, fontSize: 14, color: active ? t.text : t.textSecondary }}>
+              style={{ fontFamily: Fonts.bodyBold, fontSize: 14, color: active ? t.text : t.textSecondary, textAlign: 'center', flexShrink: 1 }}>
               {o.label}
             </Text>
           </Pressable>
@@ -435,13 +480,16 @@ export function Chips<V extends string>({
   value,
   onChange,
   label,
+  disabled = false,
 }: {
   options: { value: V; label: string; color?: string; icon?: IconName }[];
   value: V;
   onChange: (v: V) => void;
   label?: string;
+  disabled?: boolean;
 }) {
   const t = useTheme();
+  const canPress = useEnabledControl(disabled);
   return (
     <View style={{ gap: 8 }}>
       {label ? <T variant="caption" muted>{label}</T> : null}
@@ -449,21 +497,26 @@ export function Chips<V extends string>({
         {options.map((o) => {
           const active = o.value === value;
           const accent = o.color ?? t.primary;
+          const selectedForeground = accent === t.primary ? t.onPrimary : foregroundOnColor(accent);
           return (
             <Pressable
               key={o.value}
               accessibilityRole="radio"
-              accessibilityState={{ selected: active }}
+              accessibilityLabel={label ? `${label} : ${o.label}` : o.label}
+              disabled={disabled}
+              accessibilityState={{ checked: active, disabled }}
               onPress={() => {
+                if (!canPress()) return;
                 tap();
                 onChange(o.value);
               }}
               style={[
                 styles.chip,
+                { opacity: disabled ? 0.5 : 1 },
                 { borderColor: active ? accent : t.border, backgroundColor: active ? accent : t.card },
               ]}>
-              {o.icon ? <Ionicons name={o.icon} size={16} color={active ? '#fff' : t.textSecondary} /> : null}
-              <Text style={{ color: active ? '#fff' : t.text, fontFamily: Fonts.bodyMedium, fontSize: 15 }}>{o.label}</Text>
+              {o.icon ? <Ionicons name={o.icon} size={16} color={active ? selectedForeground : t.textSecondary} /> : null}
+              <Text style={{ color: active ? selectedForeground : t.text, fontFamily: Fonts.bodyMedium, fontSize: 15, flexShrink: 1, paddingVertical: 6 }}>{o.label}</Text>
             </Pressable>
           );
         })}
@@ -477,24 +530,27 @@ export function ColorPicker({
   value,
   onChange,
   ringColor,
+  disabled = false,
 }: {
   colors: string[];
   value: string;
   onChange: (c: string) => void;
   /** Couleur de l'anneau autour de la pastille choisie (par défaut : le fond de l'app). */
   ringColor?: string;
+  disabled?: boolean;
 }) {
   const t = useTheme();
-  const { run, pending } = useAsyncAction(onChange);
+  const canPress = useEnabledControl(disabled);
+  const { run, pending } = useAsyncAction((color: string) => { if (canPress()) return onChange(color); });
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
       {colors.map((c) => (
         <Pressable
           key={c}
           accessibilityRole="radio"
-          accessibilityLabel={`Couleur ${c}`}
-          accessibilityState={{ selected: value === c }}
-          disabled={pending}
+          accessibilityLabel={`Couleur : ${MemberColorOptions.find(option => option.value === c.toUpperCase())?.label ?? c}`}
+          accessibilityState={{ checked: value === c, disabled: disabled || pending, busy: pending }}
+          disabled={disabled || pending}
           onPress={() => run(c)}
           style={{
             width: 40,
@@ -515,16 +571,19 @@ export function ColorPicker({
 }
 
 /** Bouton rond « + » en bas à droite de l'écran. */
-export function Fab({ onPress, label = 'Ajouter' }: { onPress: () => void; label?: string }) {
+export function Fab({ onPress, label = 'Ajouter', busy = false }: { onPress: () => void; label?: string; busy?: boolean }) {
   const t = useTheme();
+  const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
-  const { run, pending } = useAsyncAction(onPress);
+  const canPress = useEnabledControl(busy);
+  const { run, pending } = useAsyncAction(() => { if (canPress()) return onPress(); });
+  const unavailable = busy || pending;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      disabled={pending}
-      accessibilityState={{ disabled: pending, busy: pending }}
+      disabled={unavailable}
+      accessibilityState={{ disabled: unavailable, busy: unavailable }}
       onPress={run}
       style={({ pressed }) => [
         styles.fab,
@@ -532,10 +591,11 @@ export function Fab({ onPress, label = 'Ajouter' }: { onPress: () => void; label
           backgroundColor: t.primary,
           shadowColor: t.primary,
           bottom: insets.bottom + 100,
-          transform: [{ scale: pressed ? 0.94 : 1 }],
+          transform: [{ scale: pressed && !reducedMotion ? 0.94 : 1 }],
+          opacity: pressed ? 0.8 : 1,
         },
       ]}>
-      {pending ? <ActivityIndicator color="#fff" /> : <Ionicons name="add" size={30} color="#fff" />}
+      {unavailable ? <ActivityIndicator color={t.onPrimary} /> : <Ionicons name="add" size={30} color={t.onPrimary} />}
     </Pressable>
   );
 }
@@ -554,15 +614,16 @@ export function Sheet({
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType={reducedMotion ? 'none' : 'slide'} transparent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <Pressable style={[StyleSheet.absoluteFill, styles.backdrop]} onPress={onClose} accessibilityLabel="Fermer" />
         <View style={{ flex: 1 }} pointerEvents="none" />
         <View style={[styles.sheet, Platform.OS === 'web' && styles.sheetWeb, { backgroundColor: t.background, paddingBottom: insets.bottom + Spacing.three }]}>
           <View style={[styles.grabber, { backgroundColor: t.border }]} />
           <Row style={{ justifyContent: 'space-between' }}>
-            <T variant="h2" style={{ flex: 1 }}>
+            <T variant="h2" accessibilityRole="header" style={{ flex: 1 }}>
               {title}
             </T>
             <IconButton icon="close" label="Fermer" onPress={onClose} size={38} />
@@ -596,10 +657,11 @@ const styles = StyleSheet.create({
   buttonSmall: { minHeight: 40, paddingHorizontal: Spacing.three },
   input: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 18, minHeight: 50, fontSize: 16 },
   segTrack: { flexDirection: 'row', borderRadius: 22, padding: 4 },
-  seg: { flex: 1, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  seg: { flex: 1, minHeight: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 8 },
   chip: {
     borderRadius: 999,
     borderWidth: 1,
+    maxWidth: '100%',
     minHeight: 40,
     paddingHorizontal: 16,
     flexDirection: 'row',

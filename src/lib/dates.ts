@@ -28,14 +28,21 @@ export function daysBetween(a: string, b: string): number {
 export function nextOccurrence(key: string, yearly: boolean): string {
   if (!yearly) return key;
   const today = todayKey();
+  // La répétition commence à la date choisie, jamais dans une année antérieure.
+  if (key >= today) return key;
   const [, m, d] = key.split('-');
-  const year = new Date().getFullYear();
-  const thisYear = `${year}-${m}-${d}`;
-  return thisYear >= today ? thisYear : `${year + 1}-${m}-${d}`;
+  const year = Number(today.slice(0, 4));
+  // Conserver le report au 1er mars déjà utilisé par Date pour un 29 février
+  // hors année bissextile, mais comparer une date réelle, pas « YYYY-02-29 ».
+  const occurrence = (y: number) => toKey(new Date(y, Number(m) - 1, Number(d)));
+  const thisYear = occurrence(year);
+  return thisYear >= today ? thisYear : occurrence(year + 1);
 }
 
-export function formatLong(key: string): string {
-  return fromKey(key).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+export function formatLong(key: string, includeYear = false): string {
+  return fromKey(key).toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: includeYear ? 'numeric' : undefined,
+  });
 }
 
 export function formatShort(key: string): string {
@@ -56,13 +63,16 @@ export function quote(text: string): string {
   return `« ${text} »`;
 }
 
-/** « aujourd'hui à 8:15 », « hier », « 3 oct. ». */
-export function formatRelative(timestamp: number): string {
+/** « aujourd'hui à 8:15 », « hier », « 3 oct. », avec l’année si elle diffère. */
+export function formatRelative(timestamp: number, today = todayKey()): string {
   const d = new Date(timestamp);
-  const diff = daysBetween(toKey(d), todayKey());
+  const diff = daysBetween(toKey(d), today);
   if (diff === 0) return `aujourd’hui à ${d.getHours()}:${pad(d.getMinutes())}`;
   if (diff === 1) return 'hier';
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  return d.toLocaleDateString('fr-FR', {
+    day: 'numeric', month: 'short',
+    year: d.getFullYear() === Number(today.slice(0, 4)) ? undefined : 'numeric',
+  });
 }
 
 /** Prochain cap symbolique (100, 200… puis tous les 500 jours) et progression vers lui. */

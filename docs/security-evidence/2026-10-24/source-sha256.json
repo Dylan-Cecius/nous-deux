@@ -1,0 +1,17 @@
+{
+  "functions/src/index.ts": "29b33f2a25ec4909f8bf93b59d55549a96d1f911c4ca3c018d5d70323425cafa",
+  "functions/src/security.ts": "c6de2ac275fd9db373b16e2d9c07a807bf84cfbd3467d8981e87f418166f3b3a",
+  "functions/src/retention.ts": "e995e3e3b51cda1490f3f9a34dd892abb48edc2c08860f4c5f747fbbddad8587",
+  "functions/src/memories.ts": "b3ae4f6b77eeab181d9df8d24a14a38986585d7d0c136338afe16166e37ef583",
+  "functions/src/settlements.ts": "91c5825fb1377eb6b679363d5c7e5df0d380d666a75df1957ff555c3704429cf",
+  "functions/src/core.ts": "f3eab37ce8122c3a1e957128a54297975e7053d36898d1962d708c6e83a7c45b",
+  "functions/src/migration.ts": "faabd4688250483a8c16fcb0f768c59b1b1fd7efcf209232a40497984143cd51",
+  "functions/test/emulator-guard.test.cjs": "0392f5af90c133906554acda7cff224038e336f4cbe7cee8290167ceb0d4bb2c",
+  "functions/test/security.test.cjs": "56e6c76bf5d1cb3320039b0b3d0ea2817c436be35fad090bfc4a0f2de1fd0ebe",
+  "functions/test/emulator-guard.cjs": "0cc0c3cc2d501ece427b4583a76db4f57edee60d288ed436986244e3e2d712ea",
+  "functions/tsconfig.json": "b18c06de8f8af8952406e823aa16b87641ca12eeced389fe1dc7093de3bc9d51",
+  "functions/package.json": "6ce535c03ce8c0a1e487c91c293492301a7b7035eaff332702fed97706336bc7",
+  "src/lib/memory-association.ts": "a437caf7d91360d0039f891a8d376157b7e222a8d1b9dfcd6d3e5060cfb5f826",
+  "firestore.rules": "d8a1e3e3e60f9c09bb44a01733dc683bd1451aed2866c40ac70389126a2b8ee5",
+  "storage.rules": "6b5cadc6df68764ea07c6adc989b337a85dbdd5bb4ff719e91b8301abe721815"
+}

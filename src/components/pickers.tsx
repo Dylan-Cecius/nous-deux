@@ -1,5 +1,5 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, useColorScheme, View } from 'react-native';
 
 import { Field, Ionicons, Row, T } from './ui';
@@ -11,13 +11,13 @@ type Mode = 'date' | 'time';
 const toDate = (mode: Mode, value: string) => {
   if (mode === 'date') return fromKey(value);
   const [h, m] = value.split(':').map(Number);
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
-  return d;
+  // HH:MM is a wall-clock value, independent of today's date and DST gaps.
+  // UTC is only the native picker's transport; stored event dates stay local.
+  return new Date(Date.UTC(2000, 0, 1, h, m));
 };
 
 const fromDate = (mode: Mode, d: Date) =>
-  mode === 'date' ? toKey(d) : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  mode === 'date' ? toKey(d) : `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
 
 /**
  * Champ date (YYYY-MM-DD) ou heure (HH:MM) :
@@ -30,6 +30,7 @@ function PickerField({
   onChange,
   maximumDate,
   grow,
+  disabled = false,
 }: {
   mode: Mode;
   label: string;
@@ -37,16 +38,31 @@ function PickerField({
   onChange: (value: string) => void;
   maximumDate?: Date;
   grow?: boolean;
+  disabled?: boolean;
 }) {
   const t = useTheme();
   const scheme = useColorScheme();
+  // Une borne de date s'applique à la journée locale, pas à son heure.
+  const maximumKey = mode === 'date' && maximumDate && Number.isFinite(maximumDate.getTime())
+    ? toKey(maximumDate) : undefined;
+  const context = useMemo(() => ({ mode, disabled, value, maximumKey }), [mode, disabled, value, maximumKey]);
+  const request = useRef<object | null>(null);
+  const latest = useRef<{ context: typeof context; onChange: typeof onChange } | null>(null);
+  useEffect(() => {
+    latest.current = { context, onChange };
+    return () => { latest.current = null; };
+  }, [context, onChange]);
+  const isCurrent = () => !disabled && latest.current?.context === context;
+  const change = (next: string) => {
+    if (isCurrent() && (!maximumKey || next <= maximumKey)) latest.current?.onChange(next);
+  };
 
-  if (Platform.OS === 'web') return <WebField mode={mode} label={label} value={value} onChange={onChange} grow={grow} />;
+  if (Platform.OS === 'web') return <WebField mode={mode} label={label} value={value} onChange={change} grow={grow} disabled={disabled} canChange={isCurrent} maximumKey={maximumKey} />;
 
-  const display = mode === 'date' ? formatLong(value) : value;
+  const display = mode === 'date' ? `${formatLong(value)} ${fromKey(value).getFullYear()}` : value;
 
   return (
-    <View style={[{ gap: 6 }, grow && { flex: 1 }]}>
+    <View style={[{ gap: 6, minWidth: 0 }, grow && { flex: 1 }]}>
       <T variant="caption" muted>
         {label}
       </T>
@@ -54,29 +70,44 @@ function PickerField({
         // Sur iPhone : le bouton compact d'Apple, qui ouvre le calendrier ou la roue des heures.
         <Row style={{ minHeight: 50 }}>
           <DateTimePicker
+            accessibilityLabel={label}
+            accessibilityState={{ disabled }}
             mode={mode}
             display="compact"
             value={toDate(mode, value)}
+            timeZoneName={mode === 'time' ? 'Etc/UTC' : undefined}
             maximumDate={maximumDate}
             locale="fr-FR"
             accentColor={t.primary}
             themeVariant={scheme === 'dark' ? 'dark' : 'light'}
-            onValueChange={(_, d) => onChange(fromDate(mode, d))}
+            disabled={disabled}
+            onValueChange={(_, d) => change(fromDate(mode, d))}
           />
         </Row>
       ) : (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${label} : ${display}`}
-          onPress={() =>
+          disabled={disabled}
+          accessibilityState={{ disabled }}
+          onPress={() => {
+            if (!isCurrent()) return;
+            const opening = {};
+            request.current = opening;
             DateTimePickerAndroid.open({
               mode,
               value: toDate(mode, value),
+              timeZoneName: mode === 'time' ? 'Etc/UTC' : undefined,
               maximumDate,
               is24Hour: true,
-              onValueChange: (_, d) => onChange(fromDate(mode, d)),
-            })
-          }
+              onValueChange: (_, d) => {
+                if (!isCurrent() || request.current !== opening) return;
+                request.current = null;
+                change(fromDate(mode, d));
+              },
+              onDismiss: () => { if (request.current === opening) request.current = null; },
+            });
+          }}
           style={{
             minHeight: 50,
             borderRadius: 999,
@@ -84,12 +115,14 @@ function PickerField({
             borderColor: t.border,
             backgroundColor: t.card,
             paddingHorizontal: 18,
+            paddingVertical: 12,
             flexDirection: 'row',
             alignItems: 'center',
             gap: 10,
+            opacity: disabled ? 0.5 : 1,
           }}>
           <Ionicons name={mode === 'date' ? 'calendar-outline' : 'time-outline'} size={18} color={t.primary} />
-          <T style={{ fontFamily: Fonts.bodyMedium, textTransform: mode === 'date' ? 'capitalize' : 'none' }}>{display}</T>
+          <T style={{ flex: 1, fontFamily: Fonts.bodyMedium, textTransform: mode === 'date' ? 'capitalize' : 'none' }}>{display}</T>
         </Pressable>
       )}
     </View>
@@ -103,27 +136,40 @@ function WebField({
   value,
   onChange,
   grow,
+  disabled,
+  canChange,
+  maximumKey,
 }: {
   mode: Mode;
   label: string;
   value: string;
   onChange: (value: string) => void;
   grow?: boolean;
+  disabled: boolean;
+  canChange: () => boolean;
+  maximumKey?: string;
 }) {
-  const [text, setText] = useState(mode === 'date' ? toFrenchDate(value) : value);
+  const formatted = mode === 'date' ? toFrenchDate(value) : value;
+  const [draft, setDraft] = useState({ value, text: formatted });
+  // Preserve partial typing, but reset it when the controlled value is replaced.
+  // A key on value would remount the input on every accepted keystroke.
+  if (draft.value !== value) setDraft({ value, text: formatted });
   const parse = mode === 'date' ? parseFrenchDate : parseTime;
   return (
     <Field
       label={label}
-      value={text}
+      value={draft.value === value ? draft.text : formatted}
       grow={grow}
+      editable={!disabled}
       placeholder={mode === 'date' ? 'JJ/MM/AAAA' : '09:00'}
       onChangeText={(v) => {
-        setText(v);
-        const parsed = parse(v);
+        if (disabled || !canChange()) return;
+        const candidate = parse(v);
+        const parsed = candidate && (!maximumKey || candidate <= maximumKey) ? candidate : null;
+        setDraft({ value: parsed ?? value, text: v });
         if (parsed) onChange(parsed);
       }}
-      onBlur={() => setText(mode === 'date' ? toFrenchDate(value) : value)}
+      onBlur={() => { if (canChange()) setDraft({ value, text: formatted }); }}
     />
   );
 }

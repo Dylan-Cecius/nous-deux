@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 
 const base = {
@@ -10,7 +10,7 @@ const base = {
     border: '#EFE3DD',
     line: '#F3EAE5',
     text: '#2A1A22',
-    textSecondary: '#7D6870',
+    textSecondary: '#756069',
     onPrimary: '#FFFFFF',
     onFeature: '#FBF6F1',
     success: '#1F6B3A',
@@ -26,7 +26,7 @@ const base = {
     line: '#2F2228',
     text: '#F6ECEE',
     textSecondary: '#B9A3AB',
-    onPrimary: '#FFFFFF',
+    onPrimary: '#160E12',
     onFeature: '#FBF6F1',
     success: '#7FD39C',
     successSoft: '#1C3326',
@@ -80,19 +80,31 @@ const PrefsContext = createContext<{ accent: AccentId; setAccent: (a: AccentId) 
 /** Préférences propres à ce téléphone (thème de couleur). */
 export function PrefsProvider({ children }: { children: ReactNode }) {
   const [accent, setAccentState] = useState<AccentId>('framboise');
+  const chosen = useRef(false);
+  const mounted = useRef(true);
+  const saves = useRef(Promise.resolve());
 
   useEffect(() => {
-    AsyncStorage.getItem('prefs:accent').then((v) => {
-      if (v && v in AccentThemes) setAccentState(v);
+    let active = true;
+    mounted.current = true;
+    void Promise.resolve().then(() => AsyncStorage.getItem('prefs:accent')).then((v) => {
+      if (active && !chosen.current && typeof v === 'string' && Object.hasOwn(AccentThemes, v)) setAccentState(v);
+    }).catch(() => {
+      // A cosmetic preference must not prevent startup if local storage fails.
     });
+    return () => { active = false; mounted.current = false; };
   }, []);
 
-  const setAccent = (a: AccentId) => {
+  const setAccent = useCallback((a: AccentId) => {
+    if (!mounted.current || !Object.hasOwn(AccentThemes, a)) return;
+    chosen.current = true;
     setAccentState(a);
-    AsyncStorage.setItem('prefs:accent', a);
-  };
+    // Preserve selection order within this provider. A failed save keeps the
+    // in-memory choice usable, without promising persistence after a restart.
+    saves.current = saves.current.then(() => AsyncStorage.setItem('prefs:accent', a)).catch(() => {});
+  }, []);
 
-  return createElement(PrefsContext.Provider, { value: { accent, setAccent } }, children);
+  return <PrefsContext.Provider value={{ accent, setAccent }}>{children}</PrefsContext.Provider>;
 }
 
 export function usePrefs() {
@@ -115,7 +127,7 @@ export const Fonts = {
 };
 
 /** Couleurs proposées pour chaque membre du couple (agenda, messages…). */
-export const MemberColors = ['#C8385A', '#2F5D9E', '#1F7A55', '#C26A1B', '#6D4AB0', '#B03C8C', '#1D7C86'];
+export { MemberColors } from './member-colors';
 
 /** Couleur des événements « nous deux ». */
 export const BothColor = '#E07B39';

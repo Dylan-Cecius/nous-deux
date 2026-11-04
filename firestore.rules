@@ -131,6 +131,9 @@ service cloud.firestore {
         allow delete: if writable(coupleId);
       }
       match /expenses/{id} {
+        // Les marques sont créées exclusivement par recordSettlement (Admin).
+        // Les anciennes dépenses sans kind restent des dépenses ordinaires.
+        function ordinary(d) { return !('kind' in d) || d.kind == 'expense'; }
         function valid(d) {
           return d.keys().hasAll(['title','amount','paidBy','createdAt']) && d.keys().hasOnly(['title','amount','paidBy','kind','createdAt']) &&
             title(d.title) && d.amount is number && d.amount > 0 && d.amount <= 100000 &&
@@ -139,7 +142,8 @@ service cloud.firestore {
         }
         allow read: if member(coupleId);
         allow delete: if writable(coupleId);
-        allow create, update: if writable(coupleId) && valid(request.resource.data);
+        allow create: if writable(coupleId) && ordinary(request.resource.data) && valid(request.resource.data);
+        allow update: if writable(coupleId) && ordinary(resource.data) && ordinary(request.resource.data) && valid(request.resource.data);
       }
     }
     match /{document=**} { allow read, write: if false; }

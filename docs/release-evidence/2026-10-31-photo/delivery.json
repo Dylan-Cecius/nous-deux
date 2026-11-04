@@ -1,0 +1,44 @@
+{
+  "source": "d9f157a7986b309ff4a83847f316e84e9dc26df8",
+  "verifiedGitBlobs": 242,
+  "build": {
+    "id": "45d7c3a5-035e-4218-afe8-d607c322423e",
+    "status": "FINISHED",
+    "appVersion": "1.0.0",
+    "appBuildVersion": "8",
+    "createdAt": "2026-10-31T15:35:33.759Z",
+    "completedAt": "2026-10-31T15:40:45.651Z",
+    "error": null
+  },
+  "submission": {
+    "id": "42a3ea56-3037-43fb-95f0-b82d94d1d649",
+    "status": "FINISHED",
+    "createdAt": "2026-10-31T15:41:19.121Z",
+    "completedAt": "2026-10-31T15:41:34.089Z",
+    "error": null
+  },
+  "appleStatus": {
+    "checkedAt": "2026-10-31T15:43:15.404Z",
+    "latestVisibleBuild": "1.0.0 (7)",
+    "internal": "in beta testing",
+    "external": "ready for beta submission",
+    "build8Visible": false,
+    "publicAppStore": {
+      "live": null,
+      "inReview": null,
+      "pendingRelease": null
+    },
+    "reads": 2
+  },
+  "limitations": [
+    "iPhone photo/gallery OCR flow and accuracy not tested",
+    "Android native compilation not performed",
+    "TestFlight availability is distinct from successful upload",
+    "No external beta review or tester/group changes initiated"
+  ],
+  "submissionFlags": [
+    "--non-interactive",
+    "--no-auto-testflight-setup",
+    "--no-wait"
+  ]
+}

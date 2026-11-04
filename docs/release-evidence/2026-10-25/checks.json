@@ -1,0 +1,31 @@
+{
+  "sourceCommit": "c735fff1c66ca95f1d3a280372a92a056c272f35",
+  "checkedAt": "2026-10-25T21:21:32.034021+00:00",
+  "gitBlobsVerified": 202,
+  "lintExit": 0,
+  "typecheckExit": 0,
+  "testSuites": 66,
+  "testsPassed": 1828,
+  "testSeconds": 33.994,
+  "iosExport": {
+    "exit": 0,
+    "files": 33,
+    "bytes": 5913355,
+    "bundle": "entry-7492af6b4314579cb36180a049a36562.hbc",
+    "firebaseConfigured": false,
+    "nativeBuild": false
+  },
+  "easUsage": {
+    "readOn": "2026-10-25",
+    "account": "dylancecius",
+    "plan": "Free",
+    "iosUsed": 1,
+    "iosLimit": 15,
+    "allBuildsUsed": 2,
+    "allBuildsLimit": 30,
+    "overageCents": 0,
+    "cycleEnd": "2026-11-01T00:00:00Z",
+    "commandExit": 0,
+    "buildStarted": false
+  }
+}

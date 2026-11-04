@@ -1,0 +1,58 @@
+{
+  "source": "f903692ee0b2f78a989024b29667cefcfa090d08",
+  "buildId": "b97bdd11-eb61-4640-9413-94d3e8d57548",
+  "status": "UPLOADED",
+  "date": "2026-10-31T17:33:09.382Z",
+  "verifiedGitBlobs": 246,
+  "tests": {
+    "fullSuites": 71,
+    "fullTests": 1882,
+    "fullSeconds": 12.107,
+    "fullBeforeFinalGuard": true,
+    "finalTargetedTests": 42,
+    "finalTargetedSeconds": 1.273,
+    "lint": 0,
+    "typescript": 0
+  },
+  "usage": {
+    "plan": "Free",
+    "iosUsed": 3,
+    "iosLimit": 15,
+    "totalUsed": 4,
+    "totalLimit": 30,
+    "estimatedCents": 0,
+    "overageCents": 0
+  },
+  "limits": [
+    "Synthetic OCR positions, no original photo OCR execution",
+    "iPhone retest required",
+    "Android native compilation not performed"
+  ],
+  "checkedAt": "2026-10-31T17:44:53.046Z",
+  "build": {
+    "id": "b97bdd11-eb61-4640-9413-94d3e8d57548",
+    "status": "FINISHED",
+    "appVersion": "1.0.0",
+    "appBuildVersion": "9",
+    "createdAt": "2026-10-31T17:32:18.281Z",
+    "completedAt": "2026-10-31T17:38:23.060Z",
+    "error": null
+  },
+  "submission": {
+    "id": "f22d3fd8-da72-41bf-805b-d83725d2fc29",
+    "status": "FINISHED",
+    "createdAt": "2026-10-31T17:39:26.359Z",
+    "completedAt": "2026-10-31T17:39:39.203Z",
+    "error": null
+  },
+  "apple": {
+    "lastVisibleBuild": "1.0.0 (8)",
+    "build9Availability": "unconfirmed",
+    "reason": "Subsequent process-output reads did not return within bounded waits",
+    "internal8": "in beta testing",
+    "external8": "ready for beta submission"
+  },
+  "noAdditionalSpending": true,
+  "noProductionDataAccess": true,
+  "noServerOrRulesDeployment": true
+}

@@ -1,0 +1,18 @@
+{
+  "sourceCommit": "98625fbd2d63a5609bc4511643eb68bb2bf1f17f",
+  "testChange": "additional shared agenda realtime test, server and rules unchanged",
+  "startedAt": "2026-10-30T17:36:18.995784+00:00",
+  "finishedAt": "2026-10-30T17:37:29.682831+00:00",
+  "exit": 0,
+  "seconds": 70.69,
+  "node": "22.23.4",
+  "project": "demo-nous-deux-security",
+  "portsClosedAfter": {
+    "9098": true,
+    "8088": true,
+    "9198": true,
+    "4400": true,
+    "4500": true
+  },
+  "isolation": "dedicated credential-free copy, demo project, SDK guard and process LD_PRELOAD; not kernel network isolation"
+}

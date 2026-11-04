@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { userError } from '@/lib/errors';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { celebrate } from '@/components/celebrate';
@@ -24,10 +23,11 @@ import {
 } from '@/components/ui';
 import { showDialog } from '@/components/dialog';
 import { Fonts, useTheme } from '@/constants/theme';
-import { useCollection, useSession } from '@/lib/couple-context';
+import { useCollectionState, useSession } from '@/lib/couple-context';
 import { success, tap } from '@/lib/haptics';
 import { pickOne } from '@/lib/random';
 import type { Gift, ListItem, ListKind } from '@/lib/types';
+import { useAsyncAction } from '@/lib/use-async-action';
 
 type Tab = ListKind | 'gifts';
 type Entry = (ListItem | (Gift & { list: 'gifts'; media?: undefined })) & { list: Tab };
@@ -70,59 +70,116 @@ const COPY: Record<Tab, { overline: string; empty: [IconName, string, string]; t
   },
 };
 
+const LOCAL_COPY: Partial<typeof COPY> = {
+  gifts: {
+    ...COPY.gifts,
+    overline: 'Sur ce téléphone',
+    empty: ['gift-outline', 'Idées cadeaux', 'Note tes idées ici. En mode sans compte, elles restent sur ce téléphone et peuvent être consultées par la personne qui l’utilise.'],
+  },
+  shopping: {
+    ...COPY.shopping,
+    overline: 'Sur ce téléphone',
+    empty: ['cart-outline', 'Liste de courses', 'Préparez ici les articles à acheter. Cette liste reste sur ce téléphone.'],
+  },
+};
+
 export default function Listes() {
+  const { backend } = useSession();
+  return <ListesContent key={`${backend.mode}:${backend.coupleId}:${backend.userId}`} />;
+}
+
+function ListesContent() {
   const t = useTheme();
   const { backend, colorOf, partner } = useSession();
-  const items = useCollection('items');
-  const gifts = useCollection('gifts');
+  const items = useCollectionState('items');
+  const gifts = useCollectionState('gifts');
   const [tab, setTab] = useState<Tab>('bucket');
-  const [editing, setEditing] = useState<Entry | 'new' | null>(null);
+  const [editing, setEditing] = useState<{ item?: Entry; tab: Tab } | null>(null);
 
   const col = tab === 'gifts' ? 'gifts' : 'items';
+  const collection = tab === 'gifts' ? gifts : items;
+  // Un aller-retour vers l’onglet ne doit pas réactiver une ancienne confirmation.
+  const context = useMemo(() => ({ backend, tab }), [backend, tab]);
+  const latest = useRef<{ context: typeof context; collection: typeof collection } | null>(null);
+  useEffect(() => {
+    latest.current = { context, collection };
+    return () => { latest.current = null; };
+  }, [context, collection]);
+  const { run, pending } = useAsyncAction((action: () => Promise<void>) => action());
+  const isCurrent = () => latest.current?.context === context;
+  const currentEntry = (id: string) => {
+    const current = latest.current;
+    if (!isCurrent() || !current || current.collection.loading || current.collection.error) return;
+    return current.collection.items.find((entry) => entry.id === id && (tab === 'gifts'
+      ? entry.createdBy === backend.userId : 'list' in entry && entry.list === tab));
+  };
+  const runCurrent = (action: () => Promise<void>) => run(async () => {
+    if (!isCurrent()) return;
+    try { await action(); }
+    catch (error) { if (isCurrent()) throw error; }
+  });
+  const unavailable = collection.loading || collection.error;
   const entries: Entry[] =
-    tab === 'gifts'
-      ? gifts.filter((g) => g.createdBy === backend.userId).map((g) => ({ ...g, list: 'gifts' as const }))
-      : items.filter((i) => i.list === tab);
+    unavailable ? [] : tab === 'gifts'
+      ? gifts.items.filter((g) => g.createdBy === backend.userId).map((g) => ({ ...g, list: 'gifts' as const }))
+      : items.items.filter((i) => i.list === tab);
   const sorted = [...entries].sort((a, b) => b.createdAt - a.createdAt);
   const todo = sorted.filter((i) => !i.done);
   const done = sorted.filter((i) => i.done);
-  const copy = COPY[tab];
+  const copy = (backend.mode === 'local' ? LOCAL_COPY[tab] : undefined) ?? COPY[tab];
 
-  const toggle = async (item: Entry) => {
-    try { await backend.update(col, item.id, { done: !item.done }); }
-    catch (error) { showDialog('Modification impossible', userError(error)); return; }
-    if (!item.done) {
+  const toggle = (item: Entry) => runCurrent(async () => {
+    const current = currentEntry(item.id);
+    if (!current) return;
+    try { await backend.update(col, item.id, { done: !current.done }); }
+    catch {
+      if (isCurrent()) showDialog('Modification non confirmée', 'Vérifie la liste après son actualisation avant de réessayer : la case peut déjà avoir changé.');
+      return;
+    }
+    if (!isCurrent()) return;
+    if (!current.done) {
       if (tab === 'bucket') {
         success();
         celebrate('confetti');
       } else tap();
     }
+  });
+
+  const askRemove = (item: Entry) => {
+    if (pending || !currentEntry(item.id)) return;
+    confirmDelete(item.title, () => runCurrent(async () => {
+      if (currentEntry(item.id)) await backend.remove(col, item.id);
+    }));
   };
 
   const pickMovie = () => {
-    if (todo.length === 0) return showDialog('Liste vide', 'Ajoutez des films ou séries à regarder.');
-    const pick = pickOne(todo);
+    const current = latest.current;
+    if (!isCurrent() || tab !== 'films' || !current || current.collection.loading || current.collection.error) return;
+    const pool = current.collection.items.filter((entry) => 'list' in entry && entry.list === 'films' && !entry.done);
+    if (pool.length === 0) return showDialog('Liste vide', 'Ajoutez des films ou séries à regarder.');
+    const pick = pickOne(pool);
     showDialog('Ce soir on regarde…', pick.title, [
       { text: 'Relancer', onPress: pickMovie },
       { text: 'Go !', style: 'cancel' },
     ]);
   };
 
-  const clearBasket = () =>
+  const clearBasket = () => {
+    if (pending || !isCurrent() || tab !== 'shopping' || unavailable || !done.length) return;
+    const selected = done.map((item) => item.id);
     showDialog('Vider le panier ?', `${done.length} article${done.length > 1 ? 's' : ''} coché${done.length > 1 ? 's' : ''} seront retirés.`, [
       { text: 'Annuler', style: 'cancel' },
-      { text: 'Vider', style: 'destructive', onPress: async () => {
-        try { for (const item of done) await backend.remove('items', item.id); }
-        catch (error) { showDialog('Suppression interrompue', userError(error)); }
-      } },
+      { text: 'Vider', style: 'destructive', onPress: () => runCurrent(async () => {
+        const ids = selected.filter((id) => currentEntry(id)?.done === true);
+        if (ids.length) await backend.clearShoppingBasket(ids);
+      }) },
     ]);
+  };
 
   const renderItem = (item: Entry, index: number) => (
-    <Pressable
+    <View
       key={item.id}
-      onPress={() => setEditing(item)}
-      onLongPress={() => confirmDelete(item.title, () => backend.remove(col, item.id))}
-      style={({ pressed }) => ({
+      style={{
         flexDirection: 'row',
         alignItems: 'center',
         gap: 14,
@@ -130,12 +187,13 @@ export default function Listes() {
         paddingHorizontal: 16,
         borderTopWidth: index === 0 ? 0 : 1,
         borderTopColor: t.line,
-        opacity: pressed ? 0.7 : 1,
-      })}>
+      }}>
       <Pressable
         accessibilityRole="checkbox"
-        accessibilityState={{ checked: item.done }}
-        accessibilityLabel={item.done ? 'Marquer comme à faire' : 'Marquer comme fait'}
+        accessibilityState={{ checked: item.done, disabled: pending, busy: pending }}
+        disabled={pending}
+        accessibilityLabel={item.title}
+        accessibilityHint={item.done ? 'Marquer comme à faire' : 'Marquer comme fait'}
         hitSlop={10}
         onPress={() => toggle(item)}
         style={{
@@ -148,35 +206,46 @@ export default function Listes() {
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-        {item.done && <Ionicons name="checkmark" size={17} color="#fff" />}
+        {item.done && <Ionicons name="checkmark" size={17} color={t.onPrimary} />}
       </Pressable>
-      <View style={{ flex: 1, gap: 2 }}>
-        <T
-          style={[
-            { fontFamily: Fonts.bodyMedium },
-            item.done ? { textDecorationLine: 'line-through', color: t.textSecondary } : undefined,
-          ]}>
-          {item.title}
-        </T>
-        {(!!item.detail || !!item.media) && (
-          <Row style={{ gap: 6 }}>
-            {!!item.media && (
-              <Ionicons name={item.media === 'serie' ? 'tv-outline' : 'film-outline'} size={13} color={t.textSecondary} />
-            )}
-            <T variant="small" muted numberOfLines={1}>
-              {[item.media === 'serie' ? 'Série' : item.media === 'film' ? 'Film' : '', item.detail].filter(Boolean).join(' · ')}
-            </T>
-          </Row>
-        )}
-      </View>
-      {tab !== 'gifts' && <Dot color={colorOf(item.createdBy)} />}
-    </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={[item.title, item.media === 'serie' ? 'Série' : item.media === 'film' ? 'Film' : '', item.detail].filter(Boolean).join('. ')}
+        accessibilityHint="Ouvre la fiche de cet élément. Un appui long propose sa suppression."
+        onPress={() => setEditing({ item, tab })}
+        onLongPress={() => askRemove(item)}
+        style={({ pressed }) => ({ flex: 1, minWidth: 0, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 14, opacity: pressed ? 0.7 : 1 })}>
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <T
+            style={[
+              { fontFamily: Fonts.bodyMedium },
+              item.done ? { textDecorationLine: 'line-through', color: t.textSecondary } : undefined,
+            ]}>
+            {item.title}
+          </T>
+          {(!!item.detail || !!item.media) && (
+            <Row style={{ gap: 6 }}>
+              {!!item.media && (
+                <Ionicons name={item.media === 'serie' ? 'tv-outline' : 'film-outline'} size={13} color={t.textSecondary} />
+              )}
+              <T variant="small" muted numberOfLines={1}>
+                {[item.media === 'serie' ? 'Série' : item.media === 'film' ? 'Film' : '', item.detail].filter(Boolean).join(' · ')}
+              </T>
+            </Row>
+          )}
+        </View>
+        {tab !== 'gifts' && <Dot color={colorOf(item.createdBy)} />}
+      </Pressable>
+    </View>
   );
 
   return (
     <>
       <Screen overline={copy.overline} title="Nos listes">
         <Segmented options={TABS} value={tab} onChange={setTab} />
+        {backend.mode === 'local' && tab !== 'gifts' && (
+          <T variant="small" muted>Mode sans compte : ces listes restent sur ce téléphone, sans synchronisation.</T>
+        )}
 
         {tab === 'bucket' && sorted.length > 0 && (
           <Card style={{ gap: 12 }}>
@@ -196,7 +265,7 @@ export default function Listes() {
         )}
 
         {tab === 'films' && sorted.length > 0 && (
-          <Card tone="feature" onPress={pickMovie} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <Card tone="feature" style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View style={{ flex: 1, gap: 4 }}>
               <T variant="h2" color={t.onFeature} style={{ fontFamily: Fonts.displayMedium }}>
                 On regarde quoi ?
@@ -211,14 +280,21 @@ export default function Listes() {
 
         {tab === 'gifts' && (
           <Row style={{ gap: 8 }}>
-            <Ionicons name="lock-closed-outline" size={16} color={t.textSecondary} />
+            <Ionicons name={backend.mode === 'local' ? 'gift-outline' : 'lock-closed-outline'} size={16} color={t.textSecondary} />
             <T variant="small" muted style={{ flex: 1 }}>
-              Liste privée : {partner?.name ?? 'ta moitié'} ne la voit pas.
+              {backend.mode === 'local'
+                ? 'Mode sans compte : les idées cadeaux ne sont pas protégées de la personne qui utilise ce téléphone.'
+                : `Liste privée : ${partner?.name ?? 'ta moitié'} ne la voit pas depuis son compte.`}
             </T>
           </Row>
         )}
 
-        {sorted.length === 0 ? (
+        {unavailable ? (
+          <Card>
+            <T>{collection.loading ? 'Chargement de la liste…' : 'Liste indisponible. Impossible de charger son contenu pour le moment.'}</T>
+            {collection.error && <Button label="Réessayer la liste" variant="outline" onPress={collection.retry} />}
+          </Card>
+        ) : sorted.length === 0 ? (
           <Empty icon={copy.empty[0]} title={copy.empty[1]} text={copy.empty[2]} />
         ) : (
           <Card style={{ padding: 0, gap: 0, overflow: 'hidden' }}>
@@ -251,11 +327,11 @@ export default function Listes() {
         )}
 
         {tab === 'shopping' && done.length > 0 && (
-          <Button label="Vider les articles cochés" variant="ghost" icon="trash-outline" onPress={clearBasket} />
+          <Button label="Vider les articles cochés" variant="ghost" icon="trash-outline" disabled={pending} onPress={clearBasket} />
         )}
       </Screen>
-      <Fab onPress={() => setEditing('new')} label={copy.add} />
-      {editing && <ItemSheet item={editing === 'new' ? undefined : editing} tab={tab} onClose={() => setEditing(null)} />}
+      {!unavailable && <Fab onPress={() => setEditing({ tab })} label={copy.add} />}
+      {editing && <ItemSheet key={`${editing.tab}:${editing.item?.id ?? 'new'}`} item={editing.item} tab={editing.tab} onClose={() => setEditing(null)} />}
     </>
   );
 }
@@ -271,25 +347,85 @@ function ItemSheet({ item, tab, onClose }: { item?: Entry; tab: Tab; onClose: ()
   const { backend } = useSession();
   const kind = item?.list ?? tab;
   const copy = SHEET[kind];
-  const [title, setTitle] = useState(item?.title ?? '');
-  const [detail, setDetail] = useState(item?.detail ?? '');
-  const [media, setMedia] = useState<'film' | 'serie'>(item?.media ?? 'film');
+  const collection = useCollectionState(kind === 'gifts' ? 'gifts' : 'items');
+  const context = useMemo(() => ({ backend }), [backend]);
+  const [draft, setDraft] = useState({
+    title: item?.title ?? '', detail: item?.detail ?? '', media: item?.media ?? 'film',
+    baseTitle: item?.title ?? '', baseDetail: item?.detail ?? '', baseMedia: item?.media ?? 'film',
+  });
+  const received = item && !collection.loading && !collection.error ? collection.items.find(entry => entry.id === item.id &&
+    (kind === 'gifts' ? entry.createdBy === backend.userId : 'list' in entry && entry.list === kind)) : undefined;
+  const baseTitle = received?.title ?? draft.baseTitle;
+  const baseDetail = received ? received.detail ?? '' : draft.baseDetail;
+  const baseMedia = received ? ('media' in received && received.media === 'serie' ? 'serie' : 'film') : draft.baseMedia;
+  const title = draft.baseTitle !== baseTitle && draft.title.trim() === draft.baseTitle ? baseTitle : draft.title;
+  const detail = draft.baseDetail !== baseDetail && draft.detail.trim() === draft.baseDetail ? baseDetail : draft.detail;
+  const media = draft.media === draft.baseMedia ? baseMedia : draft.media;
+  if (draft.baseTitle !== baseTitle || draft.baseDetail !== baseDetail || draft.baseMedia !== baseMedia) {
+    setDraft({ title, detail, media, baseTitle, baseDetail, baseMedia });
+  }
+  const latest = useRef<{ context: typeof context; collection: typeof collection; draft: typeof draft } | null>(null);
+  const closed = useRef(false);
+  useEffect(() => {
+    latest.current = { context, collection, draft };
+    return () => { latest.current = null; };
+  }, [context, collection, draft]);
+  const { run, pending } = useAsyncAction((action: () => unknown) => action());
+  const isCurrent = () => !closed.current && latest.current?.context === context;
+  const containsItem = (state: typeof collection) => !item || state.items.some((entry) => entry.id === item.id &&
+    (kind === 'gifts' ? entry.createdBy === backend.userId : 'list' in entry && entry.list === kind));
+  const unavailable = collection.loading || collection.error || !containsItem(collection);
+  const canWrite = () => {
+    const state = latest.current?.collection;
+    return isCurrent() && state && !state.loading && !state.error && containsItem(state);
+  };
+  const close = () => { if (isCurrent()) { closed.current = true; onClose(); } };
+  const changeDraft = (patch: Partial<Pick<typeof draft, 'title' | 'detail' | 'media'>>) => run(() => {
+    const current = latest.current;
+    if (!current || !isCurrent()) return;
+    const next = { ...current.draft, ...patch };
+    current.draft = next;
+    setDraft(next);
+  });
+  const runCurrent = (action: () => Promise<void>) => run(async () => {
+    if (!canWrite()) return;
+    try { await action(); }
+    catch (error) { if (isCurrent()) throw error; }
+  });
 
-  const save = async () => {
-    const base = { title: title.trim(), detail: detail.trim() };
-    if (kind === 'gifts') {
-      if (item) await backend.update('gifts', item.id, base);
-      else await backend.add('gifts', { ...base, done: false, createdBy: backend.userId, createdAt: Date.now() });
-    } else {
-      const data = { ...base, media: kind === 'films' ? media : undefined };
-      if (item) await backend.update('items', item.id, data);
-      else await backend.add('items', { ...data, list: kind, done: false, createdBy: backend.userId, createdAt: Date.now() });
+  const save = () => runCurrent(async () => {
+    const current = latest.current!.draft;
+    if (!current.title.trim()) return;
+    const base = { title: current.title.trim(), detail: current.detail.trim() };
+    try {
+      if (item) {
+        const patch: { title?: string; detail?: string; media?: 'film' | 'serie' } = {};
+        if (base.title !== current.baseTitle) patch.title = base.title;
+        if (base.detail !== current.baseDetail) patch.detail = base.detail;
+        if (kind === 'films' && current.media !== current.baseMedia) patch.media = current.media;
+        if (Object.keys(patch).length) await backend.update(kind === 'gifts' ? 'gifts' : 'items', item.id, patch);
+      } else if (kind === 'gifts') {
+        await backend.add('gifts', { ...base, done: false, createdBy: backend.userId, createdAt: Date.now() });
+      } else {
+        const data = { ...base, media: kind === 'films' ? current.media : undefined };
+        await backend.add('items', { ...data, list: kind, done: false, createdBy: backend.userId, createdAt: Date.now() });
+      }
+    } catch {
+      if (isCurrent()) showDialog('Enregistrement non confirmé', 'Vérifie la liste après son actualisation avant de réessayer : la modification peut déjà avoir été enregistrée. Ton brouillon est conservé.');
+      return;
     }
-    onClose();
+    close();
+  });
+  const remove = () => {
+    if (!item || pending || !canWrite()) return;
+    confirmDelete(item.title, () => runCurrent(async () => {
+      await backend.remove(kind === 'gifts' ? 'gifts' : 'items', item.id);
+      close();
+    }));
   };
 
   return (
-    <Sheet visible title={item ? 'Modifier' : copy.title} onClose={onClose}>
+    <Sheet visible title={item ? 'Modifier' : copy.title} onClose={() => run(close)}>
       {kind === 'films' && (
         <Chips
           options={[
@@ -297,23 +433,22 @@ function ItemSheet({ item, tab, onClose }: { item?: Entry; tab: Tab; onClose: ()
             { value: 'serie', label: 'Série', icon: 'tv-outline' },
           ]}
           value={media}
-          onChange={setMedia}
+          disabled={pending}
+          onChange={(value) => changeDraft({ media: value })}
         />
       )}
-      <Field label="Quoi ?" value={title} maxLength={200} onChangeText={setTitle} placeholder={copy.placeholder} />
-      <Field label={copy.detail} value={detail} maxLength={2000} onChangeText={setDetail} placeholder={copy.detailPlaceholder} />
-      <Button label="Enregistrer" disabled={!title.trim()} onPress={save} />
+      <Field label="Quoi ?" value={title} maxLength={200} editable={!pending} onChangeText={(value) => changeDraft({ title: value })} placeholder={copy.placeholder} />
+      <Field label={copy.detail} value={detail} maxLength={2000} editable={!pending} onChangeText={(value) => changeDraft({ detail: value })} placeholder={copy.detailPlaceholder} />
+      {unavailable && <T variant="small" muted>Liste indisponible ou article retiré. Ton brouillon est conservé ; recharge la liste avant de continuer.</T>}
+      {collection.error && <Button label="Recharger la liste du formulaire" variant="outline" onPress={collection.retry} />}
+      <Button label="Enregistrer" disabled={!title.trim() || pending || unavailable} onPress={save} />
       {item && (
         <Button
           label="Supprimer"
           variant="danger"
           icon="trash-outline"
-          onPress={() =>
-            confirmDelete(item.title, async () => {
-              await backend.remove(kind === 'gifts' ? 'gifts' : 'items', item.id);
-              onClose();
-            })
-          }
+          disabled={pending || unavailable}
+          onPress={remove}
         />
       )}
     </Sheet>

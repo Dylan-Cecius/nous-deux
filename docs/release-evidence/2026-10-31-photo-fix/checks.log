@@ -1,0 +1,15 @@
+PASS src/lib/__tests__/agenda.test.ts
+
+Test Suites: 71 passed, 71 total
+Tests:       1882 passed, 1882 total
+Snapshots:   0 total
+Time:        12.107 s, estimated 29 s
+Ran all test suites.
+PASS src/lib/__tests__/schedule-photo.test.ts
+PASS src/lib/__tests__/schedule-import.test.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       42 passed, 42 total
+Snapshots:   0 total
+Time:        1.273 s
+Ran all test suites matching /schedule-ocr-layout|schedule-import|schedule-photo/i.

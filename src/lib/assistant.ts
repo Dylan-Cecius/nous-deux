@@ -41,9 +41,10 @@ export async function notifyPartner({ backend }: Ctx, title: string, _body?: str
   catch { /* L'enregistrement reste réussi même si la notification ne part pas. */ }
 }
 
-export async function sendLoveNote(ctx: Ctx, text: string, kind: 'note' | 'ping' = 'note') {
+export async function sendLoveNote(ctx: Ctx, text: string, kind: 'note' | 'ping' = 'note', isCurrent: () => boolean = () => true) {
+  if (!isCurrent()) return;
   await ctx.backend.add('notes', { text, from: ctx.backend.userId, kind, createdAt: Date.now() });
-  await notifyPartner(ctx, kind);
+  if (isCurrent()) await notifyPartner(ctx, kind);
 }
 
 const ICONS: Record<AssistantAction['type'], string> = {

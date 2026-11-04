@@ -1,0 +1,20 @@
+[
+  {
+    "packageName": "schedule-ocr",
+    "projects": [
+      {
+        "name": "schedule-ocr",
+        "sourceDir": "/workspace/scratch/01291f6896cc/nous-deux/modules/schedule-ocr/android",
+        "modules": [
+          {
+            "classifier": "com.nousdeux.scheduleocr.ScheduleOcrModule",
+            "name": null
+          }
+        ],
+        "services": [],
+        "packages": []
+      }
+    ],
+    "packageVersion": ""
+  }
+]

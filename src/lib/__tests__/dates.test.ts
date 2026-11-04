@@ -3,12 +3,15 @@ import {
   addDays,
   daysBetween,
   formatNumber,
+  formatRelative,
   nextMilestone,
   nextOccurrence,
   parseFrenchDate,
   parseTime,
   quote,
   toFrenchDate,
+  toKey,
+  fromKey,
 } from '../dates';
 
 describe('dates', () => {
@@ -43,6 +46,10 @@ describe('dates', () => {
     expect(nextMilestone(100).next).toBe(200);
   });
 
+  test.each(['2027-02-14', '2028-11-30', '2028-02-29'])('une répétition annuelle ne précède pas sa première date %s', date => {
+    expect(nextOccurrence(date, true)).toBe(date);
+  });
+
   test('parseFrenchDate accepte JJ/MM/AAAA et refuse les dates impossibles', () => {
     expect(parseFrenchDate('14/02/2023')).toBe('2023-02-14');
     expect(parseFrenchDate('3/9/2026')).toBe('2026-09-03');
@@ -61,5 +68,42 @@ describe('dates', () => {
   test('formatNumber et quote utilisent des espaces insécables', () => {
     expect(formatNumber(1337)).toBe('1 337');
     expect(quote('Je t’aime')).toBe('« Je t’aime »');
+  });
+});
+
+describe('année des dates relatives', () => {
+  test.each([
+    ['2025-10-03', '2026-10-21', '3 oct. 2025'],
+    ['2024-10-03', '2026-10-21', '3 oct. 2024'],
+    ['2026-10-03', '2026-10-21', '3 oct.'],
+    ['2026-12-30', '2027-01-01', '30 déc. 2026'],
+    ['2026-12-31', '2027-01-01', 'hier'],
+    ['2027-01-01', '2027-01-01', 'aujourd’hui à 8:05'],
+  ])('%s vu le %s : %s', (date, today, expected) => {
+    const at = fromKey(date);
+    at.setHours(8, 5);
+    expect(formatRelative(at.getTime(), today)).toBe(expected);
+  });
+});
+
+describe('anniversaire du 29 février', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  test.each([
+    ['2026-02-28', '2026-03-01'],
+    ['2026-03-01', '2026-03-01'],
+    ['2026-03-02', '2027-03-01'],
+    ['2027-03-02', '2028-02-29'],
+    ['2028-02-29', '2028-02-29'],
+    ['2028-03-01', '2029-03-01'],
+    ['2100-02-28', '2100-03-01'],
+    ['2400-02-29', '2400-02-29'],
+  ])('le %s, la prochaine date réelle est %s', (today, expected) => {
+    jest.setSystemTime(fromKey(today));
+    const actual = nextOccurrence('2024-02-29', true);
+    expect(actual).toBe(expected);
+    expect(toKey(fromKey(actual))).toBe(actual);
+    expect(daysBetween(today, actual)).toBeGreaterThanOrEqual(0);
   });
 });
