@@ -26,7 +26,7 @@ const base = {
     line: '#2F2228',
     text: '#F6ECEE',
     textSecondary: '#B9A3AB',
-    onPrimary: '#FFFFFF',
+    onPrimary: '#24141C',
     onFeature: '#FBF6F1',
     success: '#7FD39C',
     successSoft: '#1C3326',
