@@ -170,7 +170,7 @@ export async function clearSession() {
 
 async function callServer<T>(name: string, data: object): Promise<T> {
   try {
-    return (await httpsCallable(firebase().functions, name)(data)).data as T;
+    return (await httpsCallable(firebase().functions, name, { timeout: name === 'assistant' ? 125_000 : 70_000 })(data)).data as T;
   } catch (error) {
     throw new Error(functionMessage(error));
   }

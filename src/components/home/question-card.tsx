@@ -6,10 +6,10 @@ import { Card, Dot, Field, IconButton, Ionicons, Row, T } from '@/components/ui'
 import { useTheme } from '@/constants/theme';
 import { notifyPartner } from '@/lib/assistant';
 import { useCollection, useSession } from '@/lib/couple-context';
-import { todayKey } from '@/lib/dates';
 import { success } from '@/lib/haptics';
 import { questionFor } from '@/lib/questions';
 import type { Member } from '@/lib/types';
+import { useTodayKey } from '@/lib/use-today';
 
 /**
  * Question du jour. Chacun répond de son côté ; la réponse de l'autre ne se dévoile
@@ -20,7 +20,7 @@ export function QuestionCard() {
   const session = useSession();
   const { backend, members, me } = session;
   const answers = useCollection('answers');
-  const today = todayKey();
+  const today = useTodayKey();
   const ofToday = answers.filter((a) => a.date === today);
   const answerOf = (id: string) => ofToday.find((a) => a.from === id);
   const iAnswered = !!answerOf(backend.userId);
@@ -38,7 +38,7 @@ export function QuestionCard() {
         const answer = answerOf(m.id);
         // En mode local, les deux réponses se saisissent sur ce téléphone.
         const canAnswer = !answer && (m.id === backend.userId || backend.mode === 'local');
-        if (canAnswer) return <AnswerField key={m.id} member={m} isMe={m.id === me?.id} date={today} />;
+        if (canAnswer) return <AnswerField key={`${today}:${m.id}`} member={m} isMe={m.id === me?.id} date={today} />;
         return (
           <View key={m.id} style={{ gap: 4 }}>
             <Row style={{ gap: 6 }}>

@@ -210,11 +210,37 @@ test('suppression : réauthentification exigée avant toute modification', async
 test('suppression reprise après panne : photos, privé, Auth et index nettoyés ; partenaire conservé', async () => {
   await seed();
   await getAuth().createUser({ uid: 'delete-alice' });
-  await db.doc(`couples/${cid}`).update({ members: ['delete-alice', 'bob'], profiles: { 'delete-alice': profile, bob: profile } });
+  await db.doc(`couples/${cid}`).update({ members: ['delete-alice', 'bob'], profiles: { 'delete-alice': profile, bob: profile }, since: '2020-02-14' });
   await db.doc('users/delete-alice').set({ coupleId: cid });
   await db.doc(`couples/${cid}/private/delete-alice/gifts/one`).set({ title: 'secret' });
+  await db.doc(`couples/${cid}/private/delete-alice/answers/${date}`).set({ from: 'delete-alice', text: 'réponse privée' });
+  await db.doc('users/delete-alice/devices/one').set({ token: 'private-token' });
   await db.doc(`couples/${cid}/notes/one`).set({ from: 'delete-alice', text: 'secret' });
   await db.doc(`couples/${cid}/expenses/one`).set({ paidBy: 'delete-alice', amount: 10 });
+  const ownDocuments = [
+    ['answers/legacy', { from: 'delete-alice', text: 'ancienne réponse' }],
+    ['revealedAnswers/one', { from: 'delete-alice', text: 'réponse révélée' }],
+    ['memories/one', { createdBy: 'delete-alice', caption: 'photo personnelle' }],
+    ['restaurants/one', { createdBy: 'delete-alice', name: 'mon restaurant' }],
+    ['items/one', { createdBy: 'delete-alice', title: 'mon envie' }],
+    ['gifts/legacy', { createdBy: 'delete-alice', title: 'ancien cadeau privé' }],
+    ['events/authored', { createdBy: 'delete-alice', who: 'both', title: 'mon événement partagé' }],
+    ['events/authored-for-partner', { createdBy: 'delete-alice', who: 'bob', title: 'créé pour Bob' }],
+    ['events/assigned', { createdBy: 'bob', who: 'delete-alice', title: 'horaire personnel' }],
+  ];
+  const partnerDocuments = [
+    ['notes/partner', { from: 'bob', text: 'mot de Bob' }],
+    ['revealedAnswers/partner', { from: 'bob', text: 'réponse de Bob' }],
+    ['memories/partner', { createdBy: 'bob', caption: 'souvenir de Bob' }],
+    ['restaurants/partner', { createdBy: 'bob', name: 'restaurant de Bob' }],
+    ['items/partner', { createdBy: 'bob', title: 'envie de Bob' }],
+    ['expenses/partner', { paidBy: 'bob', amount: 20 }],
+    ['events/partner', { createdBy: 'bob', who: 'bob', title: 'horaire de Bob' }],
+    ['events/partner-shared', { createdBy: 'bob', who: 'both', title: 'créé par Bob pour tous les deux' }],
+  ];
+  for (const [path, data] of [...ownDocuments, ...partnerDocuments]) await db.doc(`couples/${cid}/${path}`).set(data);
+  await db.doc(`couples/${cid}/dates/unattributed`).set({ title: 'information intime sans auteur', date });
+  await db.doc(`couples/${cid}/answerStatus/${date}`).set({ responded: ['delete-alice', 'bob'], revealed: true });
   await db.doc(`couples/${cid}/private/bob/gifts/one`).set({ title: 'conserver' });
   const bucket = getStorage().bucket();
   const mine = bucket.file(`couples/${cid}/photos/delete-alice/one.jpg`);
@@ -242,10 +268,17 @@ test('suppression reprise après panne : photos, privé, Auth et index nettoyés
   assert.equal((await mine.exists())[0], false);
   assert.equal((await other.exists())[0], true);
   assert.equal((await db.doc(`couples/${cid}/private/delete-alice/gifts/one`).get()).exists, false);
+  assert.equal((await db.doc(`couples/${cid}/private/delete-alice/answers/${date}`).get()).exists, false);
   assert.equal((await db.doc(`couples/${cid}/notes/one`).get()).exists, false);
   assert.equal((await db.doc(`couples/${cid}/private/bob/gifts/one`).get()).exists, true);
-  assert.equal((await db.doc(`couples/${cid}/expenses/one`).get()).data().paidBy, 'former-member');
+  assert.equal((await db.doc(`couples/${cid}/expenses/one`).get()).exists, false);
+  for (const [path] of ownDocuments) assert.equal((await db.doc(`couples/${cid}/${path}`).get()).exists, false, `${path} doit être effacé`);
+  for (const [path, data] of partnerDocuments) assert.deepEqual((await db.doc(`couples/${cid}/${path}`).get()).data(), data, `${path} doit être conservé`);
+  assert.equal((await db.doc(`couples/${cid}/dates/unattributed`).get()).exists, false);
+  assert.equal((await db.doc(`couples/${cid}`).get()).data().since, undefined);
+  assert.deepEqual((await db.doc(`couples/${cid}/answerStatus/${date}`).get()).data().responded, ['bob']);
   assert.equal((await db.doc('users/delete-alice').get()).exists, false);
+  assert.equal((await db.doc('users/delete-alice/devices/one').get()).exists, false);
   assert.deepEqual((await db.doc(`couples/${cid}`).get()).data().members, ['bob']);
   await assertSucceeds(getDoc(doc(client('bob'), 'couples', cid)));
   await assert.rejects(getAuth().getUser('delete-alice'), { code: 'auth/user-not-found' });

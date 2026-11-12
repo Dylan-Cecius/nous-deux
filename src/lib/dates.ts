@@ -24,14 +24,18 @@ export function daysBetween(a: string, b: string): number {
   return Math.round((fromKey(b).getTime() - fromKey(a).getTime()) / 86_400_000);
 }
 
-/** Prochaine occurrence d'une date (pour les dates qui reviennent chaque année). */
+/** Prochaine occurrence annuelle ; un 29 février se fête le 28 les années non bissextiles. */
 export function nextOccurrence(key: string, yearly: boolean): string {
   if (!yearly) return key;
   const today = todayKey();
   const [, m, d] = key.split('-');
   const year = new Date().getFullYear();
-  const thisYear = `${year}-${m}-${d}`;
-  return thisYear >= today ? thisYear : `${year + 1}-${m}-${d}`;
+  const occurrenceIn = (y: number) => {
+    const lastDay = new Date(y, Number(m), 0).getDate();
+    return `${y}-${m}-${pad(Math.min(Number(d), lastDay))}`;
+  };
+  const thisYear = occurrenceIn(year);
+  return thisYear >= today ? thisYear : occurrenceIn(year + 1);
 }
 
 export function formatLong(key: string): string {

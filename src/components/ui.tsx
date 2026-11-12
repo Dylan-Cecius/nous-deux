@@ -113,7 +113,7 @@ export function Screen({
           showsVerticalScrollIndicator={false}>
           {hero}
           {/* Les cartes remontent légèrement sur le bandeau. */}
-          <View style={{ paddingHorizontal: 22, gap: 18, marginTop: -26 }}>{children}</View>
+          <View style={{ paddingHorizontal: 22, gap: 20, paddingTop: 20 }}>{children}</View>
         </ScrollView>
       </View>
     );
@@ -168,10 +168,11 @@ export function Card({
 }) {
   const t = useTheme();
   const bg = { default: t.card, feature: t.feature, soft: t.primarySoft, success: t.successSoft }[tone];
-  const base = [styles.card, { backgroundColor: bg }, tone === 'default' && cardShadow(t.shadow), style];
+  const base = [styles.card, { backgroundColor: bg, borderWidth: 1, borderColor: tone === 'default' ? t.border : 'transparent' }, tone === 'default' && cardShadow(t.shadow), style];
   if (!onPress && !onLongPress) return <View style={base}>{children}</View>;
   return (
     <Pressable
+      accessibilityRole={onPress ? 'button' : undefined}
       onPress={onPress}
       onLongPress={onLongPress}
       style={({ pressed }) => [base, pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }]}>
@@ -190,7 +191,7 @@ export function SectionTitle({ title, action, onAction }: { title: string; actio
     <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
       <T variant="h2">{title}</T>
       {action && onAction ? (
-        <Pressable onPress={onAction} hitSlop={10}>
+        <Pressable accessibilityRole="button" accessibilityLabel={action} onPress={onAction} hitSlop={10} style={{ minHeight: 44, justifyContent: 'center' }}>
           <Text style={{ fontFamily: Fonts.bodyMedium, fontSize: 15, color: t.primary }}>{action}</Text>
         </Pressable>
       ) : null}

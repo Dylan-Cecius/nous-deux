@@ -12,6 +12,7 @@ import { Fonts, MemberColors } from '@/constants/theme';
 import { createCloudCouple, createLocalCouple, joinCloudCouple, type Backend } from '@/lib/backend';
 import { useCouple } from '@/lib/couple-context';
 import { isFirebaseConfigured } from '@/lib/firebase';
+import { useReducedMotion } from '@/lib/use-reduced-motion';
 
 type Step = 'profile' | 'choice' | 'join' | 'local' | 'signin';
 
@@ -49,8 +50,13 @@ const styles = StyleSheet.create({
 /** Le cœur du logo, qui flotte et respire doucement. */
 function FloatingHeart() {
   const [anim] = useState(() => new Animated.Value(0));
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reducedMotion) {
+      anim.setValue(0);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(anim, { toValue: 1, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
@@ -58,8 +64,11 @@ function FloatingHeart() {
       ]),
     );
     loop.start();
-    return () => loop.stop();
-  }, [anim]);
+    return () => {
+      loop.stop();
+      anim.setValue(0);
+    };
+  }, [anim, reducedMotion]);
 
   return (
     <Animated.Image

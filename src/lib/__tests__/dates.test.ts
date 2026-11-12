@@ -37,6 +37,17 @@ describe('dates', () => {
     expect(nextOccurrence('2027-07-01', false)).toBe('2027-07-01');
   });
 
+  test('un anniversaire du 29 février produit une date valide chaque année', () => {
+    expect(nextOccurrence('2024-02-29', true)).toBe('2027-02-28');
+    jest.setSystemTime(new Date(2027, 1, 28, 12));
+    expect(nextOccurrence('2024-02-29', true)).toBe('2027-02-28');
+    jest.setSystemTime(new Date(2027, 2, 1, 12));
+    expect(nextOccurrence('2024-02-29', true)).toBe('2028-02-29');
+    jest.setSystemTime(new Date(2028, 1, 29, 12));
+    expect(nextOccurrence('2024-02-29', true)).toBe('2028-02-29');
+    jest.setSystemTime(new Date(2026, 9, 14, 12));
+  });
+
   test('nextMilestone : caps de 100 jours, puis de 500', () => {
     expect(nextMilestone(41)).toEqual({ next: 100, left: 59, progress: 0.41 });
     expect(nextMilestone(1337)).toEqual({ next: 1500, left: 163, progress: 337 / 500 });

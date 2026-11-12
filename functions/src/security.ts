@@ -293,25 +293,28 @@ export async function completeDeletion(uid: string) {
       await db.recursiveDelete(coupleRef);
     } else {
       await db.recursiveDelete(coupleRef.collection('private').doc(uid));
-      for (const [collection, field] of [['notes', 'from'], ['answers', 'from'], ['revealedAnswers', 'from'], ['memories', 'createdBy'], ['events', 'who']]) {
+      // Account deletion removes authored user content, including shared UGC;
+      // replacing its author ID would leave the person's text in the service.
+      for (const [collection, field] of [
+        ['notes', 'from'], ['answers', 'from'], ['revealedAnswers', 'from'],
+        ['memories', 'createdBy'], ['events', 'who'], ['events', 'createdBy'],
+        ['restaurants', 'createdBy'], ['items', 'createdBy'], ['expenses', 'paidBy'],
+        ['gifts', 'createdBy'], // Legacy gifts stored outside the private tree.
+      ]) {
         await removeQuery(coupleRef.collection(collection).where(field, '==', uid));
       }
-      // Retire les identifiants personnels des éléments partagés conservés.
-      for (const [collection, field] of [['events', 'createdBy'], ['restaurants', 'createdBy'], ['items', 'createdBy'], ['expenses', 'paidBy']]) {
-        for (;;) {
-          const snap = await coupleRef.collection(collection).where(field, '==', uid).limit(200).get();
-          if (snap.empty) break;
-          const batch = db.batch();
-          snap.docs.forEach((d) => batch.update(d.ref, { [field]: 'former-member' }));
-          await batch.commit();
-        }
-      }
+      // Historical dates have no author field. Erase all of them rather than
+      // retain potentially personal text from the departing account. This is
+      // explicitly disclosed in the in-app deletion confirmation.
+      await removeQuery(coupleRef.collection('dates'));
       const statuses = await coupleRef.collection('answerStatus').get();
       for (const state of statuses.docs) {
         await state.ref.update({ responded: (state.data().responded ?? []).filter((m: string) => m !== uid) });
       }
       const current = (await coupleRef.get()).data();
-      const patch: DocumentData = { members: job.remainingMembers, [`profiles.${uid}`]: FieldValue.delete() };
+      const patch: DocumentData = {
+        members: job.remainingMembers, [`profiles.${uid}`]: FieldValue.delete(), since: FieldValue.delete(),
+      };
       if (ownedPhoto(photoPath(current?.photoUrl), coupleId, uid) || String(current?.photoUrl ?? '').startsWith('data:')) {
         patch.photoUrl = FieldValue.delete(); patch.photoFrame = FieldValue.delete();
       }

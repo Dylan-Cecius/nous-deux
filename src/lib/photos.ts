@@ -5,25 +5,37 @@ export type PickedPhoto = { uri: string; base64?: string; mediaType: 'image/jpeg
 
 /**
  * Choisit une photo (galerie ou appareil photo) et la redimensionne pour rester légère.
- * Renvoie null si l'utilisateur annule ou refuse l'accès.
+ * Renvoie null en cas d’annulation ; explique un refus de caméra par une erreur.
  */
-export async function pickPhoto({ camera = false, withBase64 = false } = {}): Promise<PickedPhoto | null> {
+export async function pickPhoto({ camera = false, withBase64 = false, document = false } = {}): Promise<PickedPhoto | null> {
   if (camera) {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) return null;
+    if (!permission.granted) throw new Error('L’accès à l’appareil photo est désactivé. Autorise-le dans les réglages du téléphone ou choisis une image dans la galerie.');
   }
-  const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 1 };
+  // Preserve the full document. Native editing can force a square crop on iOS
+  // and silently remove columns from a weekly schedule.
+  const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 1, allowsEditing: false };
   const result = camera
     ? await ImagePicker.launchCameraAsync(options)
     : await ImagePicker.launchImageLibraryAsync(options);
   if (result.canceled || !result.assets[0]) return null;
 
   const asset = result.assets[0];
-  const context = ImageManipulator.manipulate(asset.uri);
-  if (asset.width > 1600) context.resize({ width: 1600 });
-  const image = await context.renderAsync();
-  const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.75, base64: withBase64 });
-  return { uri: saved.uri, base64: saved.base64, mediaType: 'image/jpeg' };
+  // A portrait screenshot can be very tall despite a small width. Bound both
+  // dimensions, preserve small print for OCR, and always convert HEIC to JPEG.
+  const maxSide = document ? 2200 : 1600;
+  for (const [size, quality] of [[maxSide, document ? 0.88 : 0.75], [1600, 0.75], [1200, 0.65]]) {
+    const context = ImageManipulator.manipulate(asset.uri);
+    if (Math.max(asset.width, asset.height) > size) {
+      context.resize(asset.width >= asset.height ? { width: size } : { height: size });
+    }
+    const image = await context.renderAsync();
+    const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: quality, base64: withBase64 });
+    if (!withBase64 || (saved.base64 && saved.base64.length <= 3_800_000)) {
+      return { uri: saved.uri, base64: saved.base64, mediaType: 'image/jpeg' };
+    }
+  }
+  throw new Error('Cette photo reste trop lourde. Recadre une seule semaine du planning et réessaie.');
 }
 
 /**

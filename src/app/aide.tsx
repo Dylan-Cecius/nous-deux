@@ -1,10 +1,20 @@
 import { router } from 'expo-router';
 
-import { Card, Screen, T } from '@/components/ui';
+import { Button, Card, Screen, T } from '@/components/ui';
 
 export default function Aide() {
   return (
     <Screen overline="Nous Deux" title="Aide et confidentialité" onBack={() => router.canGoBack() ? router.back() : router.replace('/')}>
+      <Card>
+        <T variant="h2">Nos moments à deux et Plus</T>
+        <T>Retrouvez une sélection gratuite d’idées de rendez-vous depuis l’accueil ou Nous. Ajoutez celles qui vous plaisent à vos envies communes.</T>
+        <T>Plus donne accès à la bibliothèque complète et aux filtres avancés pour votre couple. Les fonctions habituelles restent gratuites. Les achats et la restauration se font depuis l’app installée, lorsque le service d’abonnement est disponible.</T>
+      </Card>
+      <Card>
+        <T variant="h2">Vos informations</T>
+        <Button label="Politique de confidentialité" variant="outline" onPress={() => router.push('/confidentialite')} />
+        <Button label="Conditions d’utilisation et abonnements" variant="outline" onPress={() => router.push('/conditions')} />
+      </Card>
       <Card>
         <T variant="h2">Retrouver votre espace</T>
         <T>Dans Nous → Ton compte, ajoute un e-mail et un mot de passe. Tu pourras ensuite choisir « J’ai déjà un compte » sur un autre téléphone.</T>
@@ -28,7 +38,8 @@ export default function Aide() {
       </Card>
       <Card>
         <T variant="h2">Supprimer ton compte</T>
-        <T>Ouvre Nous → Ton compte → Supprimer mon compte. Ton profil, tes réponses, tes mots doux, tes idées cadeaux et tes photos sont supprimés. Les autres éléments partagés restent pour ta moitié ; le dernier départ supprime tout l’espace.</T>
+        <T>Ouvre Nous → Ton compte → Supprimer mon compte. Ton compte, ton profil et tes contenus sont supprimés, y compris les restaurants, envies, courses et horaires que tu as créés. Les horaires qui te sont attribués et tes dépenses sont aussi effacés ; le solde peut changer. Toutes les dates communes et la date de rencontre sont supprimées. Les autres contenus créés par ta moitié restent pour elle ; le dernier départ supprime tout l’espace.</T>
+        <T>La suppression du compte ne résilie pas un abonnement souscrit sur l’App Store ou Google Play. Résilie-le depuis les réglages du store si nécessaire.</T>
         <T>Si le nettoyage est interrompu, il reprend automatiquement. Il ne peut pas effacer une copie déjà téléchargée sur un autre appareil.</T>
       </Card>
       <Card tone="soft">

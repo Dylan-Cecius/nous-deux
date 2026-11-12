@@ -82,11 +82,15 @@ function RootStack() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="souvenirs" />
         <Stack.Screen name="depenses" />
+        <Stack.Screen name="rituels" />
+        <Stack.Screen name="premium" />
       </Stack.Protected>
       <Stack.Protected guard={!backend}>
         <Stack.Screen name="onboarding" />
       </Stack.Protected>
       <Stack.Screen name="aide" />
+      <Stack.Screen name="confidentialite" />
+      <Stack.Screen name="conditions" />
     </Stack>
   );
 }

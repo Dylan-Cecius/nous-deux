@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Animated, Easing, Pressable, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Image, Pressable, View } from 'react-native';
 
 import { AssistantContext, type AssistantMode } from './assistant-context';
 import { celebrate } from './celebrate';
 import { Button, Card, Field, Ionicons, Row, Sheet, T, type IconName } from './ui';
 import { Fonts, useTheme } from '@/constants/theme';
-import { actionIcon, applyAction, askAssistant, type AssistantAction, type AssistantInput } from '@/lib/assistant';
-import { useSession } from '@/lib/couple-context';
+import { actionIcon, applyAction, askAssistant, notifyPartner, type AssistantAction, type AssistantInput } from '@/lib/assistant';
+import { useCollection, useSession } from '@/lib/couple-context';
+import { DateField, TimeField } from '@/components/pickers';
+import { mondayOf } from '@/lib/agenda';
+import { todayKey } from '@/lib/dates';
+import { eventProblem, prepareScheduleEvents } from '@/lib/schedule-import';
 import { hasAiConsent } from '@/lib/backend';
 import { bump, success } from '@/lib/haptics';
 import { pickPhoto } from '@/lib/photos';
@@ -91,12 +95,19 @@ function AssistantSheet({ mode, onClose }: { mode: Mode; onClose: () => void }) 
   const t = useTheme();
   const session = useSession();
   const { backend, partner } = session;
+  const existingEvents = useCollection('events');
   const [text, setText] = useState('');
   const [listening, setListening] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reply, setReply] = useState<string | null>(null);
   const [actions, setActions] = useState<(AssistantAction & { selected: boolean })[]>([]);
+  const [weekStart, setWeekStart] = useState(() => mondayOf(todayKey()));
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const busyRef = useRef(false);
+  const activeRef = useRef(true);
+  const lastImage = useRef<AssistantInput | null>(null);
   const stopRef = useRef<() => void>(() => {});
   const cloud = backend.mode === 'cloud';
   const [consent, setConsent] = useState<boolean | null>(cloud ? null : false);
@@ -110,29 +121,42 @@ function AssistantSheet({ mode, onClose }: { mode: Mode; onClose: () => void }) 
   const changeConsent = async (accepted: boolean) => {
     setLoading(true);
     setError(null);
-    try { await backend.call('setAiConsent', { accepted }); setConsent(accepted); }
+    try {
+      await backend.call('setAiConsent', { accepted });
+      setConsent(accepted);
+      if (!accepted) { lastImage.current = null; setPhotoUri(null); setActions([]); setReply(null); }
+    }
     catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setLoading(false); }
   };
 
 
-  useEffect(() => () => stopRef.current(), []);
+  useEffect(() => {
+    activeRef.current = true;
+    return () => { activeRef.current = false; stopRef.current(); lastImage.current = null; };
+  }, []);
 
-  const submit = async (input: AssistantInput) => {
-    if (!consent || loading) return;
-    setLoading(true);
+  const analyze = async (input: AssistantInput) => {
     setError(null);
     setReply(null);
     setActions([]);
     try {
       const result = await askAssistant(backend, input);
+      if (!activeRef.current) return;
+      if (!Array.isArray(result.actions) || typeof result.reply !== 'string') throw new Error('La lecture du planning a échoué. Réessaie avec une photo nette et une seule semaine visible.');
       setReply(result.reply);
-      setActions(result.actions.map((a) => ({ ...a, selected: true })));
+      setActions(result.actions.filter((a) => mode !== 'schedule' || a.type === 'event').map((a) => ({ ...a, selected: !eventProblem(a) })));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
+      if (activeRef.current) setError(e instanceof Error ? e.message : String(e));
     }
+  };
+
+  const submit = async (input: AssistantInput) => {
+    if (!consent || busyRef.current) return;
+    busyRef.current = true;
+    setLoading(true);
+    try { await analyze(input); }
+    finally { busyRef.current = false; if (activeRef.current) setLoading(false); }
   };
 
   const toggleMic = async () => {
@@ -157,27 +181,66 @@ function AssistantSheet({ mode, onClose }: { mode: Mode; onClose: () => void }) 
   };
 
   const scanSchedule = async (camera: boolean) => {
-    const photo = await pickPhoto({ camera, withBase64: true });
-    if (photo?.base64) submit({ imageBase64: photo.base64, mediaType: photo.mediaType });
+    if (!consent || busyRef.current) return;
+    busyRef.current = true;
+    setLoading(true);
+    setError(null);
+    try {
+      const photo = await pickPhoto({ camera, withBase64: true, document: true });
+      if (!activeRef.current || !photo) return;
+      if (!photo.base64) throw new Error('Cette photo n’a pas pu être lue. Choisis une autre image.');
+      const input = { imageBase64: photo.base64, mediaType: photo.mediaType, weekStart };
+      lastImage.current = input;
+      setPhotoUri(photo.uri);
+      await analyze(input);
+    } catch (e) {
+      if (activeRef.current) setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      busyRef.current = false;
+      if (activeRef.current) setLoading(false);
+    }
   };
 
   const confirm = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setSaving(true);
     setLoading(true);
+    setError(null);
     try {
-      for (const a of actions.filter((x) => x.selected)) await applyAction(session, a);
+      const selected = actions.filter((x) => x.selected);
+      // The scan is committed atomically: no half-imported week on a network
+      // failure, and an exact duplicate is not added on a later retry.
+      if (mode === 'schedule') {
+        const prepared = prepareScheduleEvents(selected, backend.userId, partner?.id, existingEvents);
+        if (prepared.events.length) {
+          await backend.addEvents(prepared.events);
+          await notifyPartner(session, 'Agenda');
+        }
+      } else {
+        for (const a of selected) await applyAction(session, a);
+      }
       success();
       celebrate('hearts');
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-      setLoading(false);
+    } finally {
+      busyRef.current = false;
+      if (activeRef.current) { setSaving(false); setLoading(false); }
     }
   };
 
   const selectedCount = actions.filter((a) => a.selected).length;
+  const hasInvalidSelection = actions.some((a) => a.selected && eventProblem(a));
+  const editAction = (index: number, patch: Partial<AssistantAction>) => setActions((list) => list.map((a, i) => {
+    if (i !== index) return a;
+    const edited = { ...a, ...patch };
+    return { ...edited, summary: `${edited.title} · ${edited.date ?? 'Date à vérifier'} · ${edited.start ?? '?'}–${edited.end ?? '?'}` };
+  }));
 
   return (
-    <Sheet visible title={mode === 'schedule' ? 'Importer un planning' : 'Assistant'} onClose={onClose}>
+    <Sheet visible title={mode === 'schedule' ? 'Importer un planning' : 'Assistant'} onClose={() => { if (!saving) onClose(); }}>
       {!cloud ? (
         <Card tone="soft">
           <Row style={{ gap: 10 }}>
@@ -204,12 +267,15 @@ function AssistantSheet({ mode, onClose }: { mode: Mode; onClose: () => void }) 
       ) : actions.length > 0 ? (
         <>
           {!!reply && <T muted>{reply}</T>}
+          {mode === 'schedule' && <T variant="small" muted>Vérifie chaque date et chaque heure. Corrige les créneaux mal lus ou décoche-les avant de les ajouter.</T>}
+          {mode === 'schedule' && photoUri && <Image source={{ uri: photoUri }} accessibilityLabel="Planning à comparer aux horaires proposés" resizeMode="contain" style={{ width: '100%', height: 180, borderRadius: 16 }} />}
           <Card style={{ padding: 0, gap: 0, overflow: 'hidden' }}>
             {actions.map((a, i) => (
+              <View key={i}>
               <Pressable
-                key={i}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: a.selected }}
+                disabled={loading}
                 onPress={() => setActions((list) => list.map((x, j) => (j === i ? { ...x, selected: !x.selected } : x)))}
                 style={{
                   flexDirection: 'row',
@@ -237,21 +303,36 @@ function AssistantSheet({ mode, onClose }: { mode: Mode; onClose: () => void }) 
                   color={a.selected ? t.primary : t.border}
                 />
               </Pressable>
+              {mode === 'schedule' && a.type === 'event' && a.selected && (
+                <View style={{ padding: 16, paddingTop: 0, gap: 12 }}>
+                  <Field label="Titre de l’horaire" value={a.title} maxLength={200} editable={!loading} onChangeText={(title) => editAction(i, { title })} />
+                  <DateField label="Date de l’horaire" value={a.date ?? weekStart} onChange={(date) => { if (!loading) editAction(i, { date }); }} />
+                  <Row>
+                    <TimeField label="Début" value={a.start ?? '09:00'} onChange={(start) => { if (!loading) editAction(i, { start }); }} grow />
+                    <TimeField label="Fin" value={a.end ?? '17:00'} onChange={(end) => { if (!loading) editAction(i, { end }); }} grow />
+                  </Row>
+                  {!!eventProblem(a) && <T variant="small" color={t.danger}>{eventProblem(a)}</T>}
+                </View>
+              )}
+              </View>
             ))}
           </Card>
           <Button
             label={selectedCount > 1 ? `Ajouter les ${selectedCount}` : 'Ajouter'}
             icon="checkmark"
-            disabled={loading || selectedCount === 0}
+            disabled={loading || selectedCount === 0 || hasInvalidSelection}
             onPress={confirm}
           />
-          <Button label="Recommencer" variant="ghost" onPress={() => setActions([])} />
+          <Button label="Recommencer" variant="ghost" disabled={loading} onPress={() => { setActions([]); setReply(null); }} />
         </>
       ) : mode === 'schedule' ? (
         <>
           <T muted>
-            Prends en photo ton planning de travail : l’assistant lit les horaires et te propose de les ajouter à l’agenda.
+            Choisis une seule semaine, bien éclairée, avec les dates et les heures lisibles. Masque les noms et horaires de tes collègues. Aucun horaire n’est ajouté avant ta validation.
           </T>
+          <DateField label="Lundi de la semaine à importer" value={weekStart} onChange={(date) => { if (!loading) setWeekStart(mondayOf(date)); }} />
+          {photoUri && <Image source={{ uri: photoUri }} accessibilityLabel="Planning sélectionné" resizeMode="contain" style={{ width: '100%', height: 180, borderRadius: 16 }} />}
+          {photoUri && <Button label="Réessayer la lecture de cette photo" icon="refresh-outline" variant="soft" disabled={loading} onPress={() => { const input = lastImage.current; if (input && 'imageBase64' in input) return submit({ ...input, weekStart }); }} />}
           <Button label="Prendre une photo" icon="camera-outline" disabled={loading} onPress={() => scanSchedule(true)} />
           <Button
             label="Choisir dans la galerie"
@@ -320,7 +401,7 @@ function AssistantSheet({ mode, onClose }: { mode: Mode; onClose: () => void }) 
       {loading && (
         <Row style={{ justifyContent: 'center', gap: 10 }}>
           <ActivityIndicator color={t.primary} />
-          <T muted>L’assistant réfléchit…</T>
+          <T muted>{saving ? 'Enregistrement du planning…' : mode === 'schedule' ? 'Lecture du planning…' : 'L’assistant réfléchit…'}</T>
         </Row>
       )}
       {!!reply && actions.length === 0 && !loading && <T>{reply}</T>}
