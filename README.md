@@ -138,7 +138,7 @@ Tout se fait dans le cloud avec **EAS** : pas besoin de Mac pour iOS.
 
 - À l'inscription, chaque téléphone reçoit un compte **anonyme** (aucun mot de passe).
 - Onglet **Nous > Ton compte > Sécuriser mon compte** : ajoute un e-mail et un mot de passe au même compte. Sur un nouveau téléphone, **« J'ai déjà un compte »** sur l'écran de bienvenue permet de retrouver son espace (avec « mot de passe oublié »).
-- **Supprimer mon compte** efface côté serveur le profil, les réponses, mots doux, cadeaux et photos de la personne ainsi que son compte Auth. Les éléments partagés conservés sont détachés de son identifiant ; si elle est seule, tout l’espace est effacé. Le nettoyage reprend automatiquement après une panne.
+- **Supprimer mon compte** efface côté serveur le compte Auth, le profil et les contenus de la personne, y compris ses restaurants, listes et horaires partagés. Les horaires qui lui sont attribués et ses dépenses sont supprimés (le solde peut changer). Les dates communes et la date de rencontre, sans auteur enregistré, sont toutes effacées. Les autres contenus créés par le partenaire sont conservés ; le dernier départ efface tout l’espace. Ces conséquences sont annoncées avant confirmation. Le nettoyage reprend automatiquement après une panne. La suppression ne résilie pas un abonnement du store.
 - À activer dans Firebase : Authentication > Méthode de connexion > **Anonyme** et **Adresse e-mail/Mot de passe** (déjà fait sur nous-deux-80525).
 
 ## Développement
@@ -153,3 +153,13 @@ npm.cmd run test:security # règles et fonctions, sur émulateurs Firebase uniqu
 
 Structure : écrans dans `src/app/`, composants dans `src/components/`, données et calculs dans `src/lib/` (`backend.ts` = Firebase ou local, tests dans `src/lib/__tests__/`).
 Le logo est généré par `scripts/generate-logo.js` (`node scripts/generate-logo.js`).
+
+## Version 1.1 — préparation App Store et Nous Deux Plus
+
+- Accueil repensé, couleurs plus douces et accès direct à l’agenda et aux envies.
+- **Nos moments à deux** : idées originales de rendez-vous, sélection gratuite, ajout aux envies partagées ; bibliothèque complète et filtres avancés avec Plus.
+- **Planning en photo** : semaine de référence explicite, image optimisée pour la lecture, aperçu corrigeable et ajout atomique avec contrôle des doublons. L’activation du service IA et son consentement restent nécessaires.
+- **Plus** : achats natifs et restauration via RevenueCat ; droits du couple vérifiés côté serveur. Aucune facturation n’est active tant que les produits et les services ne sont pas configurés.
+- Pages de confidentialité et conditions intégrées, manifeste iOS et vérifications automatiques GitHub Actions.
+
+Consulter [l’étude de marché](docs/MARKET-AND-PRICING.md), [le guide des abonnements](docs/SUBSCRIPTIONS.md) et [le dossier App Store](docs/APP-STORE-RELEASE.md) avant toute distribution. Ces préparatifs ne remplacent pas les essais sur téléphone, la signature Apple, la configuration des services et la validation des achats en Sandbox.

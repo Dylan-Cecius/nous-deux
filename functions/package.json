@@ -7,7 +7,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "node --test --test-concurrency=1 test/security.test.cjs",
+    "test": "node --test --test-concurrency=1 test/*.test.cjs",
+    "test:unit": "node --test test/billing.test.cjs test/assistant-schedule.test.cjs",
     "migrate:security": "npm run build && node scripts/migrate-security.cjs",
     "deploy": "npm run build && firebase deploy --only functions"
   },

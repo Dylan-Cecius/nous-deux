@@ -72,7 +72,8 @@ export function AccountCard() {
         <Sheet visible title="Supprimer ton compte" onClose={() => { if (!busy) setDeleting(false); }}>
           <T>{backend.mode === 'local'
             ? 'Les données et les photos enregistrées par l’app sur ce téléphone seront effacées. Cette action est définitive.'
-            : 'Ton profil, tes réponses, tes mots doux, tes idées cadeaux et tes photos seront effacés. Les autres éléments partagés restent pour ta moitié ; si tu es seul dans l’espace, tout sera effacé.'}</T>
+            : 'Ton compte, ton profil et les contenus que tu as créés seront effacés, y compris tes mots doux, réponses, cadeaux, photos, restaurants, envies, courses et horaires partagés. Les horaires qui te sont attribués et tes dépenses seront aussi supprimés : le solde des dépenses peut changer. Toutes les dates communes et la date de rencontre seront effacées. Les autres contenus créés par ta moitié restent pour elle ; si tu es seul dans l’espace, tout sera effacé. Cette action est définitive.'}</T>
+          {backend.mode === 'cloud' && <T variant="small" muted>Supprimer ton compte ne résilie pas un abonnement souscrit sur un store. Gère sa résiliation dans les réglages de l’App Store ou de Google Play.</T>}
           {account && !account.anonymous && <Field label="Confirme ton mot de passe" value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" />}
           {deletionError && <T>{deletionError}</T>}
           <Button label={busy ? 'Suppression…' : 'Supprimer définitivement'} variant="danger" disabled={busy || (!!account && !account.anonymous && !password)} onPress={executeDelete} />

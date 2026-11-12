@@ -120,6 +120,15 @@ export default function Nous() {
 
   return (
     <Screen overline="Profils et réglages" title="Nous">
+      <Card tone="feature" onPress={() => router.push('/premium')} style={{ padding: 22, gap: 12 }}>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <T variant="caption" color={t.featureAccent}>Nous Deux Plus</T>
+          <Ionicons name="sparkles-outline" size={24} color={t.featureAccent} />
+        </Row>
+        <T variant="h2" color={t.onFeature}>Encore plus de moments à deux.</T>
+        <T variant="small" color={t.onFeatureMuted}>Découvrez la bibliothèque complète de rendez-vous et ses filtres. Un abonnement pour votre couple.</T>
+        <Row><T variant="bodyBold" color={t.featureAccent} style={{ fontSize: 14 }}>Découvrir Plus</T><Ionicons name="arrow-forward" size={17} color={t.featureAccent} /></Row>
+      </Card>
       {members.map((m) => (
         <MemberCard key={m.id} member={m} editable={canEdit(m)} isMe={m.id === backend.userId} />
       ))}
@@ -127,6 +136,12 @@ export default function Nous() {
       <View style={[{ backgroundColor: t.card, borderRadius: 22, overflow: 'hidden' }, cardShadow(t.shadow)]}>
         <LinkRow
           first
+          icon="sparkles-outline"
+          title="Nos moments à deux"
+          detail="Des idées de rendez-vous à garder dans vos envies"
+          onPress={() => router.push('/rituels')}
+        />
+        <LinkRow
           icon="images-outline"
           title="Souvenirs"
           detail={memories.length ? `${memories.length} photo${memories.length > 1 ? 's' : ''}` : 'Votre album photo à deux'}

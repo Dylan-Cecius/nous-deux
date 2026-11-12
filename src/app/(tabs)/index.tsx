@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Switch, View } from 'react-native';
 
@@ -11,6 +12,7 @@ import { Button, Card, confirmDelete, Field, Ionicons, Row, Screen, SectionTitle
 import { cardShadow, useTheme } from '@/constants/theme';
 import { useCollection, useSession } from '@/lib/couple-context';
 import { daysBetween, fromKey, nextOccurrence, todayKey } from '@/lib/dates';
+import { useTodayKey } from '@/lib/use-today';
 
 export default function Home() {
   const t = useTheme();
@@ -19,7 +21,7 @@ export default function Home() {
   const events = useCollection('events');
   const [dateOpen, setDateOpen] = useState(false);
 
-  const today = todayKey();
+  const today = useTodayKey();
   const todayEvents = events.filter((e) => e.date === today).sort((a, b) => a.start.localeCompare(b.start));
   const upcoming = dates
     .map((d) => {
@@ -32,18 +34,46 @@ export default function Home() {
   return (
     <Screen hero={<HomeHero />}>
       <InvitationCard />
+      <View style={{ gap: 12 }}>
+        <T variant="caption" muted style={{ fontSize: 10 }}>Un peu de temps pour nous</T>
+        <Card tone="soft" onPress={() => router.push('/rituels')} style={{ padding: 20, gap: 12 }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: t.card, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="sparkles-outline" size={22} color={t.primary} />
+            </View>
+            <T variant="caption" color={t.primaryDark} style={{ fontSize: 9, letterSpacing: 1, flex: 1, textAlign: 'right' }}>Le rendez-vous des petits bonheurs</T>
+          </Row>
+          <T variant="h2">Et si on se retrouvait ?</T>
+          <T variant="small" muted>À la maison ou dehors, une idée pour sortir du quotidien. Même avec 0 € et 15 minutes.</T>
+          <Row style={{ gap: 7 }}><T variant="bodyBold" color={t.primaryDark} style={{ fontSize: 14 }}>Trouver notre prochain moment</T><Ionicons name="arrow-forward" size={17} color={t.primaryDark} /></Row>
+        </Card>
+      </View>
 
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        {([
+          { title: 'Notre agenda', subtitle: 'Faire de la place à deux', icon: 'calendar-outline', path: '/agenda' },
+          { title: 'Nos envies', subtitle: 'Les petits et grands rêves', icon: 'heart-outline', path: '/listes' },
+        ] as const).map((item) => (
+          <Card key={item.path} onPress={() => router.push(item.path)} style={{ flex: 1, padding: 15, gap: 8 }}>
+            <Ionicons name={item.icon} size={22} color={t.primary} />
+            <T variant="h3" style={{ fontSize: 14 }}>{item.title}</T>
+            <T variant="small" muted style={{ fontSize: 12 }}>{item.subtitle}</T>
+          </Card>
+        ))}
+      </View>
+
+      <SectionTitle title="Le lien, au quotidien" />
       <PingCard />
       <NoteCard />
       <QuestionCard />
 
       {/* Aujourd'hui */}
-      <SectionTitle title="Aujourd’hui" />
+      <SectionTitle title="Aujourd’hui" action="L’agenda" onAction={() => router.push('/agenda')} />
       <Card style={{ gap: 14 }}>
         {todayEvents.length === 0 ? (
           <Row style={{ gap: 12 }}>
             <Ionicons name="sunny-outline" size={22} color={t.primary} />
-            <T muted>Rien de prévu. Journée libre !</T>
+            <View style={{ flex: 1, gap: 4 }}><T variant="h3">De la place pour l’imprévu</T><T variant="small" muted>Votre agenda est libre aujourd’hui.</T></View>
           </Row>
         ) : (
           todayEvents.map((e) => (

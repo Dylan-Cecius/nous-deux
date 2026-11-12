@@ -1,184 +1,105 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAssistant } from '@/components/assistant-context';
 import { FramedPhoto } from '@/components/framed-photo';
 import { CounterSheet } from '@/components/home/counter-card';
-import { Ionicons, Row, T } from '@/components/ui';
-import { Fonts } from '@/constants/theme';
+import { Avatar, IconButton, Ionicons, Row, T } from '@/components/ui';
+import { Fonts, useTheme } from '@/constants/theme';
 import { useSession } from '@/lib/couple-context';
-import { daysBetween, formatLong, formatNumber, fromKey, nextMilestone, todayKey } from '@/lib/dates';
+import { daysBetween, formatLong, formatNumber, fromKey, nextMilestone } from '@/lib/dates';
+import { useTodayKey } from '@/lib/use-today';
 
-const CREAM = '#FBF6F1';
-const PINK = '#FF8FB8';
-const MUTED = 'rgba(251,246,241,0.75)';
+const CREAM = '#FFF7EE';
+const MUTED = '#E2C9D0';
 
-/** Le cœur du logo qui flotte doucement dans le bandeau. */
-function FloatingHeart() {
-  const [anim] = useState(() => new Animated.Value(0));
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(anim, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [anim]);
-  return (
-    <Animated.Image
-      source={require('@/assets/images/logo-heart.png')}
-      accessibilityElementsHidden
-      importantForAccessibility="no"
-      style={{
-        position: 'absolute',
-        right: -24,
-        top: 46,
-        width: 170,
-        height: 170,
-        opacity: 0.9,
-        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) }],
-      }}
-    />
-  );
-}
-
-/**
- * Bandeau de l'Accueil, dans la même ambiance que le logo : fond prune (ou votre photo de couple),
- * vos prénoms, le compteur de jours et la progression vers le prochain cap.
- */
+/** Une couverture personnelle, puis l'histoire du couple en une carte. */
 export function HomeHero() {
+  const t = useTheme();
   const insets = useSafeAreaInsets();
   const assistant = useAssistant();
-  const { couple, me, partner } = useSession();
+  const { couple, me, partner, backend } = useSession();
   const [open, setOpen] = useState(false);
-
-  const today = todayKey();
-  const together = couple?.since ? daysBetween(couple.since, today) : null;
+  const today = useTodayKey();
+  const together = couple?.since ? Math.max(0, daysBetween(couple.since, today)) : null;
   const milestone = together !== null ? nextMilestone(together) : null;
   const photo = couple?.photoUrl;
 
   return (
-    <View style={styles.hero}>
-      {photo ? (
-        <>
-          <FramedPhoto uri={photo} frame={couple?.photoFrame} />
-          <LinearGradient
-            colors={['rgba(26,11,20,0.55)', 'rgba(26,11,20,0.35)', 'rgba(26,11,20,0.85)']}
-            style={StyleSheet.absoluteFill}
-          />
-        </>
-      ) : (
-        <>
-          <LinearGradient colors={['#4A2238', '#2A1420', '#1F0E18']} style={StyleSheet.absoluteFill} />
-          <FloatingHeart />
-        </>
-      )}
-
-      <View style={{ paddingTop: insets.top + 14, paddingHorizontal: 22, paddingBottom: 54, gap: 14 }}>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <T variant="caption" color={MUTED}>
-            {formatLong(today)}
-          </T>
-          {assistant && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Assistant vocal"
-              onPress={() => assistant.open()}
-              style={({ pressed }) => [styles.mic, { opacity: pressed ? 0.75 : 1 }]}>
-              <LinearGradient colors={['#FFA36C', '#FF5A7A', '#E0479E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-              <Ionicons name="mic" size={20} color="#fff" />
-            </Pressable>
-          )}
+    <View style={{ paddingTop: insets.top + 18, paddingHorizontal: 22, gap: 22 }}>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <Row style={{ gap: 8 }}>
+          <Ionicons name="heart-outline" size={22} color={t.primary} />
+          <Text style={{ fontFamily: Fonts.display, fontSize: 24, color: t.text }}>nous deux<Text style={{ color: t.primary }}>.</Text></Text>
         </Row>
+        <Row>
+          {assistant && <IconButton icon="mic-outline" label="Assistant vocal" onPress={() => assistant.open()} />}
+          <IconButton icon="person-outline" label="Notre espace et nos réglages" onPress={() => router.push('/nous')} />
+        </Row>
+      </Row>
 
-        <Text style={{ fontFamily: Fonts.display, fontSize: 34, lineHeight: 40, color: CREAM, maxWidth: '78%' }}>
-          {partner ? (
-            <>
-              {me?.name} <Text style={{ fontFamily: Fonts.displayItalic, color: PINK }}>&amp;</Text> {partner.name}
-            </>
-          ) : (
-            `Coucou ${me?.name ?? ''}`
-          )}
-        </Text>
-
-        <Pressable accessibilityRole="button" accessibilityLabel="Votre histoire : date de rencontre et photo" onPress={() => setOpen(true)} style={{ gap: 10, paddingTop: 6 }}>
-          {together !== null && milestone ? (
-            <>
-              <Row style={{ alignItems: 'baseline', gap: 10 }}>
-                <Text style={{ fontFamily: Fonts.displayMedium, fontSize: 64, lineHeight: 68, color: CREAM }}>
-                  {formatNumber(together)}
-                </Text>
-                <Text style={{ fontFamily: Fonts.displayItalic, fontSize: 22, color: PINK }}>
-                  {together > 1 ? 'jours ensemble' : 'jour ensemble'}
-                </Text>
-              </Row>
-              <T variant="small" color={MUTED}>
-                Depuis le {fromKey(couple!.since!).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-              </T>
-              <View style={styles.track}>
-                <View style={{ width: `${Math.max(4, milestone.progress * 100)}%`, height: '100%', borderRadius: 4, overflow: 'hidden' }}>
-                  <LinearGradient colors={['#FFC07A', '#FF5A7A', '#E0479E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
-                </View>
-              </View>
-              <T variant="small" color={MUTED}>
-                Cap des {formatNumber(milestone.next)} jours dans {milestone.left} jour{milestone.left > 1 ? 's' : ''}
-              </T>
-            </>
-          ) : (
-            <View style={styles.cta}>
-              <Ionicons name="heart-circle-outline" size={26} color={PINK} />
-              <View style={{ flex: 1 }}>
-                <T variant="bodyBold" color={CREAM}>
-                  Depuis quand êtes-vous ensemble ?
-                </T>
-                <T variant="small" color={MUTED}>
-                  Ajoutez votre date de rencontre et une photo de vous deux.
-                </T>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={MUTED} />
-            </View>
-          )}
-        </Pressable>
+      <View style={{ gap: 7 }}>
+        <T variant="caption" muted style={{ fontSize: 10, letterSpacing: 1.7 }}>{formatLong(today)}</T>
+        <T variant="title" style={{ fontSize: 33, lineHeight: 40 }}>Les petits riens,{ '\n' }<Text style={{ fontFamily: Fonts.displayItalic, color: t.primary }}>c’est tout un nous.</Text></T>
+        <T variant="small" muted>Un peu d’organisation. Beaucoup de vous.</T>
       </View>
 
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Votre histoire : modifier la date de rencontre et la photo"
+        onPress={() => setOpen(true)}
+        style={({ pressed }) => [styles.story, { backgroundColor: t.feature, opacity: pressed ? 0.92 : 1 }]}>
+        {photo ? <FramedPhoto uri={photo} frame={couple?.photoFrame} /> : (
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            <LinearGradient colors={['#583B48', '#392530', '#2E222A']} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
+            <View style={[styles.orbit, { right: -70, top: -75 }]} />
+            <View style={[styles.orbit, { right: -15, top: -40 }]} />
+            <Ionicons name="sparkles-outline" size={36} color="#E9BAA7" style={{ position: 'absolute', right: 32, top: 55, opacity: 0.65 }} />
+          </View>
+        )}
+        {photo && <LinearGradient colors={['rgba(34,18,27,0.45)', 'rgba(34,18,27,0.82)']} style={StyleSheet.absoluteFill} />}
+        <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <View style={{ gap: 8, flex: 1 }}>
+            <T variant="caption" color={MUTED} style={{ fontSize: 10 }}>Votre histoire</T>
+            <T variant="h2" color={CREAM}>{me?.name ?? 'Toi'} <Text style={{ fontFamily: Fonts.displayItalic, color: '#F3B6A4' }}>&</Text> {partner?.name ?? 'ta moitié'}</T>
+          </View>
+          <View style={styles.edit}><Ionicons name="create-outline" size={17} color={CREAM} /></View>
+        </Row>
+        {together !== null && milestone ? (
+          <View style={{ gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', columnGap: 10 }}>
+              <Text style={{ fontFamily: Fonts.displayMedium, fontSize: 58, lineHeight: 68, color: CREAM }}>{formatNumber(together)}</Text>
+              <Text style={{ fontFamily: Fonts.displayItalic, fontSize: 20, color: '#F3B6A4' }}>jour{together > 1 ? 's' : ''} ensemble</Text>
+            </View>
+            <T variant="small" color={MUTED}>Depuis le {fromKey(couple!.since!).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</T>
+            <View style={styles.track}><View style={{ width: `${Math.max(2, milestone.progress * 100)}%`, height: 3, backgroundColor: '#F3B6A4', borderRadius: 3 }} /></View>
+            <T variant="small" color={MUTED}>Encore {milestone.left} jour{milestone.left > 1 ? 's' : ''} avant le cap des {formatNumber(milestone.next)}</T>
+          </View>
+        ) : (
+          <View style={{ gap: 7, paddingVertical: 6 }}>
+            <T variant="quote" color={CREAM}>Chaque histoire a son premier jour.</T>
+            <Row style={{ gap: 6 }}><T variant="small" color={MUTED}>Ajoutez votre date de rencontre</T><Ionicons name="arrow-forward" size={16} color={MUTED} /></Row>
+          </View>
+        )}
+        <Row style={{ borderTopWidth: 1, borderTopColor: '#FFFFFF25', paddingTop: 13, gap: 8 }}>
+          <Row style={{ gap: 0 }}>
+            <Avatar name={me?.name ?? '?'} color={me?.color ?? t.primary} size={26} ring="#392530" />
+            {partner && <View style={{ marginLeft: -5 }}><Avatar name={partner.name} color={partner.color} size={26} ring="#392530" /></View>}
+          </Row>
+          <T variant="small" color={MUTED} style={{ fontSize: 12 }}>{backend.mode === 'local' ? 'Votre cocon sur ce téléphone' : partner ? 'Votre espace partagé, juste à vous' : 'Votre espace attend ta moitié'}</T>
+        </Row>
+      </Pressable>
       {open && <CounterSheet onClose={() => setOpen(false)} />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    overflow: 'hidden',
-    borderBottomLeftRadius: 34,
-    borderBottomRightRadius: 34,
-    backgroundColor: '#2A1420',
-  },
-  mic: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  track: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    overflow: 'hidden',
-  },
-  cta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,200,170,0.22)',
-  },
+  story: { borderRadius: 26, padding: 22, gap: 18, overflow: 'hidden' },
+  orbit: { width: 230, height: 230, borderRadius: 115, borderWidth: 1, borderColor: '#F3B6A42B', position: 'absolute' },
+  edit: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#FFFFFF15', alignItems: 'center', justifyContent: 'center' },
+  track: { height: 3, borderRadius: 3, backgroundColor: '#FFFFFF25', overflow: 'hidden', marginTop: 6 },
 });

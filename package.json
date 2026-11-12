@@ -1,7 +1,7 @@
 {
   "name": "app-couple",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
     "@expo-google-fonts/fraunces": "^0.4.1",
@@ -34,6 +34,7 @@
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
+    "react-native-purchases": "^11.0.2",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
@@ -58,11 +59,14 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "jest",
-    "test:security": "npm --prefix functions run build && functions/node_modules/.bin/firebase emulators:exec --project demo-nous-deux-security --only auth,firestore,storage \"npm --prefix functions test\""
+    "test:security": "npm --prefix functions run build && functions/node_modules/.bin/firebase emulators:exec --project demo-nous-deux-security --only auth,firestore,storage \"npm --prefix functions test\"",
+    "check:store": "node scripts/check-store-readiness.cjs"
   },
   "private": true,
   "jest": {
     "preset": "jest-expo",
-    "modulePathIgnorePatterns": ["<rootDir>/functions/"]
+    "modulePathIgnorePatterns": [
+      "<rootDir>/functions/"
+    ]
   }
 }

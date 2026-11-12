@@ -5,7 +5,9 @@ import { defineSecret } from 'firebase-functions/params';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { z } from 'zod';
 import { activeUid, consumeQuota, memberCouple, requireAiConsent } from './security';
+import { ScheduleResult, scheduleToAssistant } from './assistant-schedule';
 export { createCouple, createInvitation, joinCouple, submitDailyAnswer, setAiConsent, registerPushToken, notifyPartner, deleteAccount, retryAccountDeletions } from './security';
+export { getSubscription } from './billing';
 
 initializeApp();
 
@@ -61,7 +63,7 @@ Règles :
 - Résous les dates relatives (« demain », « jeudi prochain », « le 12 ») à partir de la date du jour donnée. Une date sans année est la prochaine occurrence.
 - Les heures sont au format HH:MM sur 24 h.
 - Si la demande est floue ou ne correspond à rien, renvoie actions = [] et explique gentiment dans reply.
-- Pour une photo de planning : crée un événement par créneau de travail visible, avec le titre indiqué (ou « Travail »), pour la personne qui parle sauf mention contraire.
+- Pour une photo de planning : crée uniquement des actions event, une par créneau de travail lisible, avec le titre indiqué (ou « Travail »), pour la personne qui parle. Ignore les plannings des collègues. Utilise la semaine de référence fournie si seuls des jours de semaine sont visibles. Si des dates explicites sont visibles, respecte-les. N'invente jamais une date, une heure ou un créneau illisible : explique les éléments manquants dans reply. Ne répète pas les créneaux (repeatWeeks = null). Ne crée pas d'action pour les congés ou jours de repos. Pour une nuit qui traverse minuit, ne crée pas de créneau inversé : demande une saisie manuelle sur deux jours dans reply.
 - reply est toujours une phrase courte, chaleureuse, en français.`;
 
 export const assistant = onCall(
@@ -70,7 +72,7 @@ export const assistant = onCall(
     const uid = await activeUid(request);
     const { coupleId } = await memberCouple(uid, request.data?.coupleId);
     await requireAiConsent(uid);
-    const { text, imageBase64, mediaType } = request.data ?? {};
+    const { text, imageBase64, mediaType, weekStart } = request.data ?? {};
     const today = new Date().toLocaleDateString('fr-FR', {
       weekday: 'long',
       day: 'numeric',
@@ -89,9 +91,11 @@ export const assistant = onCall(
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(mediaType)) {
         throw new HttpsError('invalid-argument', 'Format d’image non pris en charge.');
       }
+      const week = z.iso.date().safeParse(weekStart);
+      if (!week.success) throw new HttpsError('invalid-argument', 'Choisis la semaine du planning avant de l’importer.');
       content = [
         { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg', data: imageBase64 } },
-        { type: 'text', text: `${context}\nVoici une photo de mon planning : ajoute mes horaires dans l'agenda.` },
+        { type: 'text', text: `${context}\nSemaine de référence choisie par la personne : à partir du ${week.data}. Voici une photo de mon planning. Lis uniquement mes horaires de travail pour cette semaine, sans enregistrer quoi que ce soit.` },
       ];
     } else if (typeof text === 'string' && text.trim()) {
       if (text.length > 2000) throw new HttpsError('invalid-argument', 'Ta demande doit contenir au maximum 2 000 caractères.');
@@ -108,19 +112,36 @@ export const assistant = onCall(
 
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
     try {
+      const imageRequest = typeof imageBase64 === 'string';
+      const outputFormat = imageRequest ? betaZodOutputFormat(ScheduleResult) : betaZodOutputFormat(Result);
       const response = await client.beta.messages.parse({
         model: 'claude-opus-5-5',
-        max_tokens: 4000,
+        max_tokens: imageRequest ? 8000 : 4000,
         betas: ['server-side-fallback-2026-07-01'],
         fallbacks: 'default',
-        output_config: { effort: 'low', format: betaZodOutputFormat(Result) },
-        system: SYSTEM,
+        output_config: { effort: 'low', format: outputFormat },
+        system: imageRequest ? `${SYSTEM}\nPour cet import, renvoie shifts (titre, date, début et fin) dans le format demandé au lieu des actions génériques.` : SYSTEM,
         messages: [{ role: 'user', content }],
       });
       if (response.stop_reason === 'refusal' || !response.parsed_output) {
         return { actions: [], reply: 'Je n’ai pas pu traiter cette demande, tu peux reformuler ?' };
       }
-      return response.parsed_output;
+      const output = response.parsed_output;
+      const parsed: z.infer<typeof Result> = 'shifts' in output ? scheduleToAssistant(output) : output;
+      // Schema-valid JSON can still contain a null date or an inverted shift.
+      // Do not let one bad OCR row make the entire Firestore batch fail.
+      const actions = parsed.actions.filter((a) => {
+        if (imageRequest && a.type !== 'event') return false;
+        if (a.type !== 'event') return true;
+        return !!a.date && !!a.start && !!a.end && a.start < a.end;
+      });
+      const omitted = actions.length !== parsed.actions.length;
+      return {
+        actions,
+        reply: omitted
+          ? `${parsed.reply} Certains créneaux incomplets ou de nuit n’ont pas été retenus : vérifie le planning et ajoute-les manuellement.`.slice(0, 1000)
+          : parsed.reply,
+      };
     } catch (error) {
       if (error instanceof Anthropic.RateLimitError) {
         throw new HttpsError('resource-exhausted', 'Trop de demandes, réessaie dans un instant.');

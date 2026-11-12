@@ -24,7 +24,7 @@ export type AssistantAction = {
 
 export type AssistantResult = { actions: AssistantAction[]; reply: string };
 
-export type AssistantInput = { text: string } | { imageBase64: string; mediaType: string };
+export type AssistantInput = { text: string } | { imageBase64: string; mediaType: string; weekStart: string };
 
 export function askAssistant(backend: Backend, input: AssistantInput) {
   return backend.call<AssistantResult>('assistant', input);

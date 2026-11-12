@@ -4,13 +4,13 @@ import { useColorScheme } from 'react-native';
 
 const base = {
   light: {
-    background: '#FBF6F1',
+    background: '#FAF7F2',
     card: '#FFFFFF',
-    cardAlt: '#F1E7E2',
-    border: '#EFE3DD',
-    line: '#F3EAE5',
-    text: '#2A1A22',
-    textSecondary: '#7D6870',
+    cardAlt: '#F0EAE2',
+    border: '#E9E0D6',
+    line: '#F0E9E0',
+    text: '#30252A',
+    textSecondary: '#786B70',
     onPrimary: '#FFFFFF',
     onFeature: '#FBF6F1',
     success: '#1F6B3A',
@@ -49,7 +49,7 @@ type Accent = {
 export const AccentThemes: Record<string, { name: string; light: Accent; dark: Accent }> = {
   framboise: {
     name: 'Framboise',
-    light: { primary: '#C8385A', primaryDark: '#9E2443', primarySoft: '#F7E3E7', feature: '#3B1F2D', onFeatureMuted: '#E2C9D0', featureAccent: '#FF8FA8' },
+    light: { primary: '#A63D57', primaryDark: '#873047', primarySoft: '#F5E6E8', feature: '#392530', onFeatureMuted: '#DFC9D1', featureAccent: '#F3B6A4' },
     dark: { primary: '#F06C8B', primaryDark: '#FF97AE', primarySoft: '#3A1E28', feature: '#4A2537', onFeatureMuted: '#E2C9D0', featureAccent: '#FF8FA8' },
   },
   nuit: {
@@ -84,12 +84,12 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     AsyncStorage.getItem('prefs:accent').then((v) => {
       if (v && v in AccentThemes) setAccentState(v);
-    });
+    }).catch(() => { /* La préférence par défaut reste utilisable. */ });
   }, []);
 
   const setAccent = (a: AccentId) => {
     setAccentState(a);
-    AsyncStorage.setItem('prefs:accent', a);
+    void AsyncStorage.setItem('prefs:accent', a).catch(() => {});
   };
 
   return createElement(PrefsContext.Provider, { value: { accent, setAccent } }, children);
@@ -133,8 +133,8 @@ export const Radius = 22;
 /** Ombre douce des cartes. */
 export const cardShadow = (color: string) => ({
   shadowColor: color,
-  shadowOpacity: 0.07,
-  shadowRadius: 16,
-  shadowOffset: { width: 0, height: 6 },
-  elevation: 2,
+  shadowOpacity: 0.035,
+  shadowRadius: 18,
+  shadowOffset: { width: 0, height: 5 },
+  elevation: 1,
 });

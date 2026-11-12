@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, View } from 'react-native';
 
 import { celebrate } from '@/components/celebrate';
@@ -10,6 +10,7 @@ import { useCollection, useSession } from '@/lib/couple-context';
 import { formatRelative, quote } from '@/lib/dates';
 import { bump, success } from '@/lib/haptics';
 import { useAsyncAction } from '@/lib/use-async-action';
+import { useReducedMotion } from '@/lib/use-reduced-motion';
 
 /** Bouton « Je pense à toi » : un appui envoie un cœur et une notification à ta moitié. */
 export function PingCard() {
@@ -19,9 +20,24 @@ export function PingCard() {
   const notes = useCollection('notes');
   const beat = useState(() => new Animated.Value(1))[0];
   const [sent, setSent] = useState(false);
+  const reducedMotion = useReducedMotion();
+  const sentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      if (sentTimer.current) clearTimeout(sentTimer.current);
+    };
+  }, []);
 
   // Le cœur bat doucement en continu.
   useEffect(() => {
+    if (reducedMotion) {
+      beat.setValue(1);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(beat, { toValue: 1.18, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true }),
@@ -31,8 +47,11 @@ export function PingCard() {
       ]),
     );
     loop.start();
-    return () => loop.stop();
-  }, [beat]);
+    return () => {
+      loop.stop();
+      beat.setValue(1);
+    };
+  }, [beat, reducedMotion]);
 
   const lastReceived = notes
     .filter((n) => n.kind === 'ping' && n.from !== backend.userId)
@@ -40,10 +59,12 @@ export function PingCard() {
 
   const { run: ping, pending } = useAsyncAction(async () => {
     await sendLoveNote(session, '💗', 'ping');
+    if (!mounted.current) return;
     success();
-    celebrate('hearts');
+    if (!reducedMotion) celebrate('hearts');
     setSent(true);
-    setTimeout(() => setSent(false), 2500);
+    if (sentTimer.current) clearTimeout(sentTimer.current);
+    sentTimer.current = setTimeout(() => setSent(false), 2500);
   });
   const waitingForPartner = backend.mode === 'cloud' && !partner;
 
@@ -87,6 +108,7 @@ export function PingCard() {
 /** Dernier mot doux reçu, champ pour en écrire un, historique. */
 export function NoteCard() {
   const t = useTheme();
+  const reducedMotion = useReducedMotion();
   const session = useSession();
   const { backend, partner, nameOf, colorOf } = session;
   const notes = useCollection('notes');
@@ -105,7 +127,7 @@ export function NoteCard() {
       await sendLoveNote(session, text);
       setNote('');
       bump();
-      celebrate('hearts');
+      if (!reducedMotion) celebrate('hearts');
     } catch {
       showDialog('Mot doux non envoyé', 'Ton texte est conservé. Vérifie ta connexion et réessaie.');
     } finally { setBusy(false); }

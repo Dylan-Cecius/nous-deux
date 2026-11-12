@@ -53,3 +53,6 @@ functions/lib/
 functions/.security-deploy/
 *-debug.log*
 .firebase/
+
+# Captures locales de vérification (les visuels App Store sont préparés séparément)
+/artifacts/
